@@ -1,0 +1,57 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.test.equality
+    (:refer pile.test pile.test.util))
+           
+(import (java.util HashMap ArrayList HashSet))
+
+(defn jmap [k v]
+    (let [m (new HashMap)]
+        (do 
+            (.put m k v)
+            m)))
+
+(def java-map (new HashMap))
+(.put java-map :a :b)
+
+(def pile-map {:a :b})
+
+(test= ["Equals" "Map"] 
+    pile-map java-map)
+(test= ["Equals" "Map" "Reverse"] 
+    java-map pile-map)
+
+(test= ["Equals" "MapKey"] 
+    (hash-map java-map 12)
+    (hash-map pile-map 12))
+    
+(test= ["Equals" "PileBase" "MapKey" "Get" "LhsJava" "RhsJava"]
+    12 (get (hash-map java-map 12) java-map))
+(test= ["Equals" "PileBase" "MapKey" "Get" "LhsJava" "RhsPile"]
+    12 (get (hash-map java-map 12) pile-map))
+(test= ["Equals" "PileBase" "MapKey" "Get" "LhsPile" "RhsJava"]
+    12 (get (hash-map pile-map 12) java-map))
+(test= ["Equals" "PileBase" "MapKey" "Get" "LhsPile" "RhsPile"]
+    12 (get (hash-map pile-map 12) pile-map))    
+    
+(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsJava" "RhsJava"]
+    12 (get (jmap java-map 12) java-map))
+(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsJava" "RhsPile"]
+    12 (get (jmap java-map 12) pile-map))
+(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsPile" "RhsJava"]
+    12 (get (jmap pile-map 12) java-map))
+(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsPile" "RhsPile"]
+    12 (get (jmap pile-map 12) pile-map))   
+

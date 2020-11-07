@@ -1,7 +1,10 @@
 .classpath
 .project
+.idea
 .settings
+.#*
 *~
 *.log
-*.org
+internal-docs/
 target/
+\#*

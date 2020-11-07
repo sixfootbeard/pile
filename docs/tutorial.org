@@ -1,0 +1,451 @@
+#+OPTIONS: toc:nil
+
+Pile is a programming language in the LISP family that runs on the JVM. It duplicates much of the syntax and concepts (but not code) of Clojure and thus will feel familiar to users of that language. 
+
+#+Toc: headlines 2
+
+* Getting Started
+
+You will need the following software installed:
+
+- Java 20
+- Git
+- Maven
+
+After git cloning the project you can run the repl by executing the file named 'repl' in the root directory. This will build the project and then run the REPL main. Once in the REPL you can enter Pile code to be evaluated:
+
+#+begin_src clojure :eval no
+(prn "Hello, World!")
+#+end_src
+
+If everything worked this should print out the hello world string.
+
+Some functions produce values which are captured by the REPL and can be referenced later:
+
+#+begin_src clojure :eval no
+pile.repl> (+ 1 2)
+*0: 3
+pile.repl> (+ *0 5)
+*1: 8
+#+end_src
+
+The first expression produced the number 3 which was assigned to the symbol '*0'. This symbol can be referenced in later expressions.
+
+Some REPL tips:
+- You can use the REPL function 'help' on a function to show arguments, comments, and examples for that function
+
+#+begin_src clojure :eval no
+(help prn)
+#+end_src
+
+- Exiting the REPL is accomplished by pressing CTRL+C at an empty prompt.
+
+* Syntax
+
+This section can be read just as reference if some piece of syntax in the subsequent sections isn't clear.
+
+** TODO Datatypes
+
+*** S-expression
+
+*** Symbol
+
+*** Number
+
+*** Char
+
+*** Boolean
+
+*** Keyword
+
+A keyword starts with a ':' followed by an (optional) namespace and name. If a namespace exists it will be separated by a '/'. The following are examples of keywords:
+
+- :a
+- :foobar
+- :scope/field
+
+The last example contains both a namespace 'scope' with a name 'field'. 
+
+Keywords also serve as functions looking up their own mapped value in associative types:
+
+#+begin_src clojure :eval no
+pile.repl> (:a {:a :b, :c :d})
+;; :b
+#+end_src
+
+*** Null
+
+*** String
+
+*** Vector
+
+*** Map
+
+*** Set
+
+** TODO Syntactic Sugar
+** TODO Literals
+
+The language contains several literals:
+
+*** TODO Number
+
+Numbers begin with a numeric character 0-9 or a '-'. Non-decimal types are always parsed as integers, and decimal types are always parsed as doubles.
+
+Numbers may end with a suffix character which will govern the resulting type of the literal:
+
+| Suffix | Type       |
+|--------+------------|
+| N      | BigInteger |
+| b      | BigDecimal |
+| L      | Long       |
+| f      | Float      |
+| d      | Double     |
+
+*** List
+
+*** Vector
+
+A vector is a persistent list of values. Vectors also have literal syntax using square brackets
+
+#+begin_src clojure :eval no
+[1 2 3]
+#+end_src
+
+Above is a vector of 3 numbers. 
+
+Vector literals of [[*Symbol][symbols]] are often used as argument lists to functions and binding lists for 'let'.
+
+*** Map
+
+*** String
+
+Strings are enclosed in double quotes or triple double quotes:
+
+#+begin_src clojure :eval no
+"A string"
+#+end_src
+
+#+begin_src clojure :eval no
+"""
+A longer string
+"""
+#+end_src
+
+Triple quoted strings start with three double quotes followed by a newline. Additionally, any leading whitespace in the body of the string on any line is stripped.
+
+Strings support the following escape sequences starting with a backslash '\'"
+
+| \t | Tab             |
+| \n | New line        |
+| \r | Carriage return |
+| \b | Backspace       |
+| \" | Double Quote    |
+| \' | Single Quote    |
+
+Strings also support unicode escape sequences of the form '\uNNNN' where NNNN is a hex representation of a unicode code point. 
+** TODO Expressions
+
+An expression is a piece of syntax that logically returns a value.
+
+#+begin_src clojure :eval no
+;; Returns a boolean value true
+(< 1 2)
+#+end_src
+
+#+begin_src clojure :eval no
+;; Returns a number 3
+(+ 1 2)
+#+end_src
+
+#+begin_src clojure :eval no
+;; Returns a string
+(str "Life is better " "together")
+#+end_src
+
+* Namespaces
+
+Namespaces are containers of values and functions. The repl displays the namespace before each prompt. To change the namespace you can simply call the _ns_ function with a new namespace:
+
+#+begin_src clojure :eval no
+pile.repl> (ns a.b.c)
+a.b.c>
+#+end_src
+
+Within a namespace we can define a value we can use the 'def' intrinsic.
+
+#+begin_src clojure :eval no
+(def one 1)
+*2: #'pile.repl/one
+#+end_src
+
+We can then *reference* that value by name in later expressions in that same namespace.
+
+#+begin_src clojure :eval no
+pile.repl> (+ one 2)
+*3: 3
+#+end_src
+
+* Functions
+
+Functions are created with the 'fn' intrinsic and take the form:
+
+#+begin_src clojure :eval no
+(fn [arg-0 arg-1 ... arg-N] body)
+#+end_src
+
+We can use 'fn' with 'def' to create a function and then assign a name to it:
+
+#+begin_src clojure :eval no
+pile.repl> (def plus (fn [left right] (+ left right)))
+#+end_src
+
+We've now created a named function in our current namespace that we can call:
+
+#+begin_src clojure :eval no
+pile.repl> (plus 40 4)
+;; 44
+#+end_src
+
+* Control Flow
+
+Pile contains an 'if' [[*Expressions][expression]] which tests a conditional and yield a result from one of the branches. It takes the form:
+
+#+begin_src clojure :eval no
+(if test-expr then-clause else-clause)
+#+end_src
+
+The test-expr is simply an expression that returns a value that is either truthy or falsy. Only nil and boolean false are considered falsy. All other values are considered truthy.
+
+#+begin_src clojure :eval no
+pile.repl> (if (< 3 4) "less than!" "greater than!")
+;; "less than!"
+#+end_src
+
+The else branch is optional and will cause the expression to return nil if taken:
+
+#+begin_src clojure :eval no
+pile.repl> (if (> 3 4) "less than!")
+;; nil
+#+end_src
+
+* Local Variables
+
+You can define local variables within functions and at the namespace level using the 'let' [[*Expressions][expression]]. These local variables will be usable only within the body of the let expression. 
+
+#+begin_src clojure :eval no
+(let bindings body)
+#+end_src
+
+'bindings' is an even length [[*Vector][vector]] of alternating variables and expressions to assign to those variables.
+
+#+begin_src clojure :eval no
+pile.repl> (def categorize (fn [a b] 
+      (let [lower (min a b)
+            higher (max a b)]
+         (prn "the lower number is " lower ", while the higher number is " higher))))
+*8: #'pile.repl/categorize
+pile.repl> (categorize 55 44)
+the lower number is 44, while the higher number is 55
+#+end_src
+
+In this example we've created two local variables 'lower' and 'higher' which are subsequently used in the resulting expression printing the lower and higher value.
+
+* Loops
+
+A loop contains a set of bindings and a body. Within the body a call to _recur_ can be made which will rebind all of the values in _bindings_ and jump back to the top of the loop.
+
+#+begin_src clojure :eval no
+;; Form
+(loop [bindings] body)
+#+end_src
+
+#+begin_src clojure :eval no
+(defn sum-values [n]
+   (loop [index 0
+          sum 0] 
+      (if (< index n)
+          (recur (+ index 1) (+ sum index))
+          sum)))
+#+end_src
+
+The above code creates two locals 'index' and 'sum' both set to zero. It then executes the body of the loop which is an 'if' expression. This tests that the index against a maximum value and then calls recur which rebinds 'index' to the expression (+ index 1) and 'sum' to the expression (+ sum index). When the 'if' test fails it simply returns the accumulate sum value.
+
+Some things to note:
+- Looping is performed manually with recur, and if no recur exists on a particular branch the loop will exit.
+- A loop can have multiple locals which are updated each iteration.
+- The recur syntax updates each local with the provided expressions in the order the locals were defined.
+
+* Sequences
+
+Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
+
+You can create sequences by calling the (seq) function. Sequences can be created from collections, streams or a combination of operations.
+
+Sequence functions: 
+- (first _sequence_) Returns the first element of the sequence, or nil if empty.
+- (next _sequence_) Returns the elements after the first element as a new sequence or nil if that sequence would be empty.
+- (nth _sequence_ _index_) Returns the nth element in the sequence or nil if the index is greater than the number of elements left.
+
+Many operations take a sequence as one of their arguments and return a new sequence:
+- (map _function_ _sequence_)
+  Computes a function on each element.
+- (mapcat _function_ _sequence_)
+  Computes a function on each element expecting a sequence result, which is flattened.
+- (reduce _function_ _initvalue_ _sequence_)
+  Reduces the sequence starting with the initial value.
+- (take _n_ _sequence_)
+  Creates a new sequence with at most _n_ elements
+- (take-while _function_ _sequence_)
+  Creates a new sequences while the function predicate returns true
+- (drop _n_ _sequence_)
+  Drops the first _n_ elements in the sequence, returning a sequence of the remaining elements, if any.
+- (drop-while _function_ _sequence_)
+  Drops the elements until the predicate returns false, returning a sequence of the remaining elements, if any.
+- (interpose _delim_ _sequence_)
+  Creates a new sequence which inserts the delim character between each element in the sequence
+- (enumerate _sequence_)
+  Creates pairs of values with an increasing index.
+
+
+Sequences can be destructured by specifying a vector of bindings where you would normally use an argument or local variable:
+
+#+begin_src clojure :eval no
+(defn desc [prefix [first-arg second-arg]] (prn prefix " first=" first-arg ", second=" second-arg))
+(desc "before" ["the-first-arg" 12])
+;; before, first=the-first-arg, second=12
+
+(defn desc-two [prefix args] (let [[first-arg second-arg] args] (prn prefix " first=" first-arg ", second=" second-arg)))
+(desc-two "before" ["the-first-arg" 12])
+;; before, first=the-first-arg, second=12
+#+end_src
+
+* TODO Collections
+
+Pile contains implementations of persistent collections along with literal syntax to construct each collection.
+
+** List
+
+A persistent linked list with a size. List literals use parenthesis (), however since this form is the basis for function calls you often will need to quote a list: '()
+
+(def alist (list 1 2 3))
+(= 1 (first alist))
+(def blist '(1 2 3))
+(= alist blist)
+;; true
+
+** Vector
+
+Implemented with an tree of arrays. Vector literals use square brackets []
+
+(def avec [0 1 2 3])
+(= 2 (get avec 2))
+
+** Map
+
+Implemented with a HAMT with bitfield compression. Map literals use curly brackets {}
+
+#+begin_src clojure :eval no
+(def amap {:a :b})
+(= :b (:a amap))
+#+end_src
+
+** Set
+
+Implementing using the map types internally. Set literals use #{}.
+
+** TODO SortedMap
+
+** TODO SortedSet
+
+** TODO Queue
+
+
+
+* TODO Exception Handling
+
+** TODO try/catch
+
+** TODO Conditions
+
+* TODO Java Interop
+
+** TODO Java Functions 
+
+Using the :: sugar
+
+** TODO Type Creation
+
+** TODO Dot Operator
+
+Pile also supports the dot operator '.' with the same syntax as Clojure.
+
+* TODO Macros
+* TODO Do Forms
+  
+* TODO Advanced Topics
+
+** Namespace Loading
+
+The first time a namespace is loaded the runtime will inspect the classpath to find a corresponding source file, if any. For example, loading the namespace 'a.b.c' will cause the runtime to load the classpath file 'a/b/c.pile'. This file is loaded *atomically* by the first thread to attempt to load that namespace. All threads arriving before the loading is complete will wait, and thus will always see a fully constructed namespace if it has been loaded via this mechanism.
+
+All namespaces always automatically refer to all public symbols in the standard library "pile.core".
+
+You may call the (require) function to load other namespaces, create short names, and refer to functions directly:
+
+#+begin_src clojure :eval no
+;; Call fully qualified function
+(pile.core.string/join ...)
+;; Create short name for namespace
+(refer '[pile.core.string :as s])
+(s/join ...)
+;; Directly refer to specific functions in require
+(refer '[pile.core.string :refer [join])
+(join ...)
+;; Directly refer to a function but rename our reference to it
+(refer '[pile.core.string :refer [join] :rename {join string-join}])
+(string-join ...)
+#+end_src
+
+** Function Features
+*** Closures
+
+When creating a function it is possible to reference values in the enclosing scope outside of the function. This creates a closure.
+
+#+begin_src clojure :eval no
+pile.repl> (defn plus [a] (fn [b] (+ a b)))
+*0: #'pile.repl/plus
+pile.repl> (def plus-two (plus 2))
+*1: #'pile.repl/plus-two
+pile.repl> (plus-two 10)
+*2: 12
+#+end_src
+
+*** Varargs
+
+Functions support vararg definitions by adding an ampersand before the final argument.
+
+#+begin_src clojure :eval no
+pile.repl> (defn print-args [a & remaining] (prn "First arg, a=" a) (prn "Remaining args=" remaining))
+*6: #'pile.repl/print-args
+pile.repl> (print-args "first" "second" "third" "last")
+First arg, a=first
+Remaining args=(second third last)
+;; 44
+#+end_src
+
+*** Calling with apply
+
+It is sometimes useful to call functions using without having to manually unpack the data structures
+into method arguments. This is accomplished with the 'apply' function which accepts a function and
+any number of arguments with the final argument being something sequence-able. 
+
+#+begin_src clojure :eval no
+;; All produce 44
+(apply + [40 4])
+(apply + 40 [4])
+(apply + 40 4 [])
+
+#+end_src
+
+** More Sequences

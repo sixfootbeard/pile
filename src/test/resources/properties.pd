@@ -1,0 +1,8 @@
+{
+    ;; pile.core.log.LogLevel as string
+    :log-level "INFO"
+    
+    ;; Easier to debug issues w/o the pile stdlib sometimes
+    ;; either :native-only, :all (default) 
+    :std-lib :all
+}

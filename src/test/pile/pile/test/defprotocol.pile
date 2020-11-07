@@ -1,0 +1,115 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.test.defprotocol
+    (:refer pile.test pile.test.util))
+
+(import (pile.util MarkerOne MarkerTwo))
+
+;; Calling
+;; Calling base base
+;; Calling Varargs
+;; deftype interaction
+
+(defprotocol Dateable
+  (to-date [this]))
+
+(is (empty? (extenders Dateable)))
+(is (not (satisfies? Dateable Integer)))
+				   
+(extend java.lang.Number
+  Dateable
+  (to-date [this] (new Date (. this longValue))))	
+
+(is (= [Number] (extenders Dateable)))
+(is (satisfies? Dateable 12))
+
+(is (= (new Date 12L) (to-date 12L)))
+
+(deftype StringDate [s]
+  Dateable
+  (to-date [this] (to-date (Integer/valueOf s))))
+
+(let [sd (new StringDate "12")]
+  (is (satisfies? Dateable sd))
+  (is (= (new Date 12L) (to-date sd))))
+
+;; varargs
+(defprotocol StrAll
+   (make-str [this & xs]))
+   
+(extend String
+   StrAll
+   (make-str [this & xs] (apply str this xs)))
+   
+(is (= "abcd" (make-str "a" "b" "c" "d")))
+
+(extend-protocol StrAll
+   Integer                 
+   (make-str [this & xs] (apply str (+ this 12) xs)))
+
+(is (= "22bcd" (make-str 10 "b" "c" "d")))
+
+;; defaults
+(defprotocol Extra
+  (make [this arg])
+  (make-extra [this arg] (str (make this arg) "-extra")))
+
+(deftype ExtraInstance []
+    Extra
+    (make [this arg] (str "make-" arg)))
+
+(is (= "make-something" (make (new ExtraInstance) "something")))
+(is (= "make-something-extra" (make-extra (new ExtraInstance) "something")))
+
+;; defaults + extends
+(extend Integer
+  Extra
+  (make [this arg] (str "integer!-" this)))
+
+(is (= "integer!-12" (make 12 "something")))
+(is (= "integer!-12-extra" (make-extra 12 "something")))
+
+;; prefs
+(defprotocol TestPref (pick [this]))
+
+(extend-protocol TestPref
+        MarkerOne
+        (pick [this] "one")
+        MarkerTwo
+        (pick [this] "two"))
+
+(deftype Both []
+         MarkerOne
+         MarkerTwo)
+
+(is (= "one" (pick (new Both))))
+
+(prefer-protocol TestPref MarkerTwo MarkerOne)
+
+(is (= "two" (pick (new Both))))
+
+;; Narrow
+
+(defprotocol ChooseNarrow
+             (pick-str [this]))
+
+(extend-protocol ChooseNarrow
+        java.lang.CharSequence
+        (pick-str [this] "cs")
+        String
+        (pick-str [this] "string"))
+
+(is (= "string" (pick-str "astr")))
+(is (= "cs" (pick-str (java.nio.CharBuffer/allocate 8))))

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+mvn -DskipTests clean package
+
+DEPS=$(mktemp)
+mvn dependency:build-classpath -Dmdep.outputFile=$DEPS
+PILE_CP=$(ls target/pile-lang-*.jar):$(cat $DEPS)
+
+# Generate CDS from jar (containing AOT classes + normal classes)
+java -Djava.library.path=target/lib --enable-preview -cp $PILE_CP pile.repl.ReplMain
+
+# mvn -Prepl compile exec:exec

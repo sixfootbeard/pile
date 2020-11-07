@@ -1,0 +1,352 @@
+* Namespace
+
+A namespace maps from names to Bindings (Map<String, Binding>). 
+
+The runtime has a mapping from namespace names to namespaces themselves (Map<String, Namespace>).
+
+Namespaces keep track of which symbols have been defined and which have been merely imported.
+
+** Relationships
+
+- Refer
+A namespace X may refer to to namespace Y which causes all public, defined (but not imported) symbols from namespace Y to be be bound in X. This is a one time process, and subsequent symbols defined in Y will not necessarily be visible in X. 
+
+- Import
+A namespace may define a class symbol associated with a java class by importing it
+
+* Binding
+
+A Binding can be thought of a value and metadata associated with that value. 
+
+A Binding can be :final in which case it cannot be defined again.
+
+A Binding may be :private in which case it is not visible outside of the namespace. 
+
+A binding has a type:
+- VALUE
+A single value. 
+- DYNAMIC
+ThreadLocal and ScopedVariable* (w/ Loom)
+- INTRINSIC
+Special forms are bindings w/ an intrinsic type.
+- UNBOUND
+Set while defining things for circular ref.
+
+* Creating Java Types
+
+- Named?
+Whether the user can name the type
+- Closure?
+Whether the defined type is a closure
+- Super/Interface
+Whether the type can implement supertypes (extends), interfaces (implements) or both.
+- Type Definition
+When the implemented types have to be known.
+- AOT
+Whether the type can be AOT compiled
+
+| Intrinsic | Named? | Closure? | Super/Interface | Type Definition | AOT |
+|-----------+--------+----------+-----------------+-----------------+-----|
+| deftype   | Yes    | No       | Super+Interface | Static          | ?   |
+| anon-cls  | No     | Yes      | Super+Interface | Static          | ?   |
+| proxy     | No     | Yes      | Interface       | Runtime         | ?   |
+
+* Interop
+
+** Problems
+
+*** Runtime vs Static types
+
+- Runtime types
+  What the type actually is. Known only at runtime.
+
+- Static types
+  Type annotations on symbols:
+  (defn call-cs [^CharSequence a] az)
+  Implicit based on local types:
+  (let [a-map {:a :b}] ...)
+  ;; a-map is-a PersistentMap
+
+  Allow subtyping, eg. (call-cs "foo") ;; string being a subtype of charsequence
+
+Class A { ... }
+Class B < A { .. }
+Class X { 
+  call(A a);
+  call(B b);
+}
+
+(defn call-fn [^X x arg] (. x call arg))
+(call-fn x-inst (new B)) ;; Dynamically invokes call(B)
+
+But! Maybe the user wants to tell us that they always want to call A:
+
+(defn call-fn [^X x ^A arg] (. x call arg))
+(call-fn x-inst (new B)) ;; calls call(A)
+
+This works currently because cast will use the static type A, which will find the call(A) method first.
+
+:OLD:
+We almost have 3 different type categories:
+- Runtime types
+- Static types
+- Exact (casted) types
+  Class A {
+    void str-fn(CharSequence a);
+	void str-fn(String s);
+  }
+  (defn foo [^String s] (str-fn (cast CharSequence s)))
+
+  Should this override any static and runtime types?
+
+Q: Maybe we have static types act as casted types to collapse the category, so that above:
+(call-fn x-inst (new B)) ;; still calls call(A) because that's what the static type implied.
+
+If we do this thought then implicit static types (from locals, return values, protocols, etc) would silently bind callsites to particular methods. 
+
+? Collapsing static/casted might be confusing since refactoring might cause different methods to be called
+
+;; only ever calls (call-number ^long)
+(let [a-long 12] (call-number a-long))
+ 
+;; no type information, calls (call-number ^Object)
+(defn to-call [a-long] (call-number a-long)) 
+
+! Cannot simply extend typing annotations because not all types have Metadata, eg. : (^CharSequence "string") is invalid.
+
+? Without casted types how would we get xs
+(let [s "string"] (a-fn s))
+to call a signature CharSequence instead of String?
+Do we care?
+
+
+? How to handle partially hinted types?
+
+Class A
+Class B < A
+Class C 
+Class D < C
+
+TODO Finish thought
+:END:
+
+* Function calls
+
+All functions in pile implement PileMethod.
+
+There are two distinct callsite compilation situations:
+- Namespace Resovled Symbol
+  (str "a" "b") ;; resolved to pile.core/str
+- Opaque 
+  (fn [f] (f a b)) ;; indirect function
+
+** Namespace Resolved Symbol
+
+NRS additionally can be 
+ - final/non-final
+   Whether the symbol can be rebound with intrinsic (def ...)
+
+ - value/dynamic
+   Whether the symbol resolves to a stable value or a dynamic value.
+  
+ Somewhat confusingly a symbol can be both final and dynamic:
+
+ (def ^:final ^:dynamic dval 12)
+ (def dval 13) ;; fails, value cannot be rebound
+ (reset! #'dval 13) ;; succeeds
+
+ NRS are compiled to invokedynamic bootstraps in PileMethodLinker. 
+
+*** PileMethodLinker
+
+ 1. Lookup current value for NRS
+ 2. Handle bind type: 
+ - (Dynamic) Create methodhandle which dynamically resolves the value of the namespace binding.
+ - (Value) Attempt to statically link (PileMethod#staticLink) to the function (can fail).
+ 3. If the binding is final then return a CCS. Otherwise, non-final or not statically linkable methods return an ImportRelinkingCallsite.
+
+*** ImportRelinkingCallsite
+
+ This class is-a AbstractRelinkingCallsite which extends MutableCallsite. This class may start pointing to a handle or be unlinked. 
+
+ Link Method
+ 1. Lookup current value for NRS
+ 2. Dynamically link to the method (PileMethod#dynamicLink), producing a CallSite/MethodHandle
+ 3. (If non-final) Guard 2 with a SwitchPoint.
+
+** Opaque Functions
+
+Opaque functions are compiled as invokedynamic calls to OpaqueFunctionLinker.
+
+Linkage:
+- (If static receiver) Create MethodHandle if receiver is a supported callable. Compile to a CCS.
+- Otherwise, emit an AbstractRelinkingCallSite which looks up the MethodHandle on first call. Guarded by a receiver type guard. 
+
+* Standard Library
+
+The standard library is composed of 3 different kinds of methods sources which all end up as visible symbols in the core namespaces to the user's program.
+
+1. Java Natives
+2. Precomiled methods
+3. Pile Source code
+
+** TODO Java Natives
+
+There are several classes (NativeCore, NativeMath) which contain static methods that are transparently available in the core namespace as methods. For example NativeCore#first becomes the callable method pile.core/first.
+
+Modifications
+- @RenamedMethod - Some methods may want to use characters in their method names unavailable in java
+- @Precedence - To simplify resolution if multiple candidates could satisfy a linkage to one of these native methods then they have to specify their precedence which influences which method is chosen. 
+
+Currently, all natives must have a statically linkable handle available. Typically, this involves having the right arity method with all Object args as a backup in case no type information is available.
+
+TYPED info todo
+
+** Precompiled code
+
+Some methods have complex linkage requirements (eg. pile.core.math/+) so we directly implement PileMethod and insert them into the namespace.
+
+** Pile Source Code
+
+The directory src/main/pile contains the remaining runtime methods and macros available to the user. 
+
+* General Compilation
+
+  There's *compilation* and *evaluation*.
+
+  ;; Evaluate (run code)
+  (foo a b) 
+
+  ;; Compilation
+  (def (fn foo [a b] (+ a b)))
+  - Evaluate (def ..)
+    Intrinsic sets ns from returned value
+  - Evaluate (fn [a b] ..)
+    Returns a CompiledMethod
+  - Compile (+ a b)
+    invokedynamic pile.core/Math +
+
+  (ns pile.test)
+  (defn foo [a b] (+ a b))
+
+  Within a method each form can be either another intrinsic or a function call.
+
+  - Check form is sexp
+  - Look up leading symbol
+    - Intrinsic (if, fn, etc) - compiler
+    - Method call - Evaluate arguments and push them onto the stack
+
+** First arg non-symbol
+
+   ((fn [a b]) a b)
+   Q: Different linker?
+   We know which function to call 
+
+   Q: Closures?
+   (let [a :a] ((fn [] a) ... ))
+
+** Branches and Labels
+
+   - Each sub expression needs to jump to the label of the next expression (logically at least)
+   - Elide jump/label if they're adjacent and connected
+   - eg. 
+   
+   (def doiftest (fn* [] 
+       (do 
+	   (prn "a")
+	   (if true
+		   (prn "b")
+		   (prn "c"))
+	   12
+       )))
+
+   prn "b" should jump to label at the start of: ldc 12 
+   
+* Macros
+
+Macros are simply functions that have two important properties:
+- They transform data structures representing syntax into different syntax
+- The above transformation is applied between parsing and evaluation/compilation
+
+Macros are identified by the compiler by a metadata tag:
+
+(defn ^:macro list-of [a] (list (unquote a)))
+
+Using a helper macro:
+
+(defmacro list-of [a] (list (unquote a)))
+
+** TODO Macro Instrinsics
+
+Macros have sugared forms:
+
+| Form | Desugared          |
+|------+--------------------|
+| 'a   | (quote a)          |
+| `a   | (syntax-quote a)   |
+| ~a   | (unquote a)        |
+| ~@   | (unquote-splice a) |
+
+These expanded forms represent calls to intrinsics.
+
+_Quote_
+A quote form represents the actual syntax it surrounds.
+
+While a function like:
+
+(defn r [a] a) ;; Returns the first method argument a
+
+A quoted form would return the symbol a:
+
+(defn r [a] 'a) ;; Returns Symbol(a)
+
+Since we're returning _syntax_ no arguments are required:
+
+(defn r [] 'a) ;; Return Symbol(a)
+
+_Syntax Quote_
+This form is exactly like quote with the addition that symbols will be resolved to namespaces if possible. This resolution happens at the time the macro is defined and the namespace will be what the symbol resolved to at macro definition. In the following example the standard library function str is visible which causes the syntax quote to return a symbol bound which will resolve to that:
+
+(defn r [] `str) ;; return Symbol(pile.core/str)
+
+Symbols without resolutions will not be resolved to any namespace. 
+
+_Unquote_
+TODO
+
+_Nesting & Cascading_
+
+These
+
+These forms can be nested and the inner-most macro intrinsic wins eg.
+
+(quote (unquote a)) is synonymous with simply a because the 
+
+** Compilation
+
+Each parsed element is represented by a pile.core.compiler.Form. Each Form has two macro related methods which evaluate and compile a form. By default this compilation is the same as a normal compilation, eg. Compiling a number in a macro is no different. However there are 3 forms that are different: Symbols, Sexprs, CollectionLiteratals
+
+*** CollectionLiteral
+
+Collection literals simply loop over all their constituent parts and call Compiler.macroCompileDefer(...) on the items. Within a quoted form (plain or syntax) a PersistentList will return itself instead of invoking a method specified by the leading symbol:
+
+:EXAMPLE:
+;; Returns a persistent list with a single item: Symbol(a).
+(defmacro lst [] '(a))
+:END:
+
+*** TODO Symbol
+
+*** TODO SExprs
+
+* Unfiled
+
+** MethodCompiler
+
+- enterClass
+- createClosure/createAnonymousClass/createExplicitConstructorWithFields
+- createSingleMethod/createMethodCustom*
+- exitClass
+
+-
+

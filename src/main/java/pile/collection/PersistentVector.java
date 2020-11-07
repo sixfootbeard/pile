@@ -1,257 +1,222 @@
+/**
+ * Copyright 2023 John Hinchberger
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package pile.collection;
 
+import static java.lang.invoke.MethodHandles.*;
+import static java.lang.invoke.MethodType.*;
+import static org.objectweb.asm.Type.*;
+
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.StringConcatFactory;
+import java.util.AbstractList;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
-import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
+import java.util.Optional;
+import java.util.RandomAccess;
+import java.util.stream.Collector;
 
-import pile.collection.adapter.JavaImmutableList;
+import org.objectweb.asm.ConstantDynamic;
+
+import pile.compiler.Constants;
+import pile.compiler.form.CollectionLiteralForm;
+import pile.core.Conjable;
+import pile.core.ConstForm;
 import pile.core.ISeq;
-import pile.core.PObj;
+import pile.core.Metadata;
+import pile.core.PCall;
 import pile.core.Seqable;
-import pile.util.Pair;
+import pile.core.exception.ShouldntHappenException;
+import pile.core.indy.PersistentLiteralLinker;
+import pile.nativebase.NativeCore;
 
-public class PersistentVector<V> extends JavaImmutableList<V>
-        implements PObj, Associative<Integer, V>, Counted, Seqable<V>, ISeq<V> {
+public abstract class PersistentVector<E> extends AbstractList<E>
+        implements PersistentCollection<E>, Associative<Integer, E>, Conjable<E>, RandomAccess, FMap<PersistentVector> {
 
-    private class PVSeq implements ISeq<V> {
-
-        int idx;
-        Object[] current;
-
-        public PVSeq(int idx, Object[] current) {
-            super();
-            this.idx = idx;
-            this.current = current;
-        }
-
-        @Override
-        public V first() {
-            return (V) current[idx % NODE_SIZE];
-        }
-
-        @Override
-        public ISeq<V> next() {
-            int nextIdx = idx + 1;
-            if (nextIdx == count) {
-                return null; // ISeq.empty();
-            }
-            Object[] arr = current;
-            if (nextIdx % NODE_SIZE == 0) {
-                arr = arrayFor(nextIdx);
-            }
-            return new PVSeq(nextIdx, arr);
-
-        }
-
-    }
-
-    private static class Node {
-
-        public Node() {
-            this.data = new Object[NODE_SIZE];
-        }
-
-        public Node(Object[] data) {
-            super();
-            this.data = data;
-        }
-
-        Object[] data;
-
-        public Node copy() {
-            Object[] copy = new Object[data.length];
-            System.arraycopy(this.data, 0, copy, 0, data.length);
-            return new Node(copy);
-        }
-    }
-
-    public static <V> PersistentVector<V> empty() {
-        return new PersistentVector<>();
-    }
-
-    private static final int SHIFT = 4;
-    private static final int NODE_SIZE = (int) Math.pow(2, SHIFT);
-    private static final int MASK = NODE_SIZE - 1;
-
-    private final int levels;
-    private final int count;
-    private final int min, max;
-    private final Node root;
-    private final PersistentHashMap meta;
-
-    private PersistentVector(PersistentHashMap meta, Node root, int count, int levels, int min, int max) {
-        this.meta = meta;
-        this.root = root;
-        this.count = count;
-        this.levels = levels;
-        this.min = min;
-        this.max = max;
-    }
-
-    private PersistentVector(Object[] root, int count, int levels, int min, int max) {
-        this(null, new Node(root), count, levels, min, max);
-    }
-
-    private PersistentVector() {
-        this(null, new Node(new Object[NODE_SIZE]), 0, 0, 0, 16);
-    }
+    public static final PersistentVector EMPTY = new PersistentArrayVector<>();
 
     @Override
-    public int count() {
-        return count;
-    }
-
-    @Override
-    public boolean containsKey(Integer key) {
-        return key < count;
-    }
-
-    @Override
-    public Pair<Integer, V> entryAt(Integer key) {
-        return doFind(key, (arr, findex) -> new Pair<>(key, (V) arr[findex]));
-    }
-
-    @Override
-    public PersistentVector<V> assoc(Integer key, V val) {
-        // TODO check count
-        Node newRoot = edit(root, levels, key, val, (arr, newind) -> arr[newind] = val);
-        return new PersistentVector<>(meta, newRoot, count, levels, min, max);
-    }
-
-    public PersistentVector<V> push(V v) {
-        if (count() == max) {
-            Node newRoot = new Node();
-            newRoot.data[0] = root;
-            newRoot = edit(newRoot, levels + 1, count, v, (arr, key) -> arr[key] = v);
-            return new PersistentVector<V>(meta, newRoot, count + 1, levels + 1, max, max << SHIFT);
-        } else {
-            Node newRoot = edit(root, levels, count(), v, (arr, key) -> arr[key] = v);
-            return new PersistentVector<>(meta, newRoot, count + 1, levels, min, max);
-        }
-    }
-
-    public PersistentVector<V> pop() {
-        if (count() == 0) {
+    public E get(int index) {
+        if (index >= size()) {
             throw new NoSuchElementException();
-        } else if (count() == 1) {
-            return new PersistentVector<>();
-        } else if (count() == min) {
-            Object[] newRootData = ((Node) root.data[0]).data;
-            return new PersistentVector<>(newRootData, count - 1, levels - 1, min << SHIFT, min);
-        } else {
-            Node newRoot = edit(root, levels, count(), null, (arr, newind) -> arr[newind] = null);
-            return new PersistentVector<>(meta, newRoot, count - 1, levels, min, max);
         }
+        return get(index, null);
     }
 
     @Override
-    public PersistentHashMap meta() {
-        return meta;
+    public int size() {
+        return count();
     }
 
     @Override
-    public PersistentVector<V> withMeta(PersistentHashMap newMeta) {
-        return new PersistentVector<>(newMeta, root, count, levels, min, max);
+    public ISeq<E> seq() {
+        return NativeCore.seq(this);
+    }
+    
+    @Override
+    public boolean acceptsArity(int arity) {
+        return arity == 1;
     }
 
-    private Object[] arrayFor(int key) {
-        Node local = root;
-        int nextEntry = key;
-        for (int levelAt = levels; levelAt > 0; --levelAt) {
-            nextEntry = (key >>> (SHIFT * levelAt)) & MASK;
-            local = (Node) local.data[nextEntry];
-        }
-        return local.data;
-    }
+    @Override
+    public abstract PersistentVector<E> conj(E t);
 
-    private <T> T doFind(int key, BiFunction<Object[], Integer, T> fn) {
-        int indexInArr = key % NODE_SIZE;
-        return fn.apply(arrayFor(key), indexInArr);
-    }
-
-    /**
-     * Generates a new tree computing the provided function on the leaf node/slot
-     * associated with the provided key.
-     * 
-     * @param root  The node we're inspecting
-     * @param level The level the root node is at
-     * @param key   The int key slot the values should go in
-     * @param v     The value
-     * @param fn    The function which takes in the subvector and slot in that
-     *              subvector the key are associated with. The vector will be a
-     *              mutable copy and will be the leaf node in the new rooted tree.
-     * @return A new tree in which the edit has been made.
-     */
-    private Node edit(Node root, int level, int key, V v, BiConsumer<Object[], Integer> fn) {
-        Node local;
-        if (root == null) {
-            local = new Node();
-        } else {
-            local = root.copy();
+    public PersistentVector<E> pushAll(Iterable<? extends E> it) {
+        PersistentVector<E> local = this;
+        for (E e : it) {
+            local = local.conj(e);
         }
-        int nextEntry = (key >>> (SHIFT * level)) & MASK;
-        if (level == 0) {
-            fn.accept(local.data, nextEntry);
-            return local;
-        } else {
-            Node last = (Node) local.data[nextEntry];
-            local.data[nextEntry] = edit(last, level - 1, key, v, fn);
-        }
-
         return local;
     }
-
+    
     @Override
-    public ISeq<V> seq() {
-        return new PVSeq(0, arrayFor(0));
-    }
-
-    @Override
-    public V first() {
-        return seq().first();
-    }
-
-    @Override
-    public ISeq<V> next() {
-        return seq().next();
-    }
-
-    @Override
-    public boolean contains(Object o) {
-        if (o instanceof Integer i) {
-            return containsKey(i);
+    public PersistentVector fmap(PCall tx) throws Throwable {
+        Object[] newVals = new Object[count()];
+        int i = 0;
+        for (var val : this) {
+            Object v = tx.invoke(val);
+            newVals[i] = v;
+            ++i;
         }
-        return false;
+        return PersistentVector.create(newVals);
     }
 
     @Override
-    public V get(int index) {
-        return entryAt(index).right();
-    }
+    public Optional<ConstantDynamic> toConst() {
+        List<Object> parts = new ArrayList<>();
+        for (E e : this) {
+            Optional<?> key = Constants.toConstAndNull(e);
+            if (key.isEmpty()) {
+                return Optional.empty();
+            }
 
-    @Override
-    public Associative<Integer, V> dissoc(Integer key, V val) {
-        if (key == count && doFind(key, (arr, n) -> arr[n].equals(val))) {
-            return pop();
+            parts.add(key.get());
         }
-        throw new IllegalStateException("Cannot dissoc from internal nodes");
+        ConstantDynamic cform = new ConstantDynamic("vec", getDescriptor(PersistentVector.class),
+                CollectionLiteralForm.CONDY_BOOTSTRAP_HANDLE, parts.toArray());
+        return Optional.of(cform);
     }
 
-    @Override
-    public Associative<Integer, V> dissoc(Integer key) {
-        if (key == count) {
-            return pop();
+    public static <T> PersistentVector<T> fromList(List<T> parts) {
+        PersistentArrayVector<T> pv = new PersistentArrayVector<>();
+        for (var o : parts) {
+            pv = pv.conj(o);
         }
-        throw new IllegalStateException("Cannot dissoc from internal nodes");
+        return pv;
+    }
+    
+    
+
+    /**
+     * Create a method from a recipe while partially adding all the provided
+     * constants
+     * 
+     * @param recipe    A recipe string. At each index is either
+     *                  {@link PersistentLiteralLinker#CONSTANT} or
+     *                  {@link PersistentLiteralLinker#ORDINARY}
+     * @param constants The collection of constants.
+     * @see StringConcatFactory#makeConcatWithConstants(Lookup, String,
+     *      java.lang.invoke.MethodType, String, Object...)
+     * @return A method handle which accepts arguments in the slots associated with
+     *         all the ordinary recipe arguments.
+     */
+    public static MethodHandle fromRecipe(String recipe, Object... constants) {
+        if (constants.length == 0) {
+            return MethodHandles.constant(PersistentVector.class, PersistentVector.EMPTY);
+        }
+        PersistentArrayVector v = new PersistentArrayVector();
+        List<Integer> ordinaryIndexes = new ArrayList<>();
+        int constantIndex = 0;
+        for (int i = 0; i < recipe.length(); ++i) {
+            char part = recipe.charAt(i);
+            if (part == PersistentLiteralLinker.CONSTANT) {
+                v = v.push(constants[constantIndex]);
+                ++constantIndex;
+            } else if (part == PersistentLiteralLinker.ORDINARY) {
+                v = v.push(null); // slot
+                ordinaryIndexes.add(i);
+            }
+        }
+        // We have N ordinaryIndexes corresponding to the current stack elements
+        MethodHandle assoc;
+        try {
+            assoc = lookup().findVirtual(PersistentArrayVector.class, "assoc",
+                    methodType(PersistentArrayVector.class, Integer.class, Object.class));
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            throw new ShouldntHappenException(e);
+        }
+
+        Collections.reverse(ordinaryIndexes);
+        Iterator<Integer> it = ordinaryIndexes.iterator();
+        MethodHandle first = assoc;
+        first = insertArguments(first, 1, it.next());
+        while (it.hasNext()) {
+            MethodHandle boundAssoc = insertArguments(assoc, 1, it.next());
+            first = collectArguments(first, 0, boundAssoc);
+        }
+
+        first = first.bindTo(v);
+
+        return first;
+
     }
 
-    @SafeVarargs
-    public static <V> PersistentVector<V> of(V... args) {
-        PersistentVector<V> vec = new PersistentVector<>();
-        for (V v : args) {
-            vec = vec.push(v);
+    public static PersistentVector of(Iterable coll) {
+        PersistentArrayVector vec = PersistentArrayVector.empty();
+        for (Object o : coll) {
+            vec = vec.push(o);
         }
         return vec;
+    }
+
+    public static PersistentVector create(Object[] args) {
+        return of(Arrays.asList(args));
+    }
+
+    public static PersistentVector createArr(Object... args) {
+        return create(args);
+    }
+
+    public static PersistentVector unsplice(long unspliceMask, Object... args) {
+        List<Object> out = new ArrayList<>();
+        
+        for (int i = 0; i < args.length; ++i) {
+            var item = args[i];
+            if ((unspliceMask & (1 << i)) != 0) {
+                for (Object inner : ISeq.iter(NativeCore.seq(item))) {
+                    out.add(inner);
+                }
+            } else {
+                out.add(item);
+            }
+        }
+        
+        return fromList(out);
+    }
+
+    public static Collector<Object, List<Object>, PersistentVector<Object>> getCollector() {
+        return Collector.<Object, List<Object>, PersistentVector<Object>>of(ArrayList::new, List::add, (l, r) -> {
+            l.addAll(r);
+            return l;
+        }, PersistentVector::fromList);
     }
 
 }

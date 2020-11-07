@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Run repl
+java -XX:SharedArchiveFile=target/pile.jsa -Djava.library.path=target/lib -Dpile.aot=read --enable-preview -cp $PILE_CP pile.repl.ReplMain

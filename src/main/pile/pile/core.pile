@@ -1,0 +1,934 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.core)
+
+;; See pile.nativebase.NativeCore
+
+;; No destructuring yet
+(def ^:macro defmacro
+     (fn* [name binds & body]
+       `(def ~(with-meta name (assoc* (meta name) :macro true)) (fn* ~binds ~@body))))
+
+(def inc (fn* [n] (+ n 1)))
+(def dec (fn* [n] (- n 1)))
+(def inc' (fn* [n] (+' n 1)))
+(def dec' (fn* [n] (-' n 1)))
+
+(defmacro when [test & body] '(if ~test (do ~@body)))
+
+(defmacro when-not [test & body] '(if ~test nil (do ~@body)))
+
+(defmacro and
+          ([] true)
+          ([x] x)
+          ([x & rem] `(if ~x (and ~@rem) false)))
+
+(defmacro or
+          ([] true)
+          ([x] x)
+          ([x & rem] `(if ~x true (or ~@rem))))
+
+
+(defmacro -> [base & rem]
+         (loop* [base base
+                 rem rem]
+            (if rem 
+                 (let* [form (first rem)
+                        with-base (if (list? form)
+                                      (with-meta `(~(first form) ~base ~@(next form)) (meta form))   
+                                      (list form base))]
+                   (recur with-base (next rem)))
+                 base)))
+
+(defmacro ->> [base & rem]
+         (loop* [base base
+                  rem rem]
+            (if rem    
+                  (let* [form (first rem)
+                         with-base (if (list? form)
+                                      (with-meta `(~@form ~base) (meta form))    
+                                      (list form base))]
+                   (recur with-base (next rem)))
+                 base)))
+
+(defmacro ensure
+	[& args]
+	`(do (when-not ~(first args)
+		   (throw (new java.lang.IllegalArgumentException (second args))))
+		~(let* [tail (nnext args)]
+		   (when tail
+			  `(ensure ~tail)))))   
+
+;; Parse ordered sequences of symbols, conditionally assigning them 
+;; to a symbol if the sequence observed type matches the expected
+;; type. All types must be unique.
+(defmacro parse-opt [opts base body]
+  (if (seq opts)
+      (let* [sym (first opts)
+             rem (next opts)]
+         `(let* [~sym (when (instance? ~(:pile.core/annotated-type (meta sym)) (first ~base))
+                         (first ~base))
+                 ~base (if (instance? ~(:pile.core/annotated-type (meta sym)) (first ~base))
+                            (next ~base)
+                            ~base)]
+             (parse-opt ~rem ~base ~body)))
+      body))
+
+(def conj (fn* ([] [])
+               ([coll] coll)
+               ([coll x] (conj* coll x))
+               ([coll x & xs]
+                      (if xs
+                          (recur (conj* coll x) (first xs) (next xs))
+                          (conj* coll x)))))
+
+(def assoc
+     (fn*
+           ([base k v] (assoc* base k v))
+           ([base k v & kvs]
+              (let* [ass (assoc* base k v)]
+                  (if kvs
+                    (if (next kvs)
+                        (recur ass (first kvs) (second kvs) (nnext kvs))
+                        (throw (new java.lang.IllegalArgumentException "Wrong number of args")))
+                    ass)))))
+                    
+
+(defmacro lazy-seq [& body]
+    `(new LazySequence (fn* [] ~@body)))
+    
+(def lazy-map
+  (fn* 
+    [f col] 
+      (lazy-seq
+        (when (seq col) 
+          (cons (f (first col)) (lazy-map f (next col)))))))
+
+;; let/fn/loop destructuring
+(def destructure)
+
+(defmacro fn-destructure [b & body] 
+    (let* [expanded (loop* [col b
+                            exp [[] []]]
+                    (if (some? (seq col))
+                         (let* [fnargs (first exp)
+                                letargs (second exp)
+                                lhs (first col)
+                                rem (next col)]
+                            (if (or (vec? lhs) (map? lhs))
+                                (let* [asym (gensym)
+                                      rargs (conj fnargs asym)
+                                      rletargs (apply conj letargs (destructure lhs asym))]
+                                   (recur rem [rargs rletargs]))
+                                (recur rem [(conj fnargs lhs) letargs])))
+                         exp))
+            updated-binds (with-meta (first expanded) (meta b))]
+                         `(~updated-binds (let* ~(second expanded) ~@body))))
+
+(defmacro fn [bind-or-multiarity & body-or-multi]
+    (if (vec? bind-or-multiarity)
+      `(fn* ~@(apply fn-destructure bind-or-multiarity body-or-multi))
+       (if (list? bind-or-multiarity)
+         `(fn* ~@(lazy-map #(apply fn-destructure %) (cons bind-or-multiarity body-or-multi)))
+          (if (symbol? bind-or-multiarity)
+              (let* [anon (apply fn body-or-multi)
+                     bind (first anon)
+                     rest (next anon)
+                     built (apply list bind bind-or-multiarity rest)]
+                built)
+              (throw (new RuntimeException (str "Bad fn first arg: " ~(class bind-or-multiarity))))))))
+
+(defmacro defn [name & meta+body]
+    (parse-opt [^String doc ^PersistentMap declared-meta] meta+body   
+        (let* [with-doc (assoc* declared-meta :doc doc)
+               with-hint (assoc* with-doc :pile.core/annotated-type (:pile.core/annotated-type name))
+               full (merge (meta name) with-hint)
+               fdef `(fn ~name ~@meta+body)] 
+          `(def ~name ~(with-meta fdef full)))))
+
+(def base-assoc-map
+     (fn* [lhs rhs]
+          (let* [base (if (:as lhs)
+                          [(:as lhs) rhs]
+                          [])
+                 keyvec (loop* [s (seq (:keys lhs))
+                                b base]
+                          (let* [k (first s)]
+                              (if s
+                                  (let* [kw (keyword (name k))
+                                         getter (if (get (:or lhs) k)
+                                                   (list 'get rhs kw (get (:or lhs) k))
+                                                   (list 'get rhs kw))]
+                                     (recur (next s) (conj b k getter)))
+                                   b)))]
+              keyvec)))
+
+(def assoc-destructure
+   (fn* [lhs rhs]
+        (loop* [s (seq lhs)
+                res (base-assoc-map lhs rhs)]
+          (if (not s)
+              res
+              (let* [kv (first s)
+                    t (next s)
+                    k (first kv)
+                    v (second kv)]
+                (if (#{:or :as :keys} k)
+                    (recur t res)
+                    (let* [sym (gensym)
+                          ;; {a :a}
+                          ;; sym# (get rhs :a)
+                          ;; lhs sym#
+                          newrhs (if (get (:or lhs) k)
+                                   (list 'get rhs v (get (:or lhs) k))
+                                   (list 'get rhs v))
+                          spair (destructure k sym)
+                          newres (apply conj res sym newrhs spair)]
+                       (recur t newres))))))))
+
+(def seq-destructure
+     (fn* [lhs rhs]
+         (let* [gsym (gensym)
+               col [gsym rhs]]
+           (loop* [idx 0
+                  col col]
+               (if (< idx (count lhs))
+                 (if (= (get lhs idx) '&)
+                     (conj col (get lhs (inc idx)) (list 'nthnext gsym idx))
+                     (recur (inc idx)
+                            (apply conj col (destructure (get lhs idx) (list 'nth gsym idx)))))
+                 col)))))
+
+;; Takes [lhs, rhs] and returns a vector where all lhs terms have been fully destructured
+;; eg.
+;; sequential [[a b] z] => [gensym* z, a (nth gensym* 0), b (nth gensym* 1)]
+;; associative [{:a} a]
+(def destructure (fn* [lhs rhs]
+      (if (vec? lhs)
+          (seq-destructure lhs rhs)
+          (if (map? lhs)
+              (assoc-destructure lhs rhs)  
+              [lhs rhs]))))
+
+(defmacro let [b & body] 
+    (let* [expanded (loop* [col (seq b)
+                            exp []]
+                       (if col
+                         (let* [lhs (first col)
+                                rhs (second col)
+                                rem (nnext col)]
+                            (recur rem
+                                   (apply conj exp (destructure lhs rhs))))
+                         exp))]
+        `(let* ~expanded ~@body)))
+
+;; awkward structure because the initial bindings can have interdependencies:
+;; (loop [[a b c] x [n m] b] something)
+;; first binds need to reflect that but subsequent bindings only need
+;; destructuring (eg. we're only rebinding x/b)
+(defmacro loop [binds & body]
+   (loop* [to-proc binds
+           pre []
+           mid []
+           post []]
+      (let [[lhs rhs & rem] to-proc]
+         (if lhs
+           (let [expanded (destructure lhs rhs)
+                 new-lhs (first expanded)]
+              (recur rem
+                     (apply conj pre expanded)
+                     (conj mid new-lhs new-lhs)
+                     (apply conj post (destructure lhs new-lhs))))
+         `(let* ~pre (loop* ~mid (let ~post ~@body)))))))
+
+;; Rebind defmacro w/ destructuring
+
+(def ^:macro defmacro
+     (fn [name & meta+body]
+         (parse-opt [^String doc ^PersistentMap declared-meta] meta+body   
+             (let* [synth (assoc declared-meta :doc doc :macro true)
+                    full (merge (meta name) synth)
+                    enrich-name (with-meta name full)]
+               `(def ~enrich-name (fn ~@meta+body))))))
+
+;; end destructuring
+
+(defn bound? 
+      "Returns true if the symbol is bound in the current namespace, false otherwise"
+      [n name]
+      (not (nil? (Namespace/getIn n name))))
+      
+(defmacro defonce 
+   "Defines a value in the current namespace once only if it was not already defined"
+   [n & body]
+   (if (not (bound? *ns* (name n)))
+      `(def ~n ~@body)
+      `(pass)))
+     
+(defmacro defnonce 
+  "Defines a function in the current namespace once only if it was not already defined"
+  [n & body]
+  (if (not (bound? *ns* (name n)))
+    `(defn ~n ~@body)
+    `(pass)))
+
+(defnonce reverse 
+   "Reverses a sequence."
+   [s]
+   (loop* [in s
+          out nil]
+      (if (nil? in)
+          out
+          (recur (next in) (cons (first in) out)))))
+
+
+
+(defn reduce
+      ([f acc col]
+          (let [[head & tail] col
+                acc (f acc head)]
+             (if tail
+                 (recur f acc tail)
+                 acc))))
+
+(defmacro when-let [binds & body]
+      (let [[lhs rhs & rest] binds]
+        (if lhs
+          `(let [~lhs ~rhs]
+              (when ~lhs
+                ~(apply when-let rest body)))
+          `(do ~@body))))
+
+(defmacro doto [base & forms]
+    (let* [sym (gensym)]
+        `(let* [~sym ~base]
+           ~@(lazy-map (fn* [f] `(~(first f) ~sym ~@(next f))) forms))))
+
+(defn concat [l r]
+   (lazy-seq
+    (let [ls (seq l)]
+      (if ls
+        (cons (first ls) (concat (next ls) r))
+        (seq r)))))
+
+;; Streams
+        
+(defprotocol ToStream
+     (to-stream [this]))
+
+(extend* pile.core.Streamable
+        ToStream
+        (to-stream [this] (.toStream this)))
+
+(extend* java.util.Collection
+        ToStream
+        (to-stream [this] (.stream this)))
+
+(extend* java.util.Map
+        ToStream
+        (to-stream [this] (-> this .entrySet to-stream)))
+
+(extend* Stream
+        ToStream
+        (to-stream [this] this))
+
+(extend* nil
+         ToStream
+         (to-stream [this] (Stream/empty)))
+
+(extend* java.lang.Iterable
+        ToStream
+        (to-stream [this] (-> this
+                             .iterator
+                             (java.util.Spliterators/spliteratorUnknownSize 0)
+                             (java.util.stream.StreamSupport/stream false))))
+
+;; Seqs can support both, prefer streamable
+(prefer-protocol ToStream pile.core.Streamable java.lang.Iterable)
+                             
+(defn stream 
+   """
+   Processes elements from the source through intermediate operations and a termination operation.
+
+   (stream [1 2 3 4 5] (map inc) (filter #(> % 3)) (into []))
+   ;; [4 5 6]
+
+   The source may be any type that satisfies the ToStream protocol, initially Collections, Maps,
+   and Sequences. Intermediate operations are functions like 'map' which apply a function
+   to each element in the stream. The termination operation produces a non-stream value like 
+   'into' which aggregates elements into a collection.
+
+   Custom intermediate and termination operations are allowed. Any function that returns a function
+   which takes a Stream and produces a Stream can be an intermediate function. Similarly, any function
+   that returns a function which takes a Stream and produces a value can be a termination function.
+   """
+   [source & tx+collect]
+   (let [s (to-stream source)
+         pipeline-tx (reduce comp identity (reverse tx+collect))]
+      (pipeline-tx s)))
+
+(defn pstream
+      "Parallel stream from the source applying the provided transformations and terminating collection (typically into)"
+      [source & tx+collect]
+      (let [s (-> source to-stream .parallel)
+            pipeline-tx (reduce comp identity (reverse tx+collect))]
+            (pipeline-tx s)))
+
+(defn any?
+   "Returns true if the predicate returns true at least once, false otherwise."
+   ([pred] 
+      (fn [^Stream s] (.anyMatch s ~#pred)))
+   ([pred col]
+      (loop [s (seq col)]
+          (if s
+              (if (-> s first pred)
+                  true
+                  (recur (next s)))
+              false))))
+
+(defn all?
+   "Returns true if the predicate returns true for all elements, false otherwise."
+   ([pred] 
+     (fn [^Stream s] (.allMatch s ~#pred)))
+   ([pred col]
+      (loop [s (seq col)]
+            (if s
+                (if (-> s first pred) (recur (next s))
+                    false)
+                true))))
+
+(defn into
+    ([col]
+      (fn [^Stream s]
+          (loop [col col
+                 src (seq s)]
+            (if src
+              (recur (conj col (first src)) (next src))
+              col))))
+    ([to from]
+         (reduce #(conj %0 %1) to from)))
+
+(def map)
+
+(defn ^:private seq-step [seqs]
+   (let [step (fn [s] (if (any? identity s)
+                          (stream s (map first) (into []))
+                          nil))]
+       (lazy-seq
+           (let [firsts (step seqs)]
+                (if firsts
+                    (cons firsts (seq-step (stream seqs (map next) (into []))))
+                    nil)))))
+
+(defn ^:private seq-all [& all]
+   (let [seqs (stream all (map seq) (into []))]
+        (seq-step seqs)))
+
+(defn map
+   """
+   Applies the provided function to each element in the provided collections/sequence.
+   With a single collection it returns a lazy sequence of the function application. With
+   multiple collections it returns a lazy sequence of vectors containing the result of the
+   function application and stops at the shortest sequence. 
+   Single arg form is for use in streaming.
+   """
+   ([f] (fn [^Stream s] (.map s ~#f)))
+   ([f col] (lazy-map f col))
+   ([f & cols]
+       (let [lseq (apply seq-all cols)]
+            (map #(apply f %) lseq))))
+
+(defn reduce
+   """
+   Calls the provided reduction function with pairs of values from a collection/sequence,
+   yielding the final result of the reduction. The single and double arg forms are for
+   use in streaming.
+   """
+   ([f] (fn [^Stream s] (.reduce s nil ~#f)))
+   ([f init] (fn [^Stream s] (.reduce s init ~#f)))
+   ([f init col]
+     (loop [out init
+            s (seq col)]
+       (if s
+           (recur (f out (first s)) (next s))
+           out))))
+
+(defn take
+   """
+   Creates a lazy sequence taking at most n elements from the provided collection/sequence.
+   Single arg form is for use in streaming.
+   """
+   ([n] (fn [^Stream s] (.limit s n)))
+   ([n col]
+     (lazy-seq
+       (let [s (seq col)]
+         (when (and (some? s)
+                   (> n 0))
+           (cons (first s) (take (dec n) (next s))))))))
+
+(defn take-while
+   """
+   Creates a lazy sequence taking elements from the provided collection/sequence while
+   the provided predicate returns true.
+   Single arg form is for use in streaming.
+   """
+  ([f] (fn [^Stream s] (.takeWhile s ~#f)))
+  ([f col]
+    (lazy-seq
+      (let [fi (first col)]
+        (if (f fi)
+            (concat fi (take-while f (next col)))
+            nil)))))
+
+(defn filter
+   """
+   Creates a lazy sequence with only elements from the provided collection/sequence that
+   were satisfied by the predicate.
+   Single arg form is for use in streaming.
+   """
+    ([f] (fn [^Stream s] (.filter s ~#f)))
+    ([f s] (lazy-seq
+                (loop* [col s]
+                  (when col
+                    (let [val (first col)
+                          rem (next col)]
+                       (if (f val)
+                         (cons val (filter f rem))
+                         (recur rem))))))))
+
+(defn mapcat
+  ([f] (fn [^Stream s] (.flatMap s ~#(-> % f stream))))
+  ([f col]
+    (lazy-seq
+      (when (seq col)
+        (concat (f (first col)) (mapcat f (next col))))))
+  ([f & cols]
+    (stream cols (map f) mapcat seq)))
+
+
+(defn drop-while
+  ([f] (fn [^Stream s] (.dropWhile s ~#f)))
+  ([f col]
+    (lazy-seq
+      (loop* [out (seq col)]
+        (when out
+          (if (f out)
+            (recur (next out))
+            out))))))
+
+(defn drop
+  """
+  Creates a lazy sequence in which the first n elements are dropped from the 
+  provided collection/sequence. 
+  Single arg form is for use in streaming.
+  """
+  ([n] (fn [^Stream s] (.skip s n)))
+  ([n col]
+    (lazy-seq
+      (loop* [i n
+              out (seq col)]
+         (when out     
+            (if (= i 0)
+                  out
+                  (recur (dec i) (next out))))))))
+
+
+(defn interpose
+  """
+  Creates a lazy sequence interposing the delimiter into the provided sequence.
+  Single arg form is for use in streaming.
+  """
+  ([delim] (fn [^Stream s]
+              (-> s
+                 (.mapMulti ~#(doto %1
+                                (.accept (cast Object delim))
+                                (.accept (cast Object %0))))
+                 (.skip 1L))))
+  ([delim col] (->> col
+                    (mapcat #(vector delim %))
+                    (drop 1L))))
+
+(defn ^:private enum-inc
+      [col n]
+      (lazy-seq
+        (let [s (seq col)]
+           (if s
+               (cons [n (first s)] (enum-inc (next s) (inc n)))
+               nil))))
+
+(defn enumerate
+  """
+  Creates a lazy sequence of size 2 vectors consisting of an incrementing value and element from 
+  the provided source collection/sequence. Single arg form is for use in streaming.
+
+  (stream [:a :b :c] (enumerate) (into []))
+  ;; [[0 :a] [1 :b] [2 :c]]  
+  """
+  ([] (fn [^Stream s] (enumerate-stream s)))
+  ([col]
+     (if (seq col)
+        (enum-inc col 0)
+        nil)))
+
+(defn sorted
+      ([] (sorted comp))
+      ([c] (fn [^Stream s] (-> s (.sorted ~#c)))))
+
+
+(defn joining
+      ([] (joining ","))
+      ([delim] (fn [^Stream s] (.collect s (java.util.stream.Collectors/joining delim))))
+      ([delim col] ((joining delim) (to-stream col))))
+
+
+(defn foreach
+      "Calls the provided function on the provided collection or stream."
+      ([f] (fn [^Stream s] (.forEach s ~#f)))
+      ([f col] (loop [s (seq col)]
+                  (when s
+                     (f (first s))
+                     (recur (next s))))))
+
+(defn cycle [raw]
+    (let [src (Stream/generate ~#(to-stream raw))
+          flat (.flatMap src java.util.function.Function/identity)]
+       (seq flat)))
+
+;; End lazy + stream
+
+(defn iterate [seed f]
+   (lazy-seq
+      (cons seed (iterate (f seed) f))))
+
+(defn generate [f]
+   (lazy-seq
+       (cons (f) (generate f))))
+
+#_(defn range
+      ([n] (range 0 n))
+      ([s e] (->> (iterate s inc)
+                 (take (- e s)))))
+
+(defmacro cond [& forms]
+    (when forms
+      (let [[test form & rem] forms]
+        `(if ~test ~form ~(when rem `(cond ~@rem))))))
+
+(defmacro condp [f lhs & pairs]
+  (prn f lhs pairs)
+  (if (seq pairs)
+    (let [[test-val body & t] pairs]
+      `(if (~f ~lhs ~test-val)
+         ~body
+         (condp ~f ~lhs ~@t)))
+    `(throw (new java.lang.IllegalArgumentException))))
+
+;; Ref stuff     
+(defn swap!
+    "Update ref by calling (apply f old-val args). 
+     May call function multiple times."
+     [^pile.core.SettableRef ref f & args]
+        (. ref update #(apply f % args)))  
+
+;; Math stuff     
+(defn min [l r] (if (<= l r) l r))
+(defn max [l r] (if (> l r) l r))
+(defn zero? [num] (= 0 num)) 
+(defn pos? [num] (>= num 0))
+(defn neg? [num] (< num 0))
+    
+(defmacro gen-proxy [interfaces & methods]
+    (let* [types interfaces
+           rfn (fn* [old method]
+                       (assoc* old (name (first method)) `(fn* ~@(next method))))
+           namesAndMethods (reduce rfn {} methods)]
+        `(proxy ~types ~namesAndMethods)))
+
+    
+(defn vary-meta [obj f & args]
+    (with-meta obj (apply f (meta obj) args)))
+    
+(defn string? [x] (instance? String x))
+(defn int? [x] (instance? Integer x))
+(defn long? [x] (instance? Long x))
+
+
+
+;; Multimethods
+
+(defmacro defmulti [fname keyfn]
+    `(def ~fname (new Multimethod *ns* #'default-hierarchy ~(name fname) ~keyfn)))
+    
+(defmacro defmethod [name key args body]
+    `(. (cast Multimethod ~name) addKey ~key (fn* ~args ~body)))
+
+(defn remove-method [^Multimethod mm key]
+    (. mm removeKey key))
+
+(defn methods [^Multimethod mm]
+    (. mm getMethods))
+
+;; Logic                                    
+
+(defmacro while [test & body]
+   `(loop* [res# ~test]
+       (when res#
+             (do
+               ~@body
+               (recur ~test)))))
+
+(defmacro dotimes [bind & body]
+    (let [[l r] bind]
+       `(loop [^int i# 0]
+          (when (< i# ~r)
+             (let [~l i#]
+                ~@body
+                (recur (+ i# 1)))))))
+
+(defn doall [s]
+    (loop* [maybe s]
+       (when maybe
+         (recur (next maybe)))))
+
+(defn juxt [& fns]
+	  (fn* [& args]
+	     (reduce #(conj %0 (apply %1 args)) [] fns)))
+
+(defn product [& parts]
+    (lazy-seq
+       (let [[hc & tc] parts]
+           (if (nil? tc)
+               (map list hc)
+               (mapcat (fn* [rest]
+                          (map #(cons % rest) hc))
+                        (apply product tc))))))
+
+(defn partition
+      ([n] (fn [^Stream s] (stream-partition s n)))
+      ([n col]
+          (lazy-seq
+            (let [h (take n col)]
+               (when (= (count h) n)
+                   (cons h (partition n (nthnext col n))))))))
+
+(defn seq-map
+      "Partitions the input sequence into pairs and returns a map consisting of all pairs as key/values."
+      ([] {})
+      ([s] (apply seq-map s))
+      ([k v & parts] (->> parts (partition 2) (into {k v}))))
+
+;; pile.repl> (partition-at #(= % 3) (seq [1 2 3 4 5]))
+;; ((1 2) (3 4 5))
+(defn partition-at
+   "Lazily partition a sequence at the point before the test returns true"
+   [test col]
+   (lazy-seq
+     (loop* [i 1
+             state (next col)]        
+        (if state
+           (if (test (first state))
+              (cons (take i col) (partition-at test (nthnext col i)))
+              (recur (inc i) (next state)))
+            (list col)))))
+
+(defmacro for [binds & body]
+          (let [pairs (->> binds seq (partition 2))
+                [syms inits] (loop [seqs (seq pairs)
+                                    params []
+                                    vals []]
+                                   (if seqs
+                                       (let [pair (first seqs)]
+                                            (recur (next seqs)
+                                                   (conj params (first pair))
+                                                   (conj vals (second pair))))
+                                       [params vals]))]
+             `(let [vals# (product ~@inits)
+                    f# (fn [[~@syms]] ~@body)]
+                 (map f# vals#))))
+
+(defmacro doseq [binds & body]
+   `(doall (for ~binds ~@body)))
+
+
+
+;; Sometimes specialized natively
+(defnonce comp [& fns]
+	(fn* [& args]
+      (first
+        (reduce #(vector (apply %1 %0)) args (reverse fns)))))
+
+(defnonce partial [func & args]
+    (fn* [& rest]
+        (apply func (concat args rest))))
+
+(defn even? [n] (= 0 (rem n 2)))
+(def odd? (comp not even?))
+
+(defmacro letfn [specs & body]
+     (let [pairs (partition 2 specs)
+           fnsyms (stream pairs (map first) (map #(vector % (gensym))) (into {}))]
+         `(let [~@(mapcat #(vector (second %) (list 'atom)) fnsyms)
+                ~@(mapcat (fn [[name bfody]] '(~name (fn [& args] (apply (deref ~(get fnsyms name)) args)))) pairs)]
+             ~@(map (fn [[name fbody]] '(reset! ~(get fnsyms name) (fn ~@fbody))) pairs)
+             ~@body)))
+
+;; Protocol
+(defmacro extend [atype & pforms]
+    (let [expanded-forms (loop* [ptype nil
+                                 result (list)
+                                 left (seq pforms)]
+                            (let [f (first left)]
+                               (cond
+                                 (nil? f) result
+                                 (symbol? f) (recur f (conj result f) (next left))
+                                 (list? f) (let [[fname & args+body] f
+                                                 dest (apply fn-destructure args+body)
+                                                 full (conj dest fname)]
+                                             (recur ptype (conj result full) (next left)))
+                                 :else (throw (new java.lang.IllegalArgumentException "Bad extends syntax"))
+                                             )))]
+       `(extend* ~atype ~@(reverse expanded-forms))))
+
+(defmacro extend-protocol
+   [proto & class+methods]
+   (let [groups (partition-at #(or (symbol? %) (nil? %)) class+methods)
+         updated (map #(let [[cls & methods] %]
+                          (conj methods proto cls 'pile.core/extend))
+                      groups)]
+     `(do ~@updated)))
+
+;; Arrays
+(defprotocol ToArray
+             (to-array [this]))
+
+(extend-protocol ToArray
+      java.util.Collection
+      (to-array [col] (.toArray col))
+
+      java.lang.Iterable
+      (to-array [it] (let [col (new java.util.ArrayList)]
+                        (.forEach it ~#(.add col %))
+                        (.toArray col)))
+
+      java.util.Map
+      (to-array [map] (-> map .entrySet .toArray))
+
+      ;; String?
+)
+
+
+;; Resources
+
+(defprotocol Closeable
+          (close [this]))
+
+(extend-protocol Closeable
+     java.lang.AutoCloseable
+     (close [this] (.close this)))
+
+(defmacro with-close [binds close-fn & body]
+     (if (seq binds)
+         (let [[l r & tail] binds]
+              `(let [~l ~r]
+                 (try
+                    ~(apply with-close tail close-fn body)
+                    (finally (~close-fn ~l)))))
+         `(do ~@body)))
+
+(defmacro with [binds & body]
+    `(apply with-close binds close body))
+
+;; More ns
+
+(defmacro refer-single
+    [^Symbol ns-sym]
+    (let [nsStr (str *ns*)]
+         `(.referFrom (pile.core.RuntimeRoot/get ~nsStr) (pile.core.RuntimeRoot/defineOrGet ~(name ns-sym)))))
+
+(defmacro refer [& parts]
+    `(do ~@(map refer-single parts)))
+
+(defn require [spec]
+     (let [size (count spec)]
+         (if (or (= size 1) (not (vec? (second spec))))
+             (require-one spec)
+             (let [prefix-name (-> spec first name)]
+                  (stream (next spec)
+                          (map #(let [suffix (get % 0)
+                                      full (sym (str prefix-name "." (name suffix)))]
+                                    (assoc % 0 full)))
+                          (foreach require-one))))))
+
+(defmacro import-single [part]
+     (cond (symbol? part) `(load-class ~(-> part name str))
+           (list? part) `(do ~@(map (fn [suf] `(load-class ~(str (first part) "." (name suf)))) (next part)))))
+
+(defmacro import [& parts]
+    `(do ~@(map import-single parts)))
+
+(defn in-ns [ns-name] (reset! #'*ns* ns-name))
+
+(defn find-ns [^Symbol s] (-> s .getName pile.core.RuntimeRoot/get))
+
+;; redefs
+;; capture current value
+;; capture processed value
+;; set all defs
+
+;; Other
+(defmacro time [& body]
+    `(let [start-time# (System/currentTimeMillis)]
+       (try ~@body
+          (finally 
+            (let [end-time# (System/currentTimeMillis)]
+               (prn (str "Elapsed time: " (- end-time# start-time#) "ms")))))))
+
+
+;; Condition System
+
+(def ^:final ^:dynamic *bound-handlers* {})
+
+(defmacro handler-bind [binds & body]
+    (let [to-fn (fn [[k v]] [k `(fn ~@v)])
+          update-syntax (->> binds (partition 2)
+                                   (map to-fn)
+                                   (mapcat identity))]
+       `(let [old-handlers# *bound-handlers*
+              new-handlers# (seq-map ~@update-syntax)
+              merged-handlers# (merge *bound-handlers* new-handlers#)]
+            (try
+               (do (reset! (var *bound-handlers*) merged-handlers#)
+                   ~@body)
+               (finally (reset! (var *bound-handlers*) old-handlers#))))))
+
+(defn invoke-restart [restart-name & args]
+   (throw (apply pile.core.PileRestartException::new restart-name args)))
+
+
+(defn error [name & args]
+    (let [handler-fn (get *bound-handlers* name)]
+      (apply handler-fn args)))
+
+(defmacro restart-case [form & cases]
+    (let [case-map (stream cases
+                           (map (fn [[case-name args & form]] [case-name (apply list 'fn args form)]))
+                           (into {}))]
+        `(try
+           ~form
+           (catch pile.core.PileRestartException e#
+              (let [restart-name# (.getRestartName e#)
+                    restart-args# (.getRestartFunctionArgs e#)
+                    restart-fn# (get ~case-map restart-name#)]
+                 (apply restart-fn# restart-args#))))))
