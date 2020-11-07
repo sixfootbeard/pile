@@ -1,0 +1,159 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.core.time)
+
+(import (java.time Period Instant Duration ZoneOffset ZoneId)
+        (java.time.temporal Temporal TemporalUnit TemporalField TemporalAccessor))
+
+(defgeneric temporal "Convert this into a java.time.temporal.Temporal." [t])
+
+(defimpl temporal [^java.time.temporal.Temporal d] d)
+(defimpl temporal [^java.util.Date d] (.toInstant d))
+(defimpl temporal [^java.util.Calendar d] (.toInstant d))
+(defimpl temporal [^java.time.Clock d] (.instant d))
+(defimpl temporal [^java.lang.Long d] (Instant/ofEpochMilli d))
+
+
+
+(defn offset
+      "Convert value into a ZoneOffset."
+      [o] (cond (instanceof? ZoneOffset o) o
+                (string? o) (ZoneOffset/of o)
+                (int? o) (ZoneOffset/ofHours o)))
+
+(defn offset-time
+      "Converts the provided time to the provided offset"
+       [time off] (-> time temporal
+                        (.atOffset (offset off))))
+
+(defn zone 
+      "Creates a ZoneId from the provided value."
+      [z]
+      (cond (instanceof? ZoneId z) z
+            (string? z) (ZoneId/of z)))
+
+(defn zone-time 
+      "Converts the provided time to the provided zone"
+      [t z] (-> t temporal
+                            (.atZone (zone z))))
+
+(defgeneric to-period "Convert this into a java.time.Period" [p])
+(defimpl to-period [^String s] (Period/parse s))
+(defimpl to-period [^Period s] s)
+
+(defn period
+      "Creates a period from the provided representation or pairs of numeric value and keyword unit"
+      ([] (Period/-ZERO))
+      ([p] (to-period p))
+      ([n kw & rest]
+          (let [base (case kw
+                          :days (Period/ofDays n)
+                          :day (Period/ofDays n)
+                          :months (Period/ofMonths n)
+                          :month (Period/ofMonths n)                          
+                          :years (Period/ofYears n)
+                          :year (Period/ofYears n)                          
+                          (throw (IllegalArgumentException. (str "Invalid time unit: " kw))))]
+             (.plus base (apply period rest)))))
+
+(defgeneric duration [] [d] [n kw & rest])
+
+(defimpl duration [] (Duration/ofSeconds 0L))
+(defimpl duration [^String s] (Duration/parse s))
+(defimpl duration [^Duration d] d)
+(defimpl duration [n kw & rest] 
+         (let [tx #(case %1
+                          :days (Duration/ofDays %0)
+                          :day (Duration/ofDays %0)
+                          :hours (Duration/ofHours %0)
+                          :hour (Duration/ofHours %0)                          
+                          :minutes (Duration/ofMinutes %0)
+                          :minute (Duration/ofMinutes %0)                          
+                          :seconds (Duration/ofSeconds %0)
+                          :second (Duration/ofSeconds %0)
+                          :millis (Duration/ofMillis %0)
+                          :nanos (Duration/ofNanos %0)
+                          (throw (IllegalArgumentException. (str "Invalid time unit: " kw))))
+               base (tx n kw)
+               conv (stream rest (partition 2) 
+                                 (map #(apply tx %)) 
+                                 (reduce #(.plus %0 %1) base))]
+             conv))
+
+(defn to-unit [unit]
+      (cond (keyword? unit) (enum-of java.time.temporal.ChronoUnit unit)
+            (instanceof? TemporalUnit unit) unit))
+
+(defn ^:private adjust [base ^Instant inst]
+    (if (instanceof? Temporal base)
+       (.with base inst)
+       inst))
+
+(defn plus [base & rest]
+      (let [inst (temporal base)
+            calc (reduce #(.plus %0 %1) inst rest)]
+         calc))
+
+(defn minus [base & rest]
+      (let [inst (temporal base)
+            calc (reduce #(.minus %0 %1) inst rest)]
+         calc))
+
+(defn until [^Temporal base ^Temporal end unit]
+      (.until base end (to-unit unit)))
+
+(defn truncate [d unit]
+      (let [inst (temporal d)
+            trunc (.truncatedTo inst (to-unit unit))]
+         (adjust trunc inst)))
+
+(defn ^:private inst [i] (-> i temporal Instant/from))
+
+(defn same-time? "True if both times represent the same point in time, false otherwise"
+      [l r] (.equals (inst l) (inst r)))
+
+(defn before? [base other]
+      (.isBefore (temporal base) (temporal other)))
+
+(defn after? [base other]
+      (.isAfter (temporal base) (temporal other)))
+
+(defn between?
+    "Returns true if the target time is between the start and end time, inclusive and exclusive respectively."
+    ([[start end] t] (between? start end t))
+    ([start end t]
+       (let [start-inst (temporal start)
+             end-inst (temporal end)
+             t-inst (temporal t)]
+         (or (and (after? t-inst start)
+                  (before? t-inst end))
+             (same-time? start-inst t-inst)))))
+
+(defn compare-time 
+      "Compare the left and right times, returning -1/0/1 if the left is less-than/equal-to/greater-than the right, respectively"
+      [l r]
+      (compare (temporal l) (temporal r)))
+
+(defn to-millis [d]
+      (-> d temporal Instant/from .toEpochMilli))
+
+(defn to-field [field]
+      (cond (keyword? field) (enum-of java.time.temporal.ChronoField field)
+            (instanceof? TemporalField field) field))
+
+(defn field [^TemporalAccessor base q]
+      (.get base (to-field q)))
+
+

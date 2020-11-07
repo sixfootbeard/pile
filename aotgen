@@ -1,0 +1,15 @@
+#!/bin/bash
+
+mvn clean
+# Generate aot class files
+mvn -Paot-gen-class compile
+# Packages aot class files + rest of the stuff
+mvn -DskipTests package
+
+DEPS=$(mktemp)
+mvn dependency:build-classpath -Dmdep.outputFile=$DEPS
+PILE_CP=$(ls target/pile-lang-*.jar):$(cat $DEPS)
+
+# Generate CDS from jar (containing AOT classes + normal classes)
+java -XX:ArchiveClassesAtExit=target/pile.jsa -Djava.library.path=target/lib -Dpile.aot=read --enable-preview -cp $PILE_CP pile.core.compiler.aot.AOTMain 
+

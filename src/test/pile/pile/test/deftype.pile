@@ -1,0 +1,82 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.test.deftype
+    (:refer pile.test pile.test.util))
+           
+(import (pile.util PrimitiveReturn PrimitiveArg VoidReturn VariadicInterface FooInteger FooString))
+
+;; Overloads
+(deftype TwoIntf []
+    FooInteger
+    FooString 
+    (foo [this a] (str a)))
+    
+(def ti (new TwoIntf))    
+    
+(test= "Overloaded methodname - string"
+    "a" (. ti foo "a"))
+(test= "Overloaded methodname - int"
+    "12" (. ti foo 12))    
+
+;; Primitive returns
+(deftype ImplPrimReturn []
+    PrimitiveReturn
+    (makeInt [this foo] 55))
+    
+(def ipr (new ImplPrimReturn))    
+(test= "Primitive integer return"
+    (to-int 55) (. ipr makeInt "ignored"))
+
+;; Primitive return - let
+(deftype ImplLetPrimReturn []
+    PrimitiveReturn
+    (makeInt [this foo]
+        (let* [a 44] a)))               
+        
+(def ilpr (new ImplLetPrimReturn))    
+(test= ["PrimitiveReturn" "Let" "Int"]
+    (to-int 44) (. ilpr makeInt "ignored"))
+
+;; Primitive arguments (type hints)
+(deftype ImplPrimArg []
+    PrimitiveArg
+    (addsTwo [this arg] (+ arg 2)))
+    
+(def ipa (new ImplPrimArg))    
+(test= ["PrimitiveArg" "Int"]
+    (to-int 52) (. ipa addsTwo 50))
+    
+;; void returns    
+(import java.util.ArrayList)    
+(deftype ImplVoidArg []
+    VoidReturn
+    (addString [this base arg] (. base add arg)))    
+(def void-fn (new ImplVoidArg))
+(def expected (new ArrayList))
+(. expected add "foo")
+(def to-add (new ArrayList))
+(. void-fn addString to-add "foo")   
+(test= ["VoidArg" "Base"]
+    expected to-add)  
+
+;; varargs 
+(deftype VarIntf []
+    VariadicInterface
+    (call [this num & strs] (apply str num strs)))
+    
+(def vi (new VarIntf))
+(test= ["Variadic" "Interface" "Interop"]
+    "123abc" (. vi call 123 "a" "b" "c"))
+

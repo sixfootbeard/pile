@@ -1,0 +1,138 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.pprint)
+
+(import (java.io PrintStream)
+        (java.lang Appendable))
+
+(defprotocol PrettyPrint
+    (pprint [this out]))
+
+(def ^:private ^:dynamic print-count 0)
+(def ^:private ^:dynamic tripped-max false)
+(def max-print-count 1024)
+
+(defn ^:private can-print [] (not tripped-max))
+
+(defn ^:private prn-to [^Appendable ps ^String obj]
+      (let [obj-len (.length obj)
+            new-count (+ print-count obj-len)]
+         (if (> new-count max-print-count)
+            (do 
+              (set! tripped-max true)
+              (let [diff (- max-print-count print-count)]
+                (.append ps (.substring obj 0 diff))))
+            (do 
+              (.append ps obj)
+              (set! print-count new-count)))))
+
+(deftype RawString [s]
+   PrettyPrint
+   (pprint [this out] (prn-to out (str s))))
+
+(defn ^:private prn-each [^Appendable ps col start end]   
+   (when (can-print) (prn-to ps start))   
+   (let [inter (interpose (new RawString " ") col)] 
+      (loop [s (seq inter)]
+         (when (and (can-print) (some? s))
+            (pprint (first s) ps)
+            (recur (next s)))))   
+   (when (can-print) (prn-to ps end)))
+
+(extend-protocol PrettyPrint
+    Symbol
+    (pprint [sym out] (prn-to out (.toString sym)))
+
+    PersistentList
+    (pprint [this out] (prn-each out this "(" ")"))
+    
+    PersistentSet
+    (pprint [this out] (prn-each out this "#{" "}"))
+    
+    PersistentMap
+    (pprint [this out] (prn-each out (mapcat #(vector (.getKey %) (.getValue %)) this) "{" "}"))
+    
+    PersistentVector
+    (pprint [this out] (prn-each out this "[" "]"))
+
+    Seqable
+    (pprint [this out] (pprint (seq this) out))
+
+    ISeq
+    (pprint [this out] (prn-each out this "(" ")"))
+
+    Pattern
+    (pprint [this out] (prn-to out (str "#\"" (.pattern this) "\"")))
+
+    Number
+    (pprint [this out] (prn-to out (.toString this)))
+
+    java.math.BigInteger
+    (pprint [this out] (prn-to out (str (.toString this) "N")))
+
+    java.math.BigDecimal
+    (pprint [this out] (prn-to out (str (.toString this) "b")))
+
+    Character
+    (pprint [this out] (prn-to out (str "\\" this)))
+
+    Boolean
+    (pprint [this out] (prn-to out (if this "true" "false")))
+
+    Keyword
+    (pprint [this out] (prn-to out (.toString this)))
+
+    Var
+    (pprint [this out] (prn-to out (.toString this)))
+
+    String
+    (pprint [this out] (prn-to out (str "\"" this "\"")))
+
+    Object
+    (pprint [this out] (prn-to out (str "#object[" (-> this class .getName) "@"
+                                                   (System/identityHashCode this) " "
+                                                   "\"" this "\""
+                                                   "]")))
+    
+    nil
+    (pprint [this out] (prn-to out "nil")))
+
+(prefer-protocol PrettyPrint java.math.BigInteger Number)
+(prefer-protocol PrettyPrint java.math.BigDecimal Number)
+
+(defn pretty-print 
+   ([c] (pretty-print c *out*))
+   ([c out] 
+       (set! print-count 0)
+       (set! tripped-max false)
+       (if (proxy? c)
+          (prn-to out "Proxy")
+          (pprint c out))
+       (when tripped-max 
+             (.append out "<truncated>"))))
+
+(defn pretty-print-string [c]
+   (let [sb (new java.lang.StringBuilder)]
+      (pretty-print c sb)
+      (.toString sb)))
+
+
+(defn prn-string [c]
+      (prn (class c) " - " c)
+      (let [baos (java.io.ByteArrayOutputStream.)
+            pw (PrintStream. baos false "utf8")]
+         (pprint c pw)
+         (.flush pw)
+         (String. (.toByteArray baos) "utf8")))

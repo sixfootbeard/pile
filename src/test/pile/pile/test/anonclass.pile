@@ -1,0 +1,157 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.test.anonclass
+    (:refer pile.test pile.test.util)
+    (:import (pile.util TestBaseNoConstructorNoMethods TestBaseOneConstructorNoMethods
+                        TestBaseAbstractNoConstructorOneMethod TestBaseOneConstructorOneMethod
+                        TestBaseOneVarargsConstructorOneMethod TestBaseOneVarargsConstructor
+                        TestBaseTwoConstructorOneMethod AbstractParent AbstractChild)))
+
+;; Factors
+;; Constructor Args: 0, 1+_Plain, 1+_Varargs
+;; Closure: True, False
+
+;; Testing
+;; Compile/Eval
+;; Test is-a type
+;; Methods: implemented as expected (check interop)
+
+;; Simplest test, no methods, no constructor
+(def call-base-simple
+    (anon-cls TestBaseNoConstructorNoMethods []))
+
+(test (instance? TestBaseNoConstructorNoMethods call-base-simple))
+
+;; CArgs: 0, Closure: True
+(defn call-base-one-method-closure [a]
+    (anon-cls TestBaseAbstractNoConstructorOneMethod []
+        (getString [this] a)))
+(test= "NoArgConstructorClosureCompile"
+  "foo" (.getString (call-base-one-method-closure "foo")))
+(let [a "ev"]
+  (test= "NoArgConstructorClosureEval"
+     "ev" (.getString (anon-cls TestBaseAbstractNoConstructorOneMethod []
+                        (getString [this] a)))))
+
+
+;; CArgs: 0, Closure: False
+ 
+(defn make-call-base-one-method []
+    (anon-cls TestBaseAbstractNoConstructorOneMethod []
+        (getString [this] "foobar")))
+(test "AnonClsIsACorrectType"
+  (instance? TestBaseAbstractNoConstructorOneMethod (make-call-base-one-method)))        
+(def one-method-inst (make-call-base-one-method))        
+(test= ["AnonClass" "Compile" "OneMethod"]
+   "foobar" (.getString one-method-inst))
+
+
+(defn getAbsStr [^TestBaseAbstractNoConstructorOneMethod base]
+    (.getString base))
+(def call-base-one-method
+    (anon-cls TestBaseAbstractNoConstructorOneMethod []
+        (getString [this] "foobar")))
+(test= "foobar" (.getString call-base-one-method))
+(test= "foobar" (getAbsStr call-base-one-method))   
+
+;; Check constructor args get set
+(def call-base-one-arg (anon-cls TestBaseOneConstructorNoMethods ["anArg"]))
+(test (instance? TestBaseOneConstructorNoMethods call-base-one-arg))              
+(test= "anArg" (.getArg call-base-one-arg))
+
+
+;; Constructor + closure args
+(defn one-cons-one-method [s]
+     (anon-cls TestBaseOneConstructorOneMethod ["anArg"]
+               (getAnotherArg [this] s)))
+(test= "anArg" (.getArg (one-cons-one-method "foo")))
+(test= "foo" (.getAnotherArg (one-cons-one-method "foo")))
+
+;; + ambiguous constructor type
+(defn one-cons-one-method-ambi [c s]
+     (anon-cls TestBaseOneConstructorOneMethod [c]
+               (getAnotherArg [this] s)))
+(test= "another" (.getArg (one-cons-one-method-ambi "another" "foo")))
+(test= "foo" (.getAnotherArg (one-cons-one-method-ambi "another" "foo")))
+
+;; Constructor (varargs)
+(defn no-vargarg [] (anon-cls TestBaseOneVarargsConstructor [12]))
+(test= 0 (-> (no-vargarg) .getArr (alength)))
+
+(defn one-vargarg [] (anon-cls TestBaseOneVarargsConstructor [12 "anArg"]))
+(test= 12 (.getStart (one-vargarg)))
+(test= "anArg" (-> (one-vargarg) .getArr (aget 0)))
+
+(defn two-vargarg [] (anon-cls TestBaseOneVarargsConstructor [12 "anArg" "anotherArg"]))
+(test= 12 (.getStart (two-vargarg)))
+(test= "anArg" (-> (two-vargarg) .getArr (aget 0)))
+(test= "anotherArg" (-> (two-vargarg) .getArr (aget 1)))
+
+;; Constructor (varargs) + closure args
+(defn no-vargarg-one-method [a]
+      (anon-cls TestBaseOneVarargsConstructorOneMethod [12]
+                (getAbs [this] a)))
+(test= 0 (-> (no-vargarg-one-method "a") .getArr (alength)))
+(test= "a" (-> (no-vargarg-one-method "a") .getAbs))
+
+(defn one-vargarg-one-method [a]
+      (anon-cls TestBaseOneVarargsConstructorOneMethod [12 "arg"]
+                (getAbs [this] a)))
+(test= "arg" (-> (one-vargarg-one-method "a") .getArr (aget 0)))
+(test= "a" (-> (one-vargarg-one-method "a") .getAbs))
+
+
+(defn two-vargarg-one-method [a]
+      (anon-cls TestBaseOneVarargsConstructorOneMethod [12 "arg" "two"]
+                (getAbs [this] a)))
+(test= "arg" (-> (two-vargarg-one-method "a") .getArr (aget 0)))
+(test= "two" (-> (two-vargarg-one-method "a") .getArr (aget 1)))
+(test= "a" (-> (two-vargarg-one-method "a") .getAbs))
+
+;; Untyped
+(defn untyped-vargarg-one-method [f s t]
+      (anon-cls TestBaseOneVarargsConstructorOneMethod [f s t]
+                (getAbs [this] "abs")))
+
+(def ambi (untyped-vargarg-one-method 12 "44" "55"))
+
+(test= 12 (.getStart ambi))
+(test= "44" (-> ambi .getArr (aget 0)))
+(test= "55" (-> ambi .getArr (aget 1)))
+
+(testFail "CompileFail" UnlinkableMethodException
+  (defn two-cons-fail [arg]
+    (anon-cls TestBaseTwoConstructorOneMethod [arg]
+      (getArg [this] "arg"))))
+
+(defn two-cons [^String arg]
+  (anon-cls TestBaseTwoConstructorOneMethod [arg]))
+
+(test= "one" (-> "one" two-cons .getArg))
+
+(defn two-cons-int [^int arg]
+  (anon-cls TestBaseTwoConstructorOneMethod [arg]))
+
+(test= "1" (-> 1 two-cons-int .getArg))
+
+;; abstract parent
+(let [f (anon-cls AbstractChild [] (doThing [this] "abcd"))]
+     (is (= "abcd" (.doThing f))))
+
+;; defaults
+(let [a (atom)
+      it (anon-cls java.util.Iterator (remove [this] (reset! a 55)))]
+   (.remove it)
+   (is (= 55 (deref a))))

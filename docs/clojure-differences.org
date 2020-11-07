@@ -1,0 +1,80 @@
+This document will outline some of the differences with Clojure for people familiar with it. This is not meant to be a comprehensive overview of features.
+
+* Generic Functions
+
+Pile has generic functions instead of protocols. Generic functions allow a similar type based polymorphism but generic functions are multiple dispatch.
+
+* Functional Interface Integration
+
+Pile functions can be transformed into appropriate Single Abstract Method (SAM) types within interop callsites using the ~# synactic sugar.
+
+#+begin_src clojure :eval no
+;; Calls the List.forEach default method with a Pile function adapted to be a java.util.function.Consumer.
+pile.repl> (.forEach [1 2 3] ~#prn)
+1
+2
+3
+#+end_src
+
+You can also convert SAM types into callable Pile methods using the 'to-fn' function.
+
+#+begin_src clojure :eval no
+pile.repl> (import java.util.Comparator)
+pile.repl> (def java-cmp (Comparator/naturalOrder))
+pile.repl> (def call-cmp (to-fn java-cmp))
+pile.repl> (call-cmp 55 66)
+;; -1
+#+end_src
+
+* Varargs Support
+
+Pile supports varargs in Java interop calls as well as type definitions.
+
+#+begin_src clojure :eval no
+(String/format "This %s or that %s" 1 "one") 
+#+end_src
+
+#+begin_src clojure :eval no
+;; public interface VariadicInterface { public String call(int num, String... strs); }
+(deftype VarIntf []
+    VariadicInterface
+    (call [this num & strs] (apply str num strs)))
+(. vi call 123 "a" "b" "c") 
+;; "123abc"
+#+end_src
+
+The vararg parameter ('strs' in the example above) may be treated like a sequence.
+
+* Proxy
+
+Proxy only accepts interfaces currently.
+
+Proxy methods dispatch on name & arity.
+
+A proxy will call a default method if no implementation is provided for the name & arity.
+
+* First Class Java Functions
+
+You can represent calls to java functions as reified objects with the syntax like 'String::valueOf'
+
+* Streams
+
+There are no transducers. Support for stateful, lazy transformation pipelines is supported with use of stream functions in the stdlib backed by java.util.stream.Stream. 
+
+* Var
+
+There is no 'var rooting'. All threads will see the same value for a normal Var. Vars can still have thread-local scope by being marked as ^:dynamic if that behavior is desired.
+
+* Async
+
+The async implementation uses virtual threads instead of a compiler generated state machine. This means that blocking behavior can be dynamic and is not limited to visible symbols in the scope in which an async call is made. The downside is this is not portable outside the JVM.
+
+* Standard Library
+
+** Array Methods
+
+There are polymorphic array methods instead of subtype specific methods eg. 'aget' vs 'aget-int', 'aget-short' etc. 
+
+* Performance
+
+Some optimizations in Clojure like seq chunking and native reducers have not been implemented (yet) so the performance of long seq chains and reduce may be suboptimal. 

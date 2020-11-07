@@ -1,0 +1,569 @@
+Pile Language
+
+* Overview
+
+Pile is a Lisp implementation that runs on the JVM. It targets Java 20+ to take advantage of new Java features. 
+
+:EXAMPLE:
+(defn fib [a b] (cons a (lazy-seq (fib b (+ a b)))))
+(take 20 (fib 0 1))
+;; (0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181)
+:END:
+
+All syntactic and conceptual similarities with Clojure are intentional as it was the inspiration for this language, however no code was used. 
+
+NB. Design, implementation and optimization of the language are still in progress. Don't use for anything important.
+
+* Feature List
+
+- [X] [[*Lisp-1][Lisp-1]]
+- [X] [[*Compiled][Compiled]]
+- [X] [[*Namespaces][Namespaces]]
+- [X] [[*Lexical Scoping][Lexical Scoping]]
+- [X] [[*Closures][Closures]]
+- [X] [[*Macros][Macros]]
+- [X] [[*Persistent Collections][Persistent Collections]]
+- [X] [[*First-Class Functions][First-Class Functions]]
+- [X] [[*Destructuring][Destructuring]]
+- [X] [[*Java Type Creation][Java Type Creation]]
+- [X] [[*Generic Functions][Generic Functions]]
+- [X] [[*Multimethods][Multimethods]]
+- [X] [[*Static Typing (Optional)][Static Typing (Optional)]]
+- [X] Lazy Sequences
+- [X] [[*Async/Await][Async/Await]]
+- [X] [[*Java Interop][Java Interop]]
+- [X] [[*Streams][Streams]]
+- [X] [[*Functional Interface Integration][Functional Interface Integration]]
+- [X] [[*First-Class Java Functions][First-Class Java Functions]]
+- [X] [[*Arbitrary-precision arithmetic][Arbitrary-precision arithmetic]]
+- [X] [[*Condition System][Condition System]] (beta)
+- [X] AOT Compilation (beta)
+- [ ] STM
+- [ ] Agents?
+
+* Running
+
+Currently the only way to run the language is the repl which can be executed by running the 'repl' script at the root project level. This simply builds the project from source and then loads the repl.
+
+* Documentation
+
+- [[file:docs/tutorial.org][Tutorial]] (in progress)
+
+* Feature Descriptions
+
+** Lisp-1
+There is no special syntax or distinction between functions and other values
+
+:EXAMPLE:
+(defn choice [cval left-fun right-fun val] 
+  (if cval (left-fun val) (right-fun val)))
+:END:
+
+** Compiled
+
+All functions are always compiled to bytecode: 
+
+:EXAMPLE:
+pile.repl> (defn choice [cval left-fun right-fun val] (if cval (left-fun val) (right-fun val)))
+[pile.core.compiler.ClassCompiler] TRACE: Compiled class:
+// class version 59.0 (59)
+// access flags 0x1
+public class pile/core/runtime/fclass$anon$68 {
+
+
+  // access flags 0x1
+  public func$77(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
+  @Lpile/core/anno/GeneratedMethod;()
+    ALOAD 1
+    INVOKESTATIC pile/core/compiler/Helpers.ifCheck (Ljava/lang/Object;)Z
+    ICONST_1
+    IF_ICMPNE L0
+    ALOAD 2
+    ALOAD 4
+    INVOKEDYNAMIC opaque(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; [ ... ]
+    GOTO L1
+   L0
+   FRAME SAME
+    ALOAD 3
+    ALOAD 4
+    INVOKEDYNAMIC opaque(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; [ ... ]
+   L1
+   FRAME SAME1 java/lang/Object
+    ARETURN
+    MAXSTACK = 2
+    MAXLOCALS = 5
+
+  // access flags 0x1001
+  public synthetic <init>()V
+    ALOAD 0
+    INVOKESPECIAL java/lang/Object.<init> ()V
+    RETURN
+    MAXSTACK = 1
+    MAXLOCALS = 1
+}
+
+#'pile.repl/choice
+
+:END:
+
+** Namespaces
+
+A namespace is a container of definitions of functions and values. 
+
+#+begin_src clojure :eval no
+;; Set ns
+(ns a.b.c)
+;; Define a value in the current namespace
+(def v 4)
+;; refer to that value, looking it up in the current namespace
+v
+;; unambiguously refer to the value by providing the full namespace
+a.b.c/v
+#+end_src
+
+** Lexical Scoping
+
+Pile has lexical scoping for method arguments and locals. Values defined at the namespace level are effectively dynamically scoped as their bound values can change during the execution of the program.
+
+#+begin_src clojure :eval no
+(def dvar 12)
+(defn print-dvar [] (prn dvar))
+(print-dvar)
+;; 12
+(set! dvar 55)
+(print-dvar)
+;; 55 
+#+end_src
+
+Vars can be defined as thread-local by annotating the var with ^:dynamic.
+#+begin_src clojure :eval no
+(def ^:dynamic dvar 12)
+#+end_src
+
+** Closures
+
+Created functions can close over their lexical environment allowing them to reference symbols defined outside their scope:
+
+#+begin_src clojure :eval no
+(defn plus-some [x] (fn [y] (+ x y)))
+(def plus-two (plus-some 2))
+(plus-two 5)
+;; 7
+#+end_src
+
+** Static Typing (Optional)
+
+You can annotate symbols in certain contexts with types:
+- Let bindings
+#+begin_src clojure :eval no
+(let [^String s (some-str-fn)] ... )
+#+end_src
+
+- Method arguments
+#+begin_src clojure :eval no
+(defn indexof [^String s n] (. s indexOf n))
+(= 3 (indexof "foobar" "b"))
+#+end_src
+
+- Return types
+#+begin_src clojure :eval no
+(defn returns-str ^String [] "foobar")
+#+end_src
+
+These types are strictly checked, and are not simply hints. For example, this will throw an a ClassCastException:
+#+begin_src clojure :eval no
+(defn accepts-str [^String s] s)
+(accepts-str 12) ;; Throws CCE
+#+end_src
+
+** Macros
+
+A macro is simply a function that operates on the syntax of the language, and has some metadata that identifies it as a macro to the compiler.
+
+Since these functions are purely syntax translations the macro system is non-hygenic. However, there are two features which mitigate possible identifier capture:
+- Symbol Namespacing
+- Auto-gensym
+
+Macros have syntactic sugar for the four helpers:
+- quote '
+- syntax-quote `
+- unquote ~
+- unquote-splice ~@
+
+** TODO Persistent Collections
+
+** First-Class Functions
+
+Functions are full objects and can be stored in data structures and used as arguments to functions.
+
+** First-Class Java Functions
+
+Integer::valueOf is syntactic sugar that creates a first-class that calls the named function of the provided type. This means java methods can exist as first class functions:
+
+#+begin_src clojure :eval no
+(Integer::valueOf "12") // 12
+(map Number::longValue [1 2.2]) // (1L 2L)
+#+end_src
+
+The generated function can call any arity/type of the named method although typically it is going to be a single method target. This syntax can call either static or instance methods, however all named variants must be all static or all instance methods (eg. Integer::toString would fail because there are both instance and static methods of Integer named 'toString'). Under the hood that syntax is converted to a call to (java-method Integer "valueOf"). Constructors can be called using this syntax by using the method named 'new' similar to how Java method references work.
+
+This function can be used in all the ways a function can:
+
+#+begin_src java :eval no
+record Person(String fname, String lname, int age) {}
+#+end_src
+
+#+begin_src clojure :eval no
+(def info ["John" "H" 36])
+(apply Person::new info) ;; Person(John, H, 36)
+
+(def johns-only (partial Person::new "John"))
+(johns-only "Smith" 44) ;; Person(John, Smith, 44)
+#+end_src
+
+** Java Interop
+
+Pile also supports the clojure interop syntax:
+- the dot form '.'
+- constructor invocation with 'new'
+- static method call '(String/format ... )'
+- field access with '.-'
+
+New Instance
+#+begin_src clojure :eval no
+(new HashMap)
+#+end_src
+
+Get Field (static)
+#+begin_src clojure :eval no
+;; (. class-symbol -member-symbol)
+(. Integer -SIZE)
+#+end_src
+
+Get Field (instance)
+#+begin_src clojure :eval no
+;; public static class TestField {
+;;    public String foo = "bar";
+;;}
+;;(. instance-expr -field-symbol)
+(. (new TestField) -foo)
+#+end_src
+
+Method Call (static)
+#+begin_src clojure :eval no
+(. Integer parseInt "12")
+(. Integer (parseInt "12"))
+(.parseInt Integer "12")
+#+end_src
+
+Method Call (instance)
+#+begin_src clojure :eval no
+;; (. instance-expr (method-symbol args*))
+;; (. instance-expr method-symbol args*)
+;; (.method-symbol instance-expr args*)
+(. "foobar" indexOf "b")
+(. "foobar" (indexOf "b"))
+(.indexOf "foobar" "b")
+#+end_src
+
+All interop calls support calling vararg functions seamlessly:
+#+begin_src clojure :eval no
+;; Interop calls
+(String/format "This %s or that %s" 1 "one") 
+;; Interop + mixed type/arity/varargs
+(Paths/get "a")
+(Paths/get "a" "b")
+(def file (new java.io.File "file.txt"))
+(Paths/get (-> file .toURI))
+#+end_src
+
+** Functional Interface Integration
+
+Within Java interop it is possible to adapt Pile functions to implement java Functional Interfaces via the '~#' syntax.
+
+#+begin_src clojure :eval no
+;; Calls the List.forEach default method with a Pile function adapted to be a java.util.function.Consumer.
+pile.repl> (.forEach [1 2 3] ~#prn)
+1
+2
+3
+#+end_src
+
+This also works for locals:
+#+begin_src clojure :eval no
+pile.repl> (defn print-each [f] (.forEach [1 2 3] ~#f))
+pile.repl> (print-each prn)
+1
+2
+3
+#+end_src
+
+If the adapt syntax is used with an s-expr it is considered to be an anonymous function:
+#+begin_src clojure :eval no
+pile.repl> (.forEach [1 2 3] ~#(prn "item: " %0))
+item: 1
+item: 2
+item: 3
+#+end_src
+
+This adaptation works for all SAM types, not just java specific ones. 
+
+There is also support to convert SAM types into callable Pile methods with the pile.core/to-fn function. It accepts an instance of a SAM type and returns a callable function bound to that object calling that single method.
+
+#+begin_src clojure :eval no
+pile.repl> (import java.util.Comparator)
+pile.repl> (def java-cmp (Comparator/naturalOrder))
+pile.repl> (def call-cmp (to-fn java-cmp))
+pile.repl> (call-cmp 55 66)
+;; -1
+#+end_src
+
+** TODO Java Type Creation
+
+Pile has several methods of creating types that extend base classes and/or implement interfaces.
+
+*** deftype
+
+The deftype form defines a named class implementing statically known supertype & interfaces with no closed over values. This form has several parts:
+- Type Name
+- Type Constructor arguments
+- Implemented supertype (0 or 1) and/or interfaces (0 to many)
+  If the supertype is specified it *must* be followed by a vector of constructor arguments.
+- Method definitions
+
+;; Template
+#+begin_src clojure :eval no
+(deftype TypeName [type constructor arguments]
+         Supertype [supertype constructor arguments]
+         Interface0
+         (ifacefn [this] ...)
+         Interface1
+         (otherfn [this a b] ...))
+#+end_src
+
+An empty iterator:
+#+begin_src clojure :eval no
+(deftype EmptyIter [] 
+         java.util.Iterator 
+         (hasNext [this] false) 
+         (next [this] (throw (java.util.NoSuchElementException.))))
+#+end_src
+
+A point in time which takes in an instant to return each invocation of instant:
+#+begin_src clojure :eval no
+(deftype PointInTime [inst] 
+         java.time.InstantSource (instant [this] inst))
+(def p (PointInTime. (java.time.Instant/now)))
+(.instant p)
+#+end_src
+
+Varargs methods are supported for implementation:
+#+begin_src clojure :eval no
+;; public interface VariadicInterface { public String call(int num, String... strs); }
+(deftype VarIntf []
+    VariadicInterface
+    (call [this num & strs] (apply str num strs)))
+(. vi call 123 "a" "b" "c") ;; "123abc"
+#+end_src
+
+The vararg parameter ('strs' in the example above) may be treated like a sequence.
+
+_Notes_
+
+The order of the super-type/interface-types with the method definitions is not semantically relevant and can be in any order (with the exception that the supertype constructor arguments must follow the supertype itself) eg.
+
+(deftype T []
+         Interface0
+         Interface1
+         (interface0-method [this] ...)
+         Supertype [a b c]
+         (interface1-method [this] ...))
+
+While this is allowed it is preferred if the types preceed their associated method definitions.
+
+*** anon-cls
+
+The anon-cls form creates an anonymous instance implementing statically known supertype & interfaces and allows closed over values.
+
+#+begin_src clojure :eval no
+(defn source []
+      (let [inst (Instant/now)]
+          (anon-cls java.time.InstantSource (instant [this] inst))))
+#+end_src
+
+*** proxy
+
+The proxy method creates an anonymous instance with dynamic interfaces and dynamically created method implementations. This method takes in a vector of interfaces to implement and a map from method name to either a function or a list of functions.
+
+#+begin_src clojure :eval no
+(def p (proxy [java.time.InstantSource] {"instant" (fn [this] (java.time.Instant/now))}))
+(.instant p) ;; #object[java.time.Instant@524241174 "<time repr>"]
+;; default methods
+(.millis p) ;; 1634455725692
+#+end_src
+
+** TODO Generic Functions
+
+Pile supports type-based multiple dispatch via generic functions.
+
+Generic functions are defined with 'defgeneric', and typed implementations with 'defimpl'. 
+
+#+begin_src clojure :eval no
+(defgeneric write-to [sink src])
+(defimpl write-to [^PrintWriter sink ^String src] (.write sink src) (.flush sink))
+(def pw (PrintWriter. System/-out))
+(write-to pw "output")
+;; "output"
+#+end_src
+
+Single dispatch variants can be inline specialized at a type definition (deftype) by adding :specialize within the definition followed by any number of specialized method implementations:
+
+#+begin_src clojure :eval no
+(defgeneric tostr [t])
+(deftype Stringable [s] 
+	:specialize 
+	(tostr [this] s))
+(def s (Stringable. "1234"))
+(tostr s)
+;; "1234"
+#+end_src
+
+** TODO Multimethods
+
+Pile supports arbitrary multiple dispatch via multimethods. Use defmulti/defmethod to create/update multimethods.
+
+#+begin_src clojure :eval no
+(defmulti getl (fn* [x] (get x :type)))
+(defmethod getl :a [x] "a")
+(defmethod getl :b [x] "b")
+(defmethod getl :default [x] "default")
+
+(= "a" (getl {:type :a}))
+(= "b" (getl {:type :b}))
+(= :default (getl {:type "idk"}))
+#+end_src
+
+Multimethods can use custom hierarchies if the keying function produces keywords. 
+
+** Async/Await
+
+Computation can be performed asynchronously on a virtual thread using async. Waiting for a single result is unified under deref/@.
+
+#+begin_src clojure :eval no
+(defn run-parallel [x y]
+  (let [slow-comp  (async (slow-computation x))
+        other-comp (async (slower-computation y))]
+      (use-results @slow-comp @other-comp)))
+#+end_src
+
+In some languages async is a viral function attribute and calling limitation. In Pile it is simply a macro. 
+
+Waiting for the completion of one of multiple results is accomplished by using the (await ...) function. This function may wait on multiple things of different types to include:
+- (async ...) tasks
+- Channel gets
+- Channel puts
+
+#+begin_src clojure :eval no
+(await (async (do-compute)) get-channel [put-channel val-to-enqueue])
+#+end_src
+
+This await process is atomic and only one operation will succeed. 
+
+** Destructuring
+
+Pile supports both sequential and associative destructuring in both method arguments and let/loop definitions.
+
+#+begin_src clojure :eval no
+(defn prefix-both [prefix both] 
+      (let [[f s] both] 
+           [(str prefix f) (str prefix s)]))
+(prefix-both "pre" ["dawn" "mature"])
+;; ["predawn" "premature"]
+
+(defn prefix-both [prefix [f s]] 
+      [(str prefix f) (str prefix s)])
+(prefix-both "pre" ["historic" "tax"])
+;; ["prehistoric" "pretax"]
+
+#+end_src
+
+
+
+** Streams
+
+Pile supports stateful, lazy transformation streams. These operations take a source, a set of transformations and a (optional) terminal operation.
+
+#+begin_src clojure :eval no
+(stream (range 10) (filter #(> % 5)) (map #(* % 3)) (into []))
+;; [18 21 24 27]
+#+end_src
+
+** TODO Arbitrary-precision arithmetic
+
+Pile supports both fixed-precision and arbitrary-precision arithmetic. All the short operators perform fixed width arithmetic which can overflow or lose precision during unit conversion:
+
+#+begin_src clojure :eval no
+(+ Long/-MAX_VALUE 1)
+;; -9223372036854775808
+#+end_src
+
+You can use the alternate operators, which have a single quote suffix, to perform arbitrary-precision arithmetic:
+
+#+begin_src clojure :eval no
+(+' Long/-MAX_VALUE 1)
+;; 9223372036854775808
+#+end_src
+
+You can create arbitrary-precision integral literals with a 'N' suffix, and arbitrary-precision decimal literals with the 'b' suffix:
+
+#+begin_src clojure :eval no
+(+' 0.1b 0.2b)
+;; 0.3
+#+end_src
+
+All operations which would overflow or would lose precision are coerced to higher width or arbitrary precision types, depending on the context. 
+
+** Condition System
+
+There is preliminary support for a condition system.
+
+#+begin_src clojure :eval no
+;; Similar example in the common lisp wiki
+(defn recip [v]
+  (restart-case 
+    (if (= v 0)
+    	(error :on-zero)
+    	(/ 1.0 v))
+    (:return-zero [] 0)
+    (:return-value [r] r)
+    (:recalc-using [r] (recip r))))
+
+(handler-bind [:on-zero ([] (invoke-restart :return-zero))]
+	(recip 5)) 
+;; .2   
+	
+(handler-bind [:on-zero ([] (invoke-restart :return-zero))]
+	(recip 0))
+;; 0
+		
+(handler-bind [:on-zero ([] (invoke-restart :return-value 44))]
+	(recip 0)) 
+;; 44
+
+#+end_src
+
+(restart-case body & case-statements)
+This function wraps a body expression which it runs. The case statements labels are keywords, which can be individually referenced from an invoke-restart function, along with an argument list and body.
+
+(error error-type & error-args)
+This function triggers a lookup for bound handler functions (via handler-bind) of the same keyword type. This can also pass arguments to the bound handler function.
+
+(handler-bind bindings & body)
+Binds named handler functions which can be targeted from an error function. Handler names are keywords and can shadow earlier bound handlers.
+
+(invoke-restart restart-case-name & args)
+This function transfers control to a non-local named restart case and is typically called from within a bound handler function.
+
+* Footer
+
+Copyright 2023 John Hinchberger

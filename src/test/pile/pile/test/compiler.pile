@@ -1,0 +1,480 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.test.compiler
+    (:refer pile.test pile.test.util))
+           
+(import java.util.concurrent.atomic.AtomicInteger)       
+
+;; property:
+;; final/non-final
+;; value/dynamic vs callable?
+;; constable/non-constable
+
+;; usage:
+;; compiled/evaluated
+;; called/used-as-value
+;; redefined (non-final)
+;; reset! (dynamic)
+
+(def arrlist (new java.util.ArrayList))
+(def arrlist-two (new java.util.ArrayList))
+
+;; final/value
+(def ^:final final-value-constable 44)
+(def ^:final final-value-non-constable arrlist)
+(def ^:final final-value-callable (fn [] "fvcall"))
+(test= ["Final" "Value" "Constable" "Eval"]
+       44 final-value-constable)
+(let [tfn (fn [] final-value-constable)]
+     (test= ["Final" "Value" "Constable" "Compile"]
+       44 (tfn)))
+(test ["Final" "Value" "NonConstable" "Eval"]
+     (same? arrlist final-value-non-constable))
+(let [tfn (fn [] final-value-non-constable)]
+     (test ["Final" "Value" "NonConstable" "Compile"]
+       (same? arrlist (tfn))))
+(test= ["Final" "Value" "Callable" "Eval"]
+       "fvcall" (final-value-callable))
+(let [tfn (fn [] (final-value-callable))]
+     (test= ["Final" "Value" "Callable" "Compile"]
+       "fvcall" (tfn)))
+
+;; final/dynamic
+(def ^:final ^:dynamic final-dynamic-constable 54)
+(def ^:final ^:dynamic final-dynamic-non-constable arrlist)
+(def ^:final ^:dynamic final-dynamic-callable (fn [] "fdcall"))
+(test= ["Final" "Dynamic" "Constable" "Eval"]
+       54 final-dynamic-constable)
+(defn fdcfn [] final-dynamic-constable)
+(defn fdncfn [] final-dynamic-non-constable)
+(defn fdcall [] (final-dynamic-callable))
+(test= ["Final" "Dynamic" "Constable" "Compile"]
+       54 (fdcfn))
+(test ["Final" "Dynamic" "NonConstable" "Eval"]
+     (same? arrlist final-dynamic-non-constable))
+(test ["Final" "Dynamic" "NonConstable" "Compile"]
+      (same? arrlist (fdncfn)))       
+(test= ["Final" "Dynamic" "Callable" "Eval"]
+       "fdcall" (final-dynamic-callable))
+(test= ["Final" "Dynamic" "Callable" "Compile"]
+       "fdcall" (fdcall))
+(reset! #'final-dynamic-constable 95)
+(reset! #'final-dynamic-non-constable arrlist-two)
+(reset! #'final-dynamic-callable (fn [] "fdcall-two"))
+(test= ["Final" "Dynamic" "Constable" "Compile" "Update"]
+       95 (fdcfn))
+(test ["Final" "Dynamic" "NonConstable" "Eval" "Update"]
+      (same? arrlist-two final-dynamic-non-constable))
+(test ["Final" "Dynamic" "NonConstable" "Compile" "Update"]
+      (same? arrlist-two (fdncfn)))       
+(test= ["Final" "Dynamic" "Callable" "Eval" "Update"]
+       "fdcall-two" (final-dynamic-callable))
+(test= ["Final" "Dynamic" "Callable" "Compile" "Update"]
+       "fdcall-two" (fdcall))
+
+
+;; non-final/value
+(def non-final-value-constable 64)
+(def non-final-value-non-constable arrlist)
+(def non-final-value-callable (fn [] "nfvcall"))
+(test= ["NonFinal" "Value" "Constable" "Eval"]
+       64 non-final-value-constable)
+(let [tfn (fn [] non-final-value-constable)]
+     (test= ["NonFinal" "Value" "Constable" "Compile"]
+       64 (tfn)))
+(test ["NonFinal" "Value" "NonConstable" "Eval"]
+     (same? arrlist non-final-value-non-constable))
+(let [tfn (fn [] non-final-value-non-constable)]
+     (test ["NonFinal" "Value" "NonConstable" "Compile"]
+       (same? arrlist (tfn))))
+(test= ["NonFinal" "Value" "Callable" "Eval"]
+       "nfvcall" (non-final-value-callable))
+(let [tfn (fn [] (non-final-value-callable))]
+     (test= ["NonFinal" "Value" "Callable" "Compile"]
+       "nfvcall" (tfn)))
+
+
+;; non-final/dynamic
+(def ^:dynamic non-final-dynamic-constable 74)
+(def ^:dynamic non-final-dynamic-non-constable arrlist)
+(def ^:dynamic non-final-dynamic-callable (fn [] "nfdcall"))
+(defn nfdcfn [] non-final-dynamic-constable)
+(defn nfdncfn [] non-final-dynamic-non-constable)
+(defn nfdcall [] (non-final-dynamic-callable))
+(test= ["NonFinal" "Dynamic" "Constable" "Compile"]
+       74 (nfdcfn))
+(test ["NonFinal" "Dynamic" "NonConstable" "Eval"]
+     (same? arrlist non-final-dynamic-non-constable))
+(test ["NonFinal" "Dynamic" "NonConstable" "Compile"]
+      (same? arrlist (nfdncfn)))       
+(test= ["NonFinal" "Dynamic" "Callable" "Eval"]
+       "nfdcall" (non-final-dynamic-callable))
+(test= ["NonFinal" "Dynamic" "Callable" "Compile"]
+       "nfdcall" (nfdcall))
+(reset! #'non-final-dynamic-constable 195)
+(reset! #'non-final-dynamic-non-constable arrlist-two)
+(reset! #'non-final-dynamic-callable (fn [] "nfdcall-two"))
+(test= ["NonFinal" "Dynamic" "Constable" "Compile" "Update"]
+       195 (nfdcfn))
+(test ["NonFinal" "Dynamic" "NonConstable" "Eval" "Update"]
+      (same? arrlist-two non-final-dynamic-non-constable))
+(test ["NonFinal" "Dynamic" "NonConstable" "Compile" "Update"]
+      (same? arrlist-two (nfdncfn)))       
+(test= ["NonFinal" "Dynamic" "Callable" "Eval" "Update"]
+       "nfdcall-two" (non-final-dynamic-callable))
+(test= ["NonFinal" "Dynamic" "Callable" "Compile" "Update"]
+       "nfdcall-two" (nfdcall))
+
+(def ^:final final-arr (new java.util.ArrayList))
+(def arr (new java.util.ArrayList))
+
+(. final-arr add "one")
+(. arr add "fone")
+
+(test= "FinalJavaTypeDef"
+    1 (. final-arr size))
+(test= "JavaTypeDef"
+    1 (. arr size))   
+
+(defn return-final-arr [] final-arr)
+(defn return-arr [] arr)
+
+(test= "FinalReturnJavaTypeDef"
+    1 (. (return-final-arr) size))
+(test= "FinalJavaTypeDef"
+    1 (. (return-arr) size))   
+    
+(def arr "foo")
+
+(test= "JavaDefChanged"
+    "foo" arr)    
+(test= "JavaDefCompiledChanged"
+    "foo" (return-arr))   
+
+(defn rstr ^String [] "foo")
+(test= ["AnnotatedType" "Literal" "Return"]
+    "foo" (rstr)) 
+    
+(import java.lang.ClassCastException)
+(defn rstr-arg ^String [a] a)
+(test= ["AnnotatedType" "Arg" "Return"]
+    "foo" (rstr-arg "foo"))
+(testFail ["AnnotatedType" "WrongArg" "Return"] 
+    ClassCastException
+    (rstr-arg 12))  
+       
+       
+;; Deftype
+(import (java.util Iterator NoSuchElementException))
+
+(deftype Piterator []
+    Iterator
+    (hasNext [this] false)
+    (next [this] (throw (new NoSuchElementException))))
+(def pit (new Piterator))
+
+(test= "PitHasNext"
+    false (. pit hasNext))    
+(testFail "PitNext"
+    NoSuchElementException
+    (. pit next)) 
+    
+(import java.util.ArrayList)    
+
+(deftype DelegateIterator [it]
+    Iterator
+    (hasNext [this] (. it hasNext))
+    (next [this] (. it next)))
+(def delegate (new ArrayList))
+(. delegate (add "foof"))    
+(def dit (new DelegateIterator (. delegate iterator)))
+(test= "DitHasNext"
+    true (. dit hasNext))    
+(test= "DitNext"
+    "foof" (. dit next)) 
+    
+(defn with-null [] [1 2 nil])  
+(test= "tdi"
+    [1 2 nil] (with-null))
+    
+(defn with-null-args [a] [1 2 nil a])  
+(test= ["defn" "null"] [1 2 nil 4] (with-null-args 4))
+
+(def ^:final def-with-null [1 nil 2])
+(defn defn-with-null [] def-with-null)
+(test= ["defn" "null"] [1 nil 2] (defn-with-null))
+
+(def ^:final def-map {:a nil})
+(defn defn-map [] def-map)
+(test= ["defn" "map" "null"] {:a nil} (defn-map))
+
+;; do forms
+;; (defn pass [] nil) 
+(def do-int (new AtomicInteger))
+(do 
+    (. do-int incrementAndGet)
+    (pass))
+(test= ["Do" "Eval"]
+    1 (. do-int get))
+(defn do-fn [a]
+    (do (pass) (. a incrementAndGet))) 
+(def do-comp-int (new AtomicInteger))
+(do-fn do-comp-int)    
+(test= ["Do" "Compile"]
+     1 (. do-comp-int get))
+     
+;; dynamic
+(def ^:dynamic dyn 4)
+(test= ["Dynamic" "Eval"]
+    4 dyn)  
+(defn dyn-comp [] dyn)
+(test= ["Dynamic" "Compile"]
+    4 (dyn-comp))
+(def dyn 3)    
+(test= ["Dynamic" "Eval"]
+    3 dyn)
+(test= ["Dynamic" "Compile"]
+    3 (dyn-comp)) 
+    
+(def ^:final ^:dynamic *ret-a* (fn* [] "a"))
+(defn fn-ret-a [] (*ret-a*))
+(test= ["Dynamic" "Eval"]
+    "a" (*ret-a*))
+(test= ["Dynamic" "Compile"]
+    "a" (fn-ret-a))
+        
+(reset! #'*ret-a* (fn* [] "b"))
+(test= ["Dynamic" "Eval" "Rebind"]
+    "b" (*ret-a*))     
+(test= ["Dynamic" "Compile" "Rebind"]
+    "b" (fn-ret-a))  
+    
+;; Loops
+;; eval + compile
+(is (= 5 (loop* [b 1]
+             (if (= b 5)
+                 b
+                 (recur (inc b))))))
+
+(defn doloop [a] 
+      (loop* [b a]
+             (if (= b 5)
+                 b
+                 (recur (inc b)))))
+              
+(is (= 5 (doloop 1)))
+
+
+(is (= 50 (loop* [a 0]
+             (if (= a 50)
+                 a
+                 (recur (+ a (loop* [b 1]
+                                    (if (= b 5)
+                                        b
+                                        (recur (inc b))))))))))
+                                        
+(defn doloop-double [z] 
+      (loop* [a z]
+             (if (= a 50)
+                 a
+                 (recur (+ a (loop* [b 1]
+                                    (if (= b 5)
+                                        b
+                                        (recur (inc b)))))))))
+
+(is (= 50 (doloop-double 0)))
+
+(defn doloop-simpler [z] 
+      (loop* [a z]
+             (if (= a 50)
+                 a
+                 (let* [na (loop* [b 1]
+                                  (if (= b 5)
+                                      b
+                                      (recur (inc b))))] 
+                   (recur (+ a na))))))
+
+(is (= 50 (doloop-simpler 0)))
+
+
+;; reset! + deref
+(def reset-target 44)
+(test= "deref var"
+       44 (deref #'reset-target))
+(reset! #'reset-target 55)
+(test= "reset! var"
+      55 reset-target)
+(def ^:dynamic reset-dyn-target 66)
+(test= "deref dynamic var"
+       66 (deref #'reset-dyn-target))
+(reset! #'reset-dyn-target 77)
+(test= "reset! dynamic var"
+      77 reset-dyn-target)
+(def reset-atom (atom {}))
+(reset! reset-atom {:a :b})
+(test= "reset! atom"
+       {:a :b} (deref reset-atom))
+
+
+
+;; set!
+
+;; var
+;; compile
+(def sval 12)
+(defn change [a] (set! sval a))
+(change 44)
+(is (= 44 sval))
+
+(def ^:dynamic dval 15)
+(let [f (fn [a] (set! dval a))
+      getval (fn [] dval)]
+  (is (= 15 (getval)))
+  (f 51)
+  (is (= 51 (getval)))
+  (is (= 15 (pile.core.async/await (pile.core.async/async (getval))))))
+
+;; eval
+(set! sval 55)
+(is (= 55 sval))
+
+(def ^:dynamic edval 15)
+(let [getval (fn [] edval)]
+  (is (= 15 (getval)))
+  (set! edval 51)
+  (is (= 51 (getval)))
+  (is (= 15 (pile.core.async/await (pile.core.async/async (getval))))))
+
+
+;; instance
+(let [p (new pile.util.Point 10 12)
+      c (fn [o a] (set! (. o -x) a))]
+   (c p 44)
+   ;; test
+   (is (= 44 (.-x p)))
+   (testFail "Null receiver should NPE"
+             java.lang.NullPointerException
+             (c nil 18))
+   (set! (. p -x) 55)
+   (is (= 55 (.-x p))))
+
+;; swap!
+(def swap-target 55)
+;; don't support VALUE swap yet (would need NS support and not sure if we want to yet)
+#_(swap! #'swap-target inc)
+#_(test= "swap! var"
+       56 swap-target)
+(def ^:dynamic swap-dyn-target 66)
+(swap! #'swap-dyn-target inc)
+(test= "swap! dynamic var"
+       67 swap-dyn-target)
+(def swap-atom-target (atom {:a :b}))
+(swap! swap-atom-target assoc :c :d)
+(test= "swap! atom"
+       {:a :b :c :d} (deref swap-atom-target))
+
+
+;; linking var fns
+(defn ^:final final-var-fn [] "final-result")
+(defn call-final-var-fn [] (#'final-var-fn))
+(is "final-result" (call-final-var-fn))
+
+(defn var-fn [] "result")
+(defn call-var-fn [] (#'var-fn))
+(is (= "result" (call-var-fn)))
+(reset! #'var-fn (fn [] "different"))
+(is (= "different" (call-var-fn)))
+
+
+;; static
+(let [c (fn [a] (set! (. pile.util.StaticFieldClass -x) a))]
+     (c 44)
+     (is (= 44 (. pile.util.StaticFieldClass -x)))
+     (set! (. pile.util.StaticFieldClass -x) 55)
+     (is (= 55 (. pile.util.StaticFieldClass -x))))
+
+
+;; do + recur tail position
+(testFail "Do form eval - recur non-tail"
+   pile.core.exception.PileCompileException
+   (loop [a 1]
+     (if (= a 2)
+         a
+         (do
+           (recur 2)
+           (str "foo")))))
+
+(testFail "Do form eval - recur non-tail nested"
+   pile.core.exception.PileCompileException
+   (loop [a 1]
+     (if (= a 2)
+         a
+         (do
+           (do (recur 2))
+           (str "foo")))))
+
+
+(testFail "Do form compile - recur non-tail"
+   pile.core.exception.PileCompileException
+   (fn [] (loop [a 1]
+                (if (= a 2)
+                    a
+                    (do
+                      (recur 2)
+                      (str "foo"))))))
+
+(test "Do form eval - non-tail loop"
+      (let [f (fn [] (loop [a 1]
+           (if (= a 2)
+              a
+              (do
+                (loop [b 3] (if (= b 4) b (recur 4)))
+                (str "foo")))))]
+        (= "foo" (f))))
+
+
+(testFail "Loop cond throws"
+  java.lang.RuntimeException
+  (let [f (fn [] (let [loc (loop* [a 1]
+                             (cond (= a 4) (recur 4)
+                                   :else (throw (new java.lang.RuntimeException "err"))))]
+                    loc))]
+        (f)))
+
+;; try/catch
+(let [only-final (fn [f] (try (f) (finally "fin")))]
+     (is (= 12 (only-final (constantly 12))))
+     (testFail "Exception should still propagate" RuntimeException
+               (only-final #(throw (RuntimeException. "idk")))))
+
+(let [atom-one (atom)
+      atom-two (atom)
+      atom-three (atom)
+      with-ex (fn [f a] (try (f) (catch RuntimeException e (str "rte")) (finally (reset! a "fin"))))]
+     (is (= 12 (with-ex (constantly 12) atom-one)))
+     (is (= "fin" (deref atom-one)))
+
+     (is (= "rte" (with-ex #(throw (RuntimeException.)) atom-two)))
+     (is (= "fin" (deref atom-two)))
+
+     (testFail "Exception should still propagate" Exception
+               (with-ex #(throw (Exception. "idk")) atom-three))
+     (is (= "fin" (deref atom-three))))
+
+(let [always-throws #(throw (RuntimeException.))
+      call-throws (fn [] [1 (try (always-throws) (catch Exception e 3))])]
+  (is (= [1 3] [1 (try (always-throws) (catch Exception e 3))]))
+  (is (= [1 3] (call-throws)))
+)

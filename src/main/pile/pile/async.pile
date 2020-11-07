@@ -1,0 +1,47 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.core.async)
+
+(import (java.util.concurrent RecursiveTask CompletableFuture))
+
+(defmacro async
+    "Asynchronously run the provided expression. Prefer this if the function will 
+     block for any reason (lock, semaphore, IO, etc). The result is a running task
+     whose result value can be directly waited on (pile.core.async/deref) or can 
+     be cancelled (pile.core.async/cancel). Addtionally, the result may be used
+     in an await call"
+    [& body] `(async* (fn [] ~@body)))
+
+;; await in native
+
+(defmacro compute
+      "Asynchronously run the function. Prefer this for an CPU bound task which won't block."
+      [& body] `(compute* (fn [] ~@body)))
+
+(defn await-all
+      "Wait for all provided async/compute instances to complete and return a vector of their deref'd results"
+      [& parts]
+      (stream parts
+              (map #(deref %))
+              (into [])))
+
+(defmacro delay 
+    "Returns a dereffable value which runs the provided expression when called the first time
+     and caches the result to return to all future calls."
+    [& body]
+    `(new pile.core.concurrency.Delay (fn [] ~@body)))
+
+
+
