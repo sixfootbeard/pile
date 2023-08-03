@@ -563,6 +563,6 @@ Binds named handler functions which can be targeted from an error function. Hand
 (invoke-restart restart-case-name & args)
 This function transfers control to a non-local named restart case and is typically called from within a bound handler function.
 
-* Footer
+# Footer
 
 Copyright 2023 John Hinchberger
