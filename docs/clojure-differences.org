@@ -70,11 +70,6 @@ There is no 'var rooting'. All threads will see the same value for a normal Var.
 The async implementation uses virtual threads instead of a compiler generated state machine. This means that blocking behavior can be dynamic and is not limited to visible symbols in the scope in which an async call is made. The downside is this is not portable outside the JVM.
 
 * Standard Library
-
-** Array Methods
-
-There are polymorphic array methods instead of subtype specific methods eg. 'aget' vs 'aget-int', 'aget-short' etc. 
-
 * Performance
 
 Some optimizations in Clojure like seq chunking and native reducers have not been implemented (yet) so the performance of long seq chains and reduce may be suboptimal. 

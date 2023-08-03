@@ -4,11 +4,11 @@ Pile Language
 
 Pile is a Lisp implementation that runs on the JVM. It targets Java 20+ to take advantage of new Java features. 
 
-:EXAMPLE:
+#+begin_src clojure :eval no
 (defn fib [a b] (cons a (lazy-seq (fib b (+ a b)))))
 (take 20 (fib 0 1))
 ;; (0 1 1 2 3 5 8 13 21 34 55 89 144 233 377 610 987 1597 2584 4181)
-:END:
+#+end_src
 
 All syntactic and conceptual similarities with Clojure are intentional as it was the inspiration for this language, however no code was used. 
 
@@ -51,19 +51,19 @@ Currently the only way to run the language is the repl which can be executed by 
 
 * Feature Descriptions
 
-** Lisp-1
+** Lisp 1
 There is no special syntax or distinction between functions and other values
 
-:EXAMPLE:
+#+begin_src clojure :eval no
 (defn choice [cval left-fun right-fun val] 
   (if cval (left-fun val) (right-fun val)))
-:END:
+#+end_src
 
 ** Compiled
 
 All functions are always compiled to bytecode: 
 
-:EXAMPLE:
+#+begin_src :eval no
 pile.repl> (defn choice [cval left-fun right-fun val] (if cval (left-fun val) (right-fun val)))
 [pile.core.compiler.ClassCompiler] TRACE: Compiled class:
 // class version 59.0 (59)
@@ -103,8 +103,7 @@ public class pile/core/runtime/fclass$anon$68 {
 }
 
 #'pile.repl/choice
-
-:END:
+#+end_src
 
 ** Namespaces
 
@@ -331,8 +330,8 @@ The deftype form defines a named class implementing statically known supertype &
   If the supertype is specified it *must* be followed by a vector of constructor arguments.
 - Method definitions
 
-;; Template
 #+begin_src clojure :eval no
+;; Template
 (deftype TypeName [type constructor arguments]
          Supertype [supertype constructor arguments]
          Interface0
@@ -372,12 +371,14 @@ _Notes_
 
 The order of the super-type/interface-types with the method definitions is not semantically relevant and can be in any order (with the exception that the supertype constructor arguments must follow the supertype itself) eg.
 
+#+begin_src clojure :eval no
 (deftype T []
          Interface0
          Interface1
          (interface0-method [this] ...)
          Supertype [a b c]
          (interface1-method [this] ...))
+#+end_src
 
 While this is allowed it is preferred if the types preceed their associated method definitions.
 
