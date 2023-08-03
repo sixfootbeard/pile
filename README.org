@@ -16,30 +16,28 @@ NB. Design, implementation and optimization of the language are still in progres
 
 * Feature List
 
-- [X] [[*Lisp-1][Lisp-1]]
-- [X] [[*Compiled][Compiled]]
-- [X] [[*Namespaces][Namespaces]]
-- [X] [[*Lexical Scoping][Lexical Scoping]]
-- [X] [[*Closures][Closures]]
-- [X] [[*Macros][Macros]]
-- [X] [[*Persistent Collections][Persistent Collections]]
-- [X] [[*First-Class Functions][First-Class Functions]]
-- [X] [[*Destructuring][Destructuring]]
-- [X] [[*Java Type Creation][Java Type Creation]]
-- [X] [[*Generic Functions][Generic Functions]]
-- [X] [[*Multimethods][Multimethods]]
-- [X] [[*Static Typing (Optional)][Static Typing (Optional)]]
-- [X] Lazy Sequences
-- [X] [[*Async/Await][Async/Await]]
-- [X] [[*Java Interop][Java Interop]]
-- [X] [[*Streams][Streams]]
-- [X] [[*Functional Interface Integration][Functional Interface Integration]]
-- [X] [[*First-Class Java Functions][First-Class Java Functions]]
-- [X] [[*Arbitrary-precision arithmetic][Arbitrary-precision arithmetic]]
-- [X] [[*Condition System][Condition System]] (beta)
-- [X] AOT Compilation (beta)
-- [ ] STM
-- [ ] Agents?
+- [[#Lisp 1][Lisp 1]]
+- [[#Compiled][Compiled]]
+- [[#Namespaces][Namespaces]]
+- [[#Lexical Scoping][Lexical Scoping]]
+- [[#Closures][Closures]]
+- [[#Macros][Macros]]
+- [[#Persistent Collections][Persistent Collections]]
+- [[#First-Class Functions][First-Class Functions]]
+- [[#Destructuring][Destructuring]]
+- [[#Java Type Creation][Java Type Creation]]
+- [[#Generic Functions][Generic Functions]]
+- [[#Multimethods][Multimethods]]
+- [[#Static Typing (Optional)][Static Typing (Optional)]]
+- Lazy Sequences
+- [[#Async/Await][Async/Await]]
+- [[#Java Interop][Java Interop]]
+- [[#Streams][Streams]]
+- [[#Functional Interface Integration][Functional Interface Integration]]
+- [[#First-Class Java Functions][First-Class Java Functions]]
+- [[#Arbitrary-precision arithmetic][Arbitrary-precision arithmetic]]
+- [[#Condition System][Condition System]] (beta)
+- AOT Compilation (beta)
 
 * Running
 
