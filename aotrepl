@@ -1,4 +1,9 @@
 #!/bin/bash
 
+DEPS=$(mktemp)
+mvn dependency:build-classpath -Dmdep.outputFile=$DEPS
+PILE_CP=$(ls target/pile-lang-*.jar):$(cat $DEPS)
+
+# mvn -Prepl compile exec:exec
 # Run repl
 java -XX:SharedArchiveFile=target/pile.jsa -Djava.library.path=target/lib -Dpile.aot=read --enable-preview -cp $PILE_CP pile.repl.ReplMain

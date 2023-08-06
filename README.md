@@ -37,7 +37,7 @@ NB. Design, implementation and optimization of the language are still in progres
 - [First-Class Java Functions](#first-class-java-functions)
 - [Arbitrary-precision arithmetic](#arbitrary-precision-arithmetic)
 - [Condition System](#condition-system)
-- AOT Compilation (beta)
+- [AOT Compilation](#aot-compilation) (beta)
 
 # Running
 
@@ -562,6 +562,10 @@ Binds named handler functions which can be targeted from an error function. Hand
 
 (invoke-restart restart-case-name & args)
 This function transfers control to a non-local named restart case and is typically called from within a bound handler function.
+
+# AOT Compilation
+
+There is preliminary support for AOT compiling code (currently just the standard library). You can create the AOT files with the 'aotgen' script. Then, run 'aotrepl' which uses these files.
 
 # Footer
 
