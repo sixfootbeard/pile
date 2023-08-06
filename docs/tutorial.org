@@ -40,9 +40,394 @@ Some REPL tips:
 
 - Exiting the REPL is accomplished by pressing CTRL+C at an empty prompt.
 
-* Syntax
+* Namespaces
 
-This section can be read just as reference if some piece of syntax in the subsequent sections isn't clear.
+Namespaces are containers of values and functions. The repl displays the namespace before each prompt. To change the namespace you can simply call the _ns_ function with a new namespace:
+
+#+begin_src clojure :eval no
+pile.repl> (ns a.b.c)
+a.b.c>
+#+end_src
+
+Within a namespace we can define a value we can use the 'def' intrinsic.
+
+#+begin_src clojure :eval no
+(def one 1)
+*2: #'pile.repl/one
+#+end_src
+
+We can then *reference* that value by name in later expressions in that same namespace.
+
+#+begin_src clojure :eval no
+pile.repl> (+ one 2)
+*3: 3
+#+end_src
+
+* Functions
+
+Functions are created with the 'fn' intrinsic and take the form:
+
+#+begin_src clojure :eval no
+(fn [arg-0 arg-1 ... arg-N] body)
+#+end_src
+
+We can use 'fn' with 'def' to create a function and then assign a name to it:
+
+#+begin_src clojure :eval no
+pile.repl> (def plus (fn [left right] (+ left right)))
+#+end_src
+
+We've now created a named function in our current namespace that we can call:
+
+#+begin_src clojure :eval no
+pile.repl> (plus 40 4)
+;; 44
+#+end_src
+
+* Control Flow
+
+Pile contains an 'if' expression which tests a conditional and yield a result from one of the branches. It takes the form:
+
+#+begin_src clojure :eval no
+(if test-expr then-clause else-clause)
+#+end_src
+
+The test-expr is simply an expression that returns a value that is either truthy or falsy. Only nil and boolean false are considered falsy. All other values are considered truthy.
+
+#+begin_src clojure :eval no
+pile.repl> (if (< 3 4) "less than!" "greater than!")
+;; "less than!"
+#+end_src
+
+The else branch is optional and will cause the expression to return nil if taken:
+
+#+begin_src clojure :eval no
+pile.repl> (if (> 3 4) "less than!")
+;; nil
+#+end_src
+
+* Local Variables
+
+You can define local variables within functions and at the namespace level using the 'let' [[*Expressions][expression]]. These local variables will be usable only within the body of the let expression. 
+
+#+begin_src clojure :eval no
+(let bindings body)
+#+end_src
+
+'bindings' is an even length [[*Vector][vector]] of alternating variables and expressions to assign to those variables.
+
+#+begin_src clojure :eval no
+pile.repl> (def categorize (fn [a b] 
+      (let [lower (min a b)
+            higher (max a b)]
+         (prn "the lower number is " lower ", while the higher number is " higher))))
+*8: #'pile.repl/categorize
+pile.repl> (categorize 55 44)
+the lower number is 44, while the higher number is 55
+#+end_src
+
+In this example we've created two local variables 'lower' and 'higher' which are subsequently used in the resulting expression printing the lower and higher value.
+
+* Loops
+
+A loop contains a set of bindings and a body. Within the body a call to _recur_ can be made which will rebind all of the values in _bindings_ and jump back to the top of the loop.
+
+#+begin_src clojure :eval no
+;; Form
+(loop [bindings] body)
+#+end_src
+
+#+begin_src clojure :eval no
+(defn sum-values [n]
+   (loop [index 0
+          sum 0] 
+      (if (< index n)
+          (recur (+ index 1) (+ sum index))
+          sum)))
+#+end_src
+
+The above code creates two locals 'index' and 'sum' both set to zero. It then executes the body of the loop which is an 'if' expression. This tests that the index against a maximum value and then calls recur which rebinds 'index' to the expression (+ index 1) and 'sum' to the expression (+ sum index). When the 'if' test fails it simply returns the accumulate sum value.
+
+Some things to note:
+- Looping is performed manually with recur, and if no recur exists on a particular branch the loop will exit.
+- A loop can have multiple locals which are updated each iteration.
+- The recur syntax updates each local with the provided expressions in the order the locals were defined.
+
+* TODO Sequences
+
+Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
+
+You can create sequences by calling the (seq ...) function. Sequences can be created from collections, streams or a combination of operations.
+
+Core Sequence functions: 
+#+begin_src clojure :eval no
+;; Creates a sequence
+(seq source)
+
+;; Returns the first element of the sequence, or nil if empty.
+(first sequence) 
+
+;; Returns a new sequence with the elements after the first element or nil if that sequence would be empty.
+(next sequence) 
+
+;; Returns the nth element in the sequence or nil if the index is greater than the number of elements left.
+(nth _sequence_ _index_) 
+#+end_src
+* Do Forms
+
+Occasionally it will be necessary to execute statements with side effects such as logging statements before performing other operations. To accomplish this you can use the do form:
+
+#+begin_src clojure :eval no
+(do expression_0 expression_1 ... expression_N)
+#+end_src
+
+The do form will execute any number of expressions but will discard all expression values except the last one.
+
+#+begin_src clojure :eval no
+(defn prn-plus [a b]
+  (do 
+    (prn "about to print the result of adding " a " and " b)
+    (+ a b)))
+#+end_src
+
+The call to prn was executed but its result was discarded, and the result of the do expression was the addition operation.
+
+* TODO Collections
+
+Pile contains implementations of persistent collections along with literal syntax to construct each collection.
+
+** List
+
+A persistent linked list with a size. 
+
+Create persistent list using the varargs list function or the syntactic sugar '
+
+#+begin_src clojure :eval no
+(def alist (list 1 2 3))
+(= 1 (first alist))
+(def blist '(1 2 3))
+(= alist blist)
+;; true
+#+end_src
+
+#+begin_src clojure :eval no
+pile.repl> (def alist (list 1 2 3))
+*0: #'pile.repl/alist
+;; Returns the first element, or nil if the list is empty
+pile.repl> (first alist)
+*1: 1
+;; Returns all but the first item as a sequence
+pile.repl> (next alist)
+*2: (2 3)
+;; Returns the number of elements in the list
+pile.repl> (count alist)
+*3: 3
+;; Returns the nth element in the list, or nil if the index is out of range.
+pile.repl> (nth alist 2)
+*4: 3
+#+end_src
+
+
+** Vector
+
+Implemented with an tree of arrays. 
+
+Create persistent vectors using the varargs vector function or as a literal with square brackets.
+
+#+begin_src clojure :eval no
+pile.repl> (def avec [1 2 3])
+*0: #'pile.repl/avec
+pile.repl> (def bvec (vector 1 2 3))
+*1: #'pile.repl/bvec
+pile.repl> (= avec bvec)
+*2: true
+#+end_src
+
+Vectors have the same access functions as lists: first/next/count/nth.
+
+** Map
+
+Implemented with a HAMT with bitfield compression. Map literals use curly brackets {}
+
+#+begin_src clojure :eval no
+(def amap {:a :b})
+(= :b (:a amap))
+#+end_src
+
+** Set
+
+Implementing using the map types internally. Set literals use #{}.
+
+** TODO SortedMap
+
+** TODO SortedSet
+
+** TODO Queue
+
+* Error Handling
+
+** try/catch
+
+Exceptions are handled by a try/catch form:
+
+#+begin_src clojure :eval no
+(try
+  (expression-to-run)
+  (catch ExceptionType e (handler-expression))
+  (finally (finally-expression)))
+#+end_src
+
+The result of executing this block could be:
+- The result of the expression-to-run
+- The result of the handler expression of one of the catch blocks (if the expression-to-run threw an exception)
+- A propagated exception if the thrown exception was uncaught or one was rethrown in a catch block.
+
+#+begin_src clojure :eval no
+(def div (fn [a b]
+  (try
+    (/ a b)
+    (catch java.lang.ArithmeticException e :divide-error)
+    (finally (prn "finally block")))))
+#+end_src
+
+#+begin_src clojure :eval no
+pile.repl> (div 10 2)
+finally block
+*4: 5
+pile.repl> (div 1 0)
+finally block
+*5: :divide-error
+#+end_src
+
+There can be any number of catch expressions. The finally expression is executed but its result is discarded (ie. it is typically just used for a side-effect such as logging or resource cleanup).
+
+** Conditions (beta)
+
+There is preliminary support for a condition system.
+
+#+begin_src clojure :eval no
+;; Similar example in the common lisp wiki
+(defn recip [v]
+  (restart-case 
+    (if (= v 0)
+    	(error :on-zero)
+    	(/ 1.0 v))
+    (:return-zero [] 0)
+    (:return-value [r] r)
+    (:recalc-using [r] (recip r))))
+
+(handler-bind [:on-zero ([] (invoke-restart :return-zero))]
+	(recip 5)) 
+;; .2   
+	
+(handler-bind [:on-zero ([] (invoke-restart :return-zero))]
+	(recip 0))
+;; 0
+		
+(handler-bind [:on-zero ([] (invoke-restart :return-value 44))]
+	(recip 0)) 
+;; 44
+
+#+end_src
+
+Condition functions:
+
+#+begin_src clojure :eval no
+;; This function wraps a body expression which it runs. The case statements labels are keywords, which can be individually referenced from an invoke-restart function, along with an argument list and body.
+(restart-case body & case-statements)
+
+
+;; This function triggers a lookup for bound handler functions (via handler-bind) of the same keyword type. This can also pass arguments to the bound handler function.
+(error error-type & error-args)
+
+;; Binds named handler functions which can be targeted from an error function. Handler names are keywords and can shadow earlier bound handlers.
+(handler-bind bindings & body)
+
+;; This function transfers control to a non-local named restart case and is typically called from within a bound handler function.
+(invoke-restart restart-case-name & args)
+#+end_src
+
+* Pattern Matching
+
+** case
+
+Pattern matching on constants can be made with the case expression. This is similar to a switch statement in Java.
+
+#+begin_src clojure :eval no
+(defn c [a] 
+    (case a 
+          :one "one" 
+          2 "two" 
+          :other))
+#+end_src
+
+Case expressions take:
+- an expression to test
+- pairs of constant/expressions to match against and run
+- (optionally) a single final expression if none match.
+
+#+begin_src clojure :eval no
+pile.repl> (c 5)
+*9: :other
+pile.repl> (c 2)
+*10: "two"
+pile.repl> (c :one)
+*11: "one"
+#+end_src
+
+If no single final expression is present and the case statement doesn't match then the statement will throw an IllegalArgumentException.
+
+** cond
+
+For a more general matching method cond can be used which uses predicates to match instead of constants. 
+
+#+begin_src clojure :eval no
+(defn c [a] (cond (= a 12) "Is 12" 
+                  (string? a) "A String instead" 
+                  :else "None of these things"))
+#+end_src
+
+Each predicate is evaluated in order and the first truthy result will cause the case to return the associated expression.
+
+#+begin_src clojure :eval no
+*12: #'pile.repl/c
+pile.repl> (c "some string")
+*13: "A String instead"
+pile.repl> (c 55)
+*14: "None of these things"
+pile.repl> (c 12)
+*15: "Is 12"
+#+end_src
+
+By convention, an :else is used as a default/catch-all last expression since the keyword is always truthy (as is any expression that is not nil or false).
+
+* TODO Polymorphism
+
+** Generic Methods
+
+** Multimethods
+
+* TODO Macros
+* TODO Java Interop
+
+** TODO Java Functions 
+
+Using the :: sugar
+
+** TODO Type Creation
+
+** TODO Dot Operator
+
+Pile also supports the dot operator '.' with the same syntax as Clojure.
+* TODO Concurrency
+** Synchronization
+** Atoms
+** async/await
+** Channels
+   
+* TODO Syntax
+
+This section can be read just as reference if some piece of syntax in the other sections isn't clear.
 
 ** TODO Datatypes
 
@@ -163,289 +548,3 @@ An expression is a piece of syntax that logically returns a value.
 (str "Life is better " "together")
 #+end_src
 
-* Namespaces
-
-Namespaces are containers of values and functions. The repl displays the namespace before each prompt. To change the namespace you can simply call the _ns_ function with a new namespace:
-
-#+begin_src clojure :eval no
-pile.repl> (ns a.b.c)
-a.b.c>
-#+end_src
-
-Within a namespace we can define a value we can use the 'def' intrinsic.
-
-#+begin_src clojure :eval no
-(def one 1)
-*2: #'pile.repl/one
-#+end_src
-
-We can then *reference* that value by name in later expressions in that same namespace.
-
-#+begin_src clojure :eval no
-pile.repl> (+ one 2)
-*3: 3
-#+end_src
-
-* Functions
-
-Functions are created with the 'fn' intrinsic and take the form:
-
-#+begin_src clojure :eval no
-(fn [arg-0 arg-1 ... arg-N] body)
-#+end_src
-
-We can use 'fn' with 'def' to create a function and then assign a name to it:
-
-#+begin_src clojure :eval no
-pile.repl> (def plus (fn [left right] (+ left right)))
-#+end_src
-
-We've now created a named function in our current namespace that we can call:
-
-#+begin_src clojure :eval no
-pile.repl> (plus 40 4)
-;; 44
-#+end_src
-
-* Control Flow
-
-Pile contains an 'if' [[*Expressions][expression]] which tests a conditional and yield a result from one of the branches. It takes the form:
-
-#+begin_src clojure :eval no
-(if test-expr then-clause else-clause)
-#+end_src
-
-The test-expr is simply an expression that returns a value that is either truthy or falsy. Only nil and boolean false are considered falsy. All other values are considered truthy.
-
-#+begin_src clojure :eval no
-pile.repl> (if (< 3 4) "less than!" "greater than!")
-;; "less than!"
-#+end_src
-
-The else branch is optional and will cause the expression to return nil if taken:
-
-#+begin_src clojure :eval no
-pile.repl> (if (> 3 4) "less than!")
-;; nil
-#+end_src
-
-* Local Variables
-
-You can define local variables within functions and at the namespace level using the 'let' [[*Expressions][expression]]. These local variables will be usable only within the body of the let expression. 
-
-#+begin_src clojure :eval no
-(let bindings body)
-#+end_src
-
-'bindings' is an even length [[*Vector][vector]] of alternating variables and expressions to assign to those variables.
-
-#+begin_src clojure :eval no
-pile.repl> (def categorize (fn [a b] 
-      (let [lower (min a b)
-            higher (max a b)]
-         (prn "the lower number is " lower ", while the higher number is " higher))))
-*8: #'pile.repl/categorize
-pile.repl> (categorize 55 44)
-the lower number is 44, while the higher number is 55
-#+end_src
-
-In this example we've created two local variables 'lower' and 'higher' which are subsequently used in the resulting expression printing the lower and higher value.
-
-* Loops
-
-A loop contains a set of bindings and a body. Within the body a call to _recur_ can be made which will rebind all of the values in _bindings_ and jump back to the top of the loop.
-
-#+begin_src clojure :eval no
-;; Form
-(loop [bindings] body)
-#+end_src
-
-#+begin_src clojure :eval no
-(defn sum-values [n]
-   (loop [index 0
-          sum 0] 
-      (if (< index n)
-          (recur (+ index 1) (+ sum index))
-          sum)))
-#+end_src
-
-The above code creates two locals 'index' and 'sum' both set to zero. It then executes the body of the loop which is an 'if' expression. This tests that the index against a maximum value and then calls recur which rebinds 'index' to the expression (+ index 1) and 'sum' to the expression (+ sum index). When the 'if' test fails it simply returns the accumulate sum value.
-
-Some things to note:
-- Looping is performed manually with recur, and if no recur exists on a particular branch the loop will exit.
-- A loop can have multiple locals which are updated each iteration.
-- The recur syntax updates each local with the provided expressions in the order the locals were defined.
-
-* Sequences
-
-Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
-
-You can create sequences by calling the (seq) function. Sequences can be created from collections, streams or a combination of operations.
-
-Sequence functions: 
-- (first _sequence_) Returns the first element of the sequence, or nil if empty.
-- (next _sequence_) Returns the elements after the first element as a new sequence or nil if that sequence would be empty.
-- (nth _sequence_ _index_) Returns the nth element in the sequence or nil if the index is greater than the number of elements left.
-
-Many operations take a sequence as one of their arguments and return a new sequence:
-- (map _function_ _sequence_)
-  Computes a function on each element.
-- (mapcat _function_ _sequence_)
-  Computes a function on each element expecting a sequence result, which is flattened.
-- (reduce _function_ _initvalue_ _sequence_)
-  Reduces the sequence starting with the initial value.
-- (take _n_ _sequence_)
-  Creates a new sequence with at most _n_ elements
-- (take-while _function_ _sequence_)
-  Creates a new sequences while the function predicate returns true
-- (drop _n_ _sequence_)
-  Drops the first _n_ elements in the sequence, returning a sequence of the remaining elements, if any.
-- (drop-while _function_ _sequence_)
-  Drops the elements until the predicate returns false, returning a sequence of the remaining elements, if any.
-- (interpose _delim_ _sequence_)
-  Creates a new sequence which inserts the delim character between each element in the sequence
-- (enumerate _sequence_)
-  Creates pairs of values with an increasing index.
-
-
-Sequences can be destructured by specifying a vector of bindings where you would normally use an argument or local variable:
-
-#+begin_src clojure :eval no
-(defn desc [prefix [first-arg second-arg]] (prn prefix " first=" first-arg ", second=" second-arg))
-(desc "before" ["the-first-arg" 12])
-;; before, first=the-first-arg, second=12
-
-(defn desc-two [prefix args] (let [[first-arg second-arg] args] (prn prefix " first=" first-arg ", second=" second-arg)))
-(desc-two "before" ["the-first-arg" 12])
-;; before, first=the-first-arg, second=12
-#+end_src
-
-* TODO Collections
-
-Pile contains implementations of persistent collections along with literal syntax to construct each collection.
-
-** List
-
-A persistent linked list with a size. List literals use parenthesis (), however since this form is the basis for function calls you often will need to quote a list: '()
-
-(def alist (list 1 2 3))
-(= 1 (first alist))
-(def blist '(1 2 3))
-(= alist blist)
-;; true
-
-** Vector
-
-Implemented with an tree of arrays. Vector literals use square brackets []
-
-(def avec [0 1 2 3])
-(= 2 (get avec 2))
-
-** Map
-
-Implemented with a HAMT with bitfield compression. Map literals use curly brackets {}
-
-#+begin_src clojure :eval no
-(def amap {:a :b})
-(= :b (:a amap))
-#+end_src
-
-** Set
-
-Implementing using the map types internally. Set literals use #{}.
-
-** TODO SortedMap
-
-** TODO SortedSet
-
-** TODO Queue
-
-
-
-* TODO Exception Handling
-
-** TODO try/catch
-
-** TODO Conditions
-
-* TODO Java Interop
-
-** TODO Java Functions 
-
-Using the :: sugar
-
-** TODO Type Creation
-
-** TODO Dot Operator
-
-Pile also supports the dot operator '.' with the same syntax as Clojure.
-
-* TODO Macros
-* TODO Do Forms
-  
-* TODO Advanced Topics
-
-** Namespace Loading
-
-The first time a namespace is loaded the runtime will inspect the classpath to find a corresponding source file, if any. For example, loading the namespace 'a.b.c' will cause the runtime to load the classpath file 'a/b/c.pile'. This file is loaded *atomically* by the first thread to attempt to load that namespace. All threads arriving before the loading is complete will wait, and thus will always see a fully constructed namespace if it has been loaded via this mechanism.
-
-All namespaces always automatically refer to all public symbols in the standard library "pile.core".
-
-You may call the (require) function to load other namespaces, create short names, and refer to functions directly:
-
-#+begin_src clojure :eval no
-;; Call fully qualified function
-(pile.core.string/join ...)
-;; Create short name for namespace
-(refer '[pile.core.string :as s])
-(s/join ...)
-;; Directly refer to specific functions in require
-(refer '[pile.core.string :refer [join])
-(join ...)
-;; Directly refer to a function but rename our reference to it
-(refer '[pile.core.string :refer [join] :rename {join string-join}])
-(string-join ...)
-#+end_src
-
-** Function Features
-*** Closures
-
-When creating a function it is possible to reference values in the enclosing scope outside of the function. This creates a closure.
-
-#+begin_src clojure :eval no
-pile.repl> (defn plus [a] (fn [b] (+ a b)))
-*0: #'pile.repl/plus
-pile.repl> (def plus-two (plus 2))
-*1: #'pile.repl/plus-two
-pile.repl> (plus-two 10)
-*2: 12
-#+end_src
-
-*** Varargs
-
-Functions support vararg definitions by adding an ampersand before the final argument.
-
-#+begin_src clojure :eval no
-pile.repl> (defn print-args [a & remaining] (prn "First arg, a=" a) (prn "Remaining args=" remaining))
-*6: #'pile.repl/print-args
-pile.repl> (print-args "first" "second" "third" "last")
-First arg, a=first
-Remaining args=(second third last)
-;; 44
-#+end_src
-
-*** Calling with apply
-
-It is sometimes useful to call functions using without having to manually unpack the data structures
-into method arguments. This is accomplished with the 'apply' function which accepts a function and
-any number of arguments with the final argument being something sequence-able. 
-
-#+begin_src clojure :eval no
-;; All produce 44
-(apply + [40 4])
-(apply + 40 [4])
-(apply + 40 4 [])
-
-#+end_src
-
-** More Sequences

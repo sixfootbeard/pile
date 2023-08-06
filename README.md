@@ -30,13 +30,13 @@ NB. Design, implementation and optimization of the language are still in progres
 - [Multimethods](#multimethods)
 - [Static Typing (Optional)](#static-typing-optional)
 - Lazy Sequence
-- [Async/Await](#asyncawait)
+- [Async/Await](#async-await)
 - [Java Interop](#java-interop)
 - [Streams](#streams)
 - [Functional Interface Integration](#functional-interface-integration)
 - [First-Class Java Functions](#first-class-java-functions)
 - [Arbitrary-precision arithmetic](#arbitrary-precision-arithmetic)
-- [Condition System](#condition-system-beta)
+- [Condition System](#condition-system)
 - AOT Compilation (beta)
 
 # Running

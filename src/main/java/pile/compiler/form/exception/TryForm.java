@@ -160,6 +160,7 @@ public class TryForm extends AbstractListForm {
 
         TryParts parts = parse(cs);
 
+        Label beforeReturn = new Label();
         Label beforeCleanFinally = new Label();
         Label tryStart = new Label();
         Label tryEnd = new Label();
@@ -210,7 +211,7 @@ public class TryForm extends AbstractListForm {
                     f.accept(cs, parts.finallyBody());
                     DoForm.popStack(ga, stack);
                 }
-                ga.visitJumpInsn(Opcodes.GOTO, beforeCleanFinally);
+                ga.visitJumpInsn(Opcodes.GOTO, beforeReturn);
                 scope.leaveScope();
             }
             if (parts.finallyBody() != null) {
@@ -230,6 +231,7 @@ public class TryForm extends AbstractListForm {
                 DoForm.popStack(ga, stack);
             }
             // stack - restore
+            ga.visitLabel(beforeReturn);
             cs.restoreStack(savedStack);
             ga.loadLocal(returnValueIndex);
             stack.push(Object.class);
