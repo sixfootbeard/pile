@@ -22,12 +22,10 @@ import static org.objectweb.asm.Type.*;
 import static pile.compiler.Constants.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
-import static pile.util.CollectionUtils.*;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
@@ -35,7 +33,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
@@ -43,14 +40,12 @@ import org.objectweb.asm.Type;
 
 import pile.collection.PersistentList;
 import pile.compiler.ClassCompiler;
+import pile.compiler.ClassCompiler.CompiledMethodResult;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
+import pile.compiler.CompilerState.ClosureRecord;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
-import pile.compiler.MethodCollector;
-import pile.compiler.MethodStack;
-import pile.compiler.ClassCompiler.CompiledMethodResult;
-import pile.compiler.CompilerState.ClosureRecord;
 import pile.compiler.MethodCollector.MethodArity;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.typed.Any;
@@ -58,13 +53,10 @@ import pile.core.CoreConstants;
 import pile.core.Namespace;
 import pile.core.PileMethod;
 import pile.core.Symbol;
-import pile.core.binding.Binding;
 import pile.core.binding.NativeDynamicBinding;
 import pile.core.compiler.aot.AOTHandler;
 import pile.core.compiler.aot.AOTHandler.AOTType;
-import pile.core.exception.InvariantFailedException;
 import pile.core.exception.PileCompileException;
-import pile.core.exception.PileException;
 import pile.core.exception.PileInternalException;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
@@ -73,7 +65,6 @@ import pile.core.method.HiddenCompiledMethod;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.ParserConstants;
 import pile.core.parse.TypeTag;
-import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.InvokeDynamicBootstrap;
 
 public class MethodForm implements Form {
@@ -226,12 +217,16 @@ public class MethodForm implements Form {
 	}
 
 	@InvokeDynamicBootstrap
-	public static CallSite bootstrap(Lookup caller, String method, MethodType type, Class<?> clazz) throws Exception {
+	public static CallSite bootstrap(Lookup caller, String method, MethodType type, Class<?> clazz) throws Throwable {
 		MethodArity m = ClassCompiler.collectPileMethods(clazz);
+		
+		// may be either noargs or the closure constructor
+		Constructor<?>[] constructors = clazz.getConstructors();
+		MethodHandle cons = caller.unreflectConstructor(constructors[0]);
 		
 		if (type.parameterCount() == 0) {
 			// plain class
-			Object instance = clazz.newInstance();			
+			Object instance = cons.invoke();
 			HiddenCompiledMethod compiled = toCompiledMethod(m, instance);			
 			return new ConstantCallSite(constant(HiddenCompiledMethod.class, compiled).asType(type));
 		} else {
@@ -240,10 +235,6 @@ public class MethodForm implements Form {
 			// c = constructor(closure-arg-0, closure-arg-1, closure-arg-2, .. closure-arg-N)
 			// clos = ClosureCompiledMethod(c, methodArity^)
 			
-			// methodArity is already computed
-			Constructor<?>[] constructors = clazz.getConstructors();
-			MethodHandle cons = caller.unreflectConstructor(constructors[0]);
-			
             MethodType consType = methodType(void.class, Class.class, Object.class, MethodArity.class);
             MethodHandle closureCons = MC_LOOKUP.findConstructor(ClosureCompiledMethod.class, consType);
             MethodHandle boundClass = insertArguments(closureCons, 0, clazz);
@@ -251,9 +242,6 @@ public class MethodForm implements Form {
             MethodHandle typedBound = boundArity.asType(boundArity.type().changeParameterType(0, cons.type().returnType()));
             MethodHandle out = collectArguments(typedBound, 0, cons);
             return new ConstantCallSite(out.asType(type));
-            
-			
 		}
-		
 	}
 }
