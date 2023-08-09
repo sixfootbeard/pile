@@ -167,9 +167,13 @@ public class Scopes {
 		return lookupNamespaceAndLiteral(symbol);
 	}
 	
-	public ScopeLookupResult lookupNamespaceAndLiteral(Symbol sym) {
-	    String name = sym.getName();
-        Binding lookup = Namespace.getInCurrentNs(name);
+	public static ScopeLookupResult lookupNamespaceAndLiteral(Symbol sym) {
+	    return lookupNamespaceAndLiteral(NativeDynamicBinding.NAMESPACE.getValue(), sym);
+	}
+	
+	public static ScopeLookupResult lookupNamespaceAndLiteral(Namespace ns, Symbol sym) {
+        String name = sym.getName();
+        Binding lookup = Namespace.getIn(ns, name);
         if (lookup != null) {
             sym = sym.withNamespace(lookup.namespace());
             var nsName = lookup.namespace();
@@ -189,7 +193,7 @@ public class Scopes {
             }
         }
         return null;
-	}
+    }
 
     private VarScope nextScope(VarScope last, VarScope next) {
         if (last == null) {

@@ -37,6 +37,8 @@ import java.util.stream.Collectors;
 
 import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
+import pile.compiler.Scopes;
+import pile.compiler.Scopes.ScopeLookupResult;
 import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
@@ -127,7 +129,7 @@ public class Namespace {
 			SwitchPoint.invalidateAll(new SwitchPoint[] { toInvalidate });
 		}
 	}
-
+	
 	public void defineIfAbsent(String name, Binding v) {
 	    ourBindings.compute(name, (k, ov) -> {
             if (ov == null) {
@@ -254,5 +256,43 @@ public class Namespace {
 		}
 		return Optional.empty();
 	}
+
+    public Var getVar(Symbol sym) {
+        // foo
+        // shortname/foo
+        // long.name/foo
+        
+        final String name = sym.getName();
+        
+        final Namespace ns;
+        if (sym.getNamespace() == null) {
+            ns = this;
+        } else {
+            ScopeLookupResult slr = Scopes.lookupNamespaceAndLiteral(this, new Symbol(sym.getNamespace()));
+            if (Namespace.class.equals(slr.type())) {
+                ns = (Namespace) slr.val();
+            } else if (Binding.class.equals(slr.type())) {
+                Object val = slr.val();
+                if (val instanceof Namespace boundNs) {
+                    ns = boundNs;
+                } else {
+                    throw new IllegalArgumentException("Cannot create var for:" + sym
+                            + ", the symbol namespace resolves to not a namespace:" + val.getClass());
+                }
+            } else {
+                throw new IllegalArgumentException("Bad var namespace type");
+            }            
+        }
+        
+        Binding bind = Namespace.getIn(ns, name);
+        requireNonNull(bind, () -> "Could not find " + ns + "/" + name);
+        final Var v;
+        if (PileMethodLinker.isFinal(bind)) {
+            v = new FinalVar<>(ns, name, bind);
+        } else {
+            v = new IndirectVar<>(ns, name);
+        }
+        return v;
+    }
 
 }

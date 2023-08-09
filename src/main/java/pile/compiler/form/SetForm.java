@@ -151,7 +151,7 @@ public class SetForm extends AbstractListForm {
             throw new PileCompileException("Unable to resolve symbol for set! '" + sym + "'",
                     LexicalEnvironment.extract(sym, form));
         } else if (slr.scope() == VarScope.NAMESPACE) {
-            Var v = VarForm.getIn(ns, sym.getName());
+            Var v = VarForm.getIn(ns, sym);
             Object evaluate = Compiler.evaluate(cs, val);
             v.set(evaluate);            
         } else {

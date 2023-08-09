@@ -627,7 +627,6 @@
         `(if ~test ~form ~(when rem `(cond ~@rem))))))
 
 (defmacro condp [f lhs & pairs]
-  (prn f lhs pairs)
   (if (seq pairs)
     (let [[test-val body & t] pairs]
       `(if (~f ~lhs ~test-val)

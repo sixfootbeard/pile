@@ -93,15 +93,12 @@ public class VarForm implements Form {
         return new ConstantCallSite(bound);
     }
 
+    public static Var getIn(Namespace ns, Symbol sym) {
+        return ns.getVar(sym);
+    }
+    
     public static Var getIn(Namespace ns, String name) {
-        Binding bind = Namespace.getIn(ns, name);
-        final Var v;
-        if (PileMethodLinker.isFinal(bind)) {
-            v = new FinalVar<>(ns, name, bind);
-        } else {
-            v = new IndirectVar<>(ns, name);
-        }
-        return v;
+        return getIn(ns, new Symbol(name));
     }
 
 }

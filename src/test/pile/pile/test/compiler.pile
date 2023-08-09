@@ -330,6 +330,11 @@
 
 
 ;; set!
+(ns pile.test.set)
+(def set-tgt 55)
+(ns pile.test.compiler)
+(set! pile.test.set/set-tgt 66)
+(is (= 66 pile.test.set/set-tgt))
 
 ;; var
 ;; compile
