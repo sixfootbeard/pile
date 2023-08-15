@@ -83,6 +83,7 @@ import pile.core.NativeValue;
 import pile.core.PCall;
 import pile.core.PileMethod;
 import pile.core.Ref;
+import pile.core.ReverseableSeq;
 import pile.core.RuntimeRoot;
 import pile.core.RuntimeRoot.ProtocolRecord;
 import pile.core.Seqable;
@@ -1512,7 +1513,7 @@ public class NativeCore {
         return pre == null ? handle : pre;
     }
     
-    private static class RepeatSeq<T> extends AbstractSeq<T> implements Streamable {
+    private static class RepeatSeq<T> extends AbstractSeq<T> implements Streamable, ReverseableSeq<T> {
     
         private final long count;
         private final T value;
@@ -1537,6 +1538,11 @@ public class NativeCore {
         @Override
         public Stream toStream() {
             return Stream.generate(() -> value).limit(count);
+        }
+
+        @Override
+        public ISeq<T> reverse() {
+            return this;
         }
     
     }
@@ -1711,10 +1717,10 @@ public class NativeCore {
         }
     }
     
-    private static class RangeSeq extends AbstractSeq implements Streamable {
+    private static class RangeSeq extends AbstractSeq implements Streamable, ReverseableSeq {
 
-        private int cur, max;
-
+        private final int cur, max;
+        
         public RangeSeq(int start, int count) {
             this.cur = start;
             this.max = count;
@@ -1727,13 +1733,59 @@ public class NativeCore {
 
         @Override
         public ISeq next() {
-            return range(cur + 1, max);
+            if (cur + 1 == max) {
+                return ISeq.EMPTY;
+            } else {
+                return new RangeSeq(cur + 1, max);
+            }
         }
-        
 
         @Override
         public Stream toStream() {
             return IntStream.range(cur, max).boxed();
+            
+        }
+
+        @Override
+        public ISeq reverse() {
+            return new RangeReverseSeq(max - 1, cur, max);
+        }
+    
+    }
+    
+    private static class RangeReverseSeq extends AbstractSeq implements Streamable, ReverseableSeq {
+
+        private final int cur, min, max;
+
+        public RangeReverseSeq(int cur, int min, int max) {
+            super();
+            this.cur = cur;
+            this.min = min;
+            this.max = max;
+        }
+
+        @Override
+        public Object first() {
+            return cur;
+        }
+
+        @Override
+        public ISeq next() {
+            if (cur == min) {
+                return ISeq.EMPTY;
+            } else {
+                return new RangeReverseSeq(cur - 1, min, max);
+            }
+        }
+
+        @Override
+        public Stream toStream() {
+            return IntStream.iterate(cur, i -> i >= min, i -> i - 1).boxed();
+        }
+
+        @Override
+        public ISeq reverse() {
+            return new RangeSeq(min, cur);
         }
     
     }

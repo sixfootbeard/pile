@@ -373,3 +373,16 @@
 (test "java-method execution instance"
       (let [f (java-method java.lang.Integer "compareTo")]
          (= -1 (f 44 55))))
+
+;; 
+(is (= [0 1 2] (->> (range 3) (into []))))
+(is (= [2 1 0] (->> (range 3) (reverse) (into []))))
+(is (= [2 1] (->> (range 3) (drop 1) (reverse) (into []))))
+(is (= [] (->> (range 3) (drop 3) (reverse) (into []))))
+
+
+(is (= [0 1 2] (stream (range 3) (into []))))
+(is (= [2 1 0] (stream (->> (range 3) (reverse)) (into []))))
+(is (= [2 1] (stream (->> (range 3) (drop 1) (reverse)) (into []))))
+(is (= [] (stream (->> (range 3) (drop 3) (reverse)) (into []))))
+
