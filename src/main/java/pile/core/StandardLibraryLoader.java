@@ -15,14 +15,13 @@
  */
 package pile.core;
 
-import static pile.compiler.Helpers.*;
-
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.SwitchPoint;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.net.URL;
@@ -32,15 +31,12 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import pile.collection.PersistentCollection;
@@ -51,16 +47,13 @@ import pile.collection.PersistentVector;
 import pile.compiler.Compiler;
 import pile.compiler.math.BinaryComparisonMethod;
 import pile.compiler.math.BinaryMathMethod;
-import pile.compiler.math.BinaryOverflowMathMethod;
 import pile.compiler.math.BinaryPredicateMethod;
 import pile.compiler.math.NumberHelpers;
 import pile.compiler.math.NumberMethods;
-import pile.compiler.math.NumericPromoter;
 import pile.compiler.math.ShiftMethod;
 import pile.compiler.math.UnaryMathMethod;
 import pile.compiler.math.finder.BinaryMethodFinder;
 import pile.compiler.math.finder.OverflowBinaryMathMethodFinder;
-import pile.compiler.typed.Any;
 import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
@@ -71,11 +64,10 @@ import pile.core.exception.UnlinkableMethodException;
 import pile.core.indy.PileMethodLinker;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
-import pile.core.method.FunctionUtils;
 import pile.core.method.HiddenNativeMethod;
-import pile.core.parse.LexicalEnvironment;
+import pile.core.method.LinkableMethod;
 import pile.core.parse.PileParser;
-import pile.core.runtime.ArrayGetMethod;
+import pile.nativebase.IndirectMethod;
 import pile.nativebase.NativeArrays;
 import pile.nativebase.NativeAsync;
 import pile.nativebase.NativeBinding;
@@ -270,19 +262,24 @@ public class StandardLibraryLoader {
     }
 
     private static LoadResult loadLibrary(Lookup lookup, Map<String, Namespace> nativeNamespaces, Library lib)
-            throws IllegalAccessException {
+            throws IllegalAccessException, InvocationTargetException {
         Namespace ns = nativeNamespaces.computeIfAbsent(lib.ns(), Namespace::new);
 
         try (var curNs = NativeDynamicBinding.NAMESPACE.withUpdate(ns)) {
-            Map<String, List<Method>> methodNames = new HashMap<>();
+            
+            LibraryMethods results = new LibraryMethods();
 
             long nativeStart = System.currentTimeMillis();
             // native methods
             for (var clz : lib.clazz()) {
-                gatherMethods(clz, methodNames);
+                results = results.merge(gatherMethods(clz));
             }
-            for (var e : methodNames.entrySet()) {
+            
+            for (var e : results.methods().entrySet()) {
                 define(ns, lookup, e.getKey(), e.getValue());
+            }
+            for (var e : results.indirectMethods().entrySet()) {
+                defineIndirect(ns, lookup, e.getKey(), e.getValue());
             }
 
             // native bindings
@@ -423,8 +420,9 @@ public class StandardLibraryLoader {
 //        });
 //    }
 
-    private static Map<String, List<Method>> gatherMethods(final Class<?> staticBase,
-            Map<String, List<Method>> methodNames) {
+    private static LibraryMethods gatherMethods(final Class<?> staticBase) {
+        Map<String, List<Method>> methodNames = new HashMap<>();
+        Map<String, Method> indirectMethods = new HashMap<>();
 
         Method[] methods = staticBase.getMethods();
         for (Method m : methods) {
@@ -440,10 +438,16 @@ public class StandardLibraryLoader {
                 if (m.isAnnotationPresent(NoLink.class)) {
                     continue;
                 }
-                methodNames.computeIfAbsent(name, k -> new ArrayList<>()).add(m);
+                if (m.isAnnotationPresent(IndirectMethod.class)) {
+                    if (indirectMethods.put(name, m) != null) {
+                        throw new IllegalArgumentException("Only one indirect method name allowed:" + name);
+                    }
+                } else {
+                    methodNames.computeIfAbsent(name, k -> new ArrayList<>()).add(m);
+                }
             }
         }
-        return methodNames;
+        return new LibraryMethods(methodNames, indirectMethods);
     }
 
     private static Class<?> findParentType(Class<?> lhs, Class<?> rhs) {
@@ -540,6 +544,26 @@ public class StandardLibraryLoader {
         ns.define(name, meth);
     }
 
+    private static void defineIndirect(Namespace ns, Lookup lookup, String methodName, Method method) throws IllegalAccessException, InvocationTargetException  {
+        LinkableMethod fn = (LinkableMethod) method.invoke(null);
+        
+        String doc = null;
+        PileDoc methodDoc = method.getAnnotation(PileDoc.class);
+        if (methodDoc != null) {
+            doc = methodDoc.value();
+        }
+        
+        PersistentMap meta = PersistentMap.EMPTY;
+        meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
+        meta = meta.assoc(PileMethodLinker.MACRO_KEY, method.isAnnotationPresent(NativeMacro.class));
+        if (doc != null) {
+            meta = meta.assoc(CommonConstants.DOC, doc);
+        }
+        
+        Binding meth = new ImmutableBinding(ns.getName(), BindingType.VALUE, fn, meta, new SwitchPoint());
+        ns.define(methodName, meth);
+    }
+
     private static MethodHandle filterVoidReturns(MethodHandle mh) {
         if (mh.type().returnType().equals(void.class)) {
             // Fix void returns to make sure they return null instead of nothing
@@ -583,6 +607,31 @@ public class StandardLibraryLoader {
      *
      */
     private record Library(String ns, List<Class<?>> clazz, String... sourceFiles) {
+    }
+    
+    private record LibraryMethods(Map<String, List<Method>> methods, Map<String, Method> indirectMethods) {
+        public LibraryMethods() {
+            this(Collections.emptyMap(), Collections.emptyMap());
+        }
+        
+        public LibraryMethods merge(LibraryMethods other) {
+            HashSet ourKeys = new HashSet<>(methods.keySet());
+            HashSet theirKeys = new HashSet<>(other.methods.keySet());
+            ourKeys.retainAll(theirKeys);
+            if (! ourKeys.isEmpty()) {
+                throw new IllegalArgumentException("Duplicate key in merge: " + ourKeys);
+            }
+        
+            Map<String, List<Method>> newMethods = new HashMap<>();
+            newMethods.putAll(methods());
+            newMethods.putAll(other.methods()); 
+            
+            Map<String, Method> newIndirectMethods = new HashMap<>();
+            newIndirectMethods.putAll(indirectMethods());
+            newIndirectMethods.putAll(other.indirectMethods());
+            
+            return new LibraryMethods(newMethods, newIndirectMethods);            
+        }
     }
 
     private record NumberOp(String sym, PileMethod methodName) {

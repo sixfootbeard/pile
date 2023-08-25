@@ -847,7 +847,7 @@
          `(do ~@body)))
 
 (defmacro with [binds & body]
-    `(apply with-close binds close body))
+    (apply with-close binds `close body))
 
 ;; More ns
 
@@ -893,6 +893,12 @@
           (finally 
             (let [end-time# (System/currentTimeMillis)]
                (prn (str "Elapsed time: " (- end-time# start-time#) "ms")))))))
+
+(defmacro when-class
+    [^String clazz body]
+    (try (do (Class/forName clazz)
+             ~body)
+         (catch java.lang.ClassNotFoundException e '(pass))))
 
 
 ;; Condition System
