@@ -394,7 +394,14 @@ public class SymbolForm implements Form {
             case LITERAL: 
                 if (slr.val() instanceof Class cls) {
                     return defer(slr, cs -> {
-                        cs.getCurrentMethodVisitor().visitLdcInsn(getType(cls));
+                        // Cannot ldc native class names, makes jvm angry
+                        // eg. Caused by: java.lang.NoClassDefFoundError: I
+                        if (cls.isPrimitive()) {
+                            Class<?> wrapper = primitiveToWrapper(cls);
+                            cs.getCurrentGeneratorAdapter().getStatic(getType(wrapper), "TYPE", getType(Class.class));
+                        } else {
+                            cs.getCurrentMethodVisitor().visitLdcInsn(getType(cls));
+                        }
                         cs.getMethodStack().pushConstant(Class.class);
                     }); 
                 }

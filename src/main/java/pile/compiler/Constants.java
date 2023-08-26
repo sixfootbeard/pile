@@ -59,7 +59,7 @@ public class Constants {
         }
         return switch (deref) {
             case ConstForm<?> con -> con.toConst();
-            case Class<?> clz -> Optional.of(getType(clz));
+            case Class<?> clz when ! clz.isPrimitive() -> Optional.of(getType(clz));
             case Enum<?> enumVal -> Optional.of(IndyHelpers.forEnum(enumVal));
             case Boolean b -> Optional.of(BooleanForm.toCondy(b));
             case MethodType mt -> Optional.of(makeCondy("make", Constants.class, "methodType",
