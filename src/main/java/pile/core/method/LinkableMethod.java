@@ -92,9 +92,21 @@ public interface LinkableMethod extends PCall {
         return new ConstantCallSite(formed);
     }
     
+    /**
+     * Try to {@link #staticLink(CallSiteType, MethodType, long) static link} and if
+     * that fails then
+     * {@link #dynamicLink(CallSiteType, MethodType, long, CompilerFlags) dynamic
+     * link}.
+     * 
+     * @param csType
+     * @param statictypes
+     * @param anyMask
+     * @param flags
+     * @return
+     */
     public default CallSite link(CallSiteType csType, MethodType statictypes, long anyMask, CompilerFlags flags) {
-        return staticLink(CallSiteType.PLAIN, statictypes, anyMask)
-                .orElseGet(() -> dynamicLink(CallSiteType.PLAIN, statictypes, anyMask, flags));
+        return staticLink(csType, statictypes, anyMask)
+                .orElseGet(() -> dynamicLink(csType, statictypes, anyMask, flags));
     }
 
     /**

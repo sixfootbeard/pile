@@ -1,19 +1,34 @@
 package pile.nativebase;
 
+import static java.lang.invoke.MethodHandles.*;
+import static java.lang.invoke.MethodType.*;
+import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
+import java.lang.invoke.CallSite;
+import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import pile.core.ISeq;
+import pile.core.indy.CallSiteType;
+import pile.core.indy.CompilerFlags;
+import pile.core.indy.guard.GuardBuilder;
+import pile.core.method.AbstractRelinkingCallSite;
 import pile.core.method.LinkableMethod;
 
 public class NativeArrays {
+
+    private static final String ARRAY_NULL_MESSAGE = "Array type must be non-null";
+
+
 
     // Arrays
     public static Object[] toArray(Collection<?> col) {
@@ -447,40 +462,79 @@ public class NativeArrays {
 //        }
 //        return arr;
 //    }
-    
-    @IndirectMethod
-    public static LinkableMethod make_array() {        
-        return new LinkableMethod() {
-            
-            @Override
-            public Object invoke(Object... args) throws Throwable {
-                Class clazz = (Class<?>) args[0];
-                Object instance = Array.newInstance(clazz, (int) args[1]);               
-                return instance;
-            }
-            
-            @Override
-            public boolean acceptsArity(int arity) {
-                return arity == 2;
-            }
-        };
+
+    public static Object make_array(Class c, int size) {
+        return Array.newInstance(c, size);
     }
     
     @IndirectMethod
-    public static LinkableMethod array() {        
+    public static LinkableMethod array() {
         return new LinkableMethod() {
-            
+
+            @Override
+            public CallSite dynamicLink(CallSiteType csType, MethodType statictypes, long anyMask,
+                    CompilerFlags flags) {
+
+                final int arraySize = statictypes.parameterCount() - 1;
+
+                if (csType == CallSiteType.PLAIN) {
+                    return new AbstractRelinkingCallSite(statictypes) {
+
+                        @Override
+                        protected MethodHandle findHandle(Object[] args) throws Throwable {
+                            // stack: type:class arg0 arg1 ... argN
+                            if (args[0] == null) {
+                                MethodHandle ex = getExceptionHandle(statictypes, NullPointerException.class,
+                                        NullPointerException::new, ARRAY_NULL_MESSAGE);
+                                GuardBuilder guard = new GuardBuilder(ex, getTarget(), statictypes);
+                                guard.guardNull(0);
+                                return guard.getHandle();
+                            }
+                            Class clazz = (Class) args[0];
+                            final MethodHandle arrayMethod;
+                            final Class arrayType;
+                            if (clazz.isPrimitive()) {
+                                arrayType = clazz.arrayType();
+                                MethodHandle copy = lookup().findStatic(Arrays.class, "copyOf",
+                                        methodType(arrayType, arrayType, int.class));
+                                copy = insertArguments(copy, 1, arraySize);
+                                arrayMethod = copy;
+                            } else {
+                                arrayType = Object.class.arrayType();
+                                MethodHandle copy = lookup().findStatic(Arrays.class, "copyOf",
+                                        methodType(arrayType, arrayType, int.class, Class.class));
+                                copy = insertArguments(copy, 1, arraySize, clazz.arrayType());
+                                arrayMethod = copy;
+                            }
+                            MethodHandle out = arrayMethod;
+                            out = out.asCollector(arrayType, arraySize);
+                            out = dropArguments(out, 0, statictypes.parameterType(0));
+                            out = out.asType(statictypes);
+
+                            GuardBuilder guard = new GuardBuilder(out, getTarget(), statictypes);
+                            guard.guardEquals(0, clazz);
+                            return guard.getHandle();
+                        }
+                    };
+
+                }
+                return LinkableMethod.super.dynamicLink(csType, statictypes, anyMask, flags);
+            }
+
             @Override
             public Object invoke(Object... args) throws Throwable {
+                if (args[0] == null) {
+                    throw new NullPointerException(ARRAY_NULL_MESSAGE);
+                }
                 Class clazz = (Class<?>) args[0];
-                Object instance = Array.newInstance(clazz, args.length - 1);               
+                Object instance = Array.newInstance(clazz, args.length - 1);
                 MethodHandle setter = MethodHandles.arrayElementSetter(clazz.arrayType());
                 for (int i = 1; i < args.length; ++i) {
-                    setter.invoke(instance, i-1, args[i]);
+                    setter.invoke(instance, i - 1, args[i]);
                 }
                 return instance;
             }
-            
+
             @Override
             public boolean acceptsArity(int arity) {
                 return arity != 0;

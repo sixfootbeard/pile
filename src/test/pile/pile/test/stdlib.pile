@@ -386,3 +386,27 @@
 (is (= [2 1] (stream (->> (range 3) (drop 1) (reverse)) (into []))))
 (is (= [] (stream (->> (range 3) (drop 3) (reverse)) (into []))))
 
+;; === arrays
+(let [int-arr (array int 5)
+      cloned (aclone int-arr)]
+   (is (= 1 (alength cloned)))
+   (is (= 5 (aget cloned 0)))
+   (aset cloned 0 10)
+   (is (= 10 (aget cloned 0)))
+   (is (= 5 (aget int-arr 0))))
+
+(both= 5 (alength (make-array int 5)))
+(both= 1 (alength (array int 1)))
+(both= 55 (aget (array int 55) 0))
+
+;; relinking
+(let [array-two (fn [type f s] (array type f s))]
+   (let [str-arr (array-two String "a" "b")]
+     (is (= 2 (alength str-arr)))
+     (is (= "a" (aget str-arr 0)))
+     (is (= "b" (aget str-arr 1))))
+   (let [prim-arr (array-two int 1 2)]
+     (is (= 2 (alength prim-arr)))
+     (is (= 1 (aget prim-arr 0)))
+     (is (= 2 (aget prim-arr 1)))))
+
