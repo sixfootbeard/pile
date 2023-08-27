@@ -299,7 +299,9 @@
                  (recur f acc tail)
                  acc))))
 
-(defmacro when-let [binds & body]
+(defmacro when-let 
+      "Similar to a let expression except the evaluation of the binding value expressions will break if any expression is falsy. Only if all bindings values are truthy will the body be executed."
+      [binds & body]
       (let [[lhs rhs & rest] binds]
         (if lhs
           `(let [~lhs ~rhs]
@@ -422,6 +424,7 @@
                 true))))
 
 (defn into
+    "Collects stream/sequence values into a collection is if by calling conj. Single arity is for streams."
     ([col]
       (fn [^Stream s]
           (loop [col col
@@ -521,6 +524,11 @@
                          (recur rem))))))))
 
 (defn mapcat
+  """
+  Similar to map except the resulting elements are flattened (once) in the resulting stream.
+  eg. (mapcat identity [[1 2] [3 4]])
+  ;; (1 2 3 4)
+  """
   ([f] (fn [^Stream s] (.flatMap s ~#(-> % f stream))))
   ([f col]
     (lazy-seq
@@ -531,6 +539,7 @@
 
 
 (defn drop-while
+  "Drops leading elements in the stream/sequence while the predicate returns true."
   ([f] (fn [^Stream s] (.dropWhile s ~#f)))
   ([f col]
     (lazy-seq
@@ -595,11 +604,13 @@
         nil)))
 
 (defn sorted
+      "Creates a terminal operation in a stream which sorts the stream. May provide a comparator function to use."
       ([] (sorted comp))
       ([c] (fn [^Stream s] (-> s (.sorted ~#c)))))
 
 
 (defn joining
+      "Joins all the elements in the stream/sequence into a string with a delimiter. 0/1-arity are terminal stream operations. 2-arity is for use in lazy sequences."
       ([] (joining ","))
       ([delim] (fn [^Stream s] (.collect s (java.util.stream.Collectors/joining delim))))
       ([delim col] ((joining delim) (to-stream col))))
@@ -613,25 +624,26 @@
                      (f (first s))
                      (recur (next s))))))
 
-(defn cycle [raw]
+(defn cycle 
+    "Creates a new infinite lazy sequence which cycles through the provided source sequence."
+    [raw]
     (let [src (Stream/generate ~#(to-stream raw))
           flat (.flatMap src java.util.function.Function/identity)]
        (seq flat)))
 
 ;; End lazy + stream
 
-(defn iterate [seed f]
+(defn iterate 
+   "Creates a new infinite lazy sequence in which subsequent elements are produced by calling the provided function on the previous value."
+   [seed f]
    (lazy-seq
       (cons seed (iterate (f seed) f))))
 
-(defn generate [f]
+(defn generate 
+   "Creates a new infinite lazy sequence in which elements are produced by calling the provided function."
+   [f]
    (lazy-seq
        (cons (f) (generate f))))
-
-#_(defn range
-      ([n] (range 0 n))
-      ([s e] (->> (iterate s inc)
-                 (take (- e s)))))
 
 (defmacro cond [& forms]
     (when forms
@@ -675,8 +687,6 @@
 (defn int? [x] (instance? Integer x))
 (defn long? [x] (instance? Long x))
 
-
-
 ;; Multimethods
 
 (defmacro defmulti [fname keyfn]
@@ -691,9 +701,11 @@
 (defn methods [^Multimethod mm]
     (. mm getMethods))
 
-;; Logic                                    
+;; Random
 
-(defmacro while [test & body]
+(defmacro while 
+   "Repeatedly execute the body expression while the test returns true."       
+   [test & body]
    `(loop* [res# ~test]
        (when res#
              (do
@@ -907,6 +919,7 @@
                (prn (str "Elapsed time: " (- end-time# start-time#) "ms")))))))
 
 (defmacro when-class
+    "Executes the provided body expression only if the full class name string exists."
     [^String clazz body]
     (try (do (Class/forName clazz)
              ~body)

@@ -502,6 +502,15 @@ public class Helpers {
         }
     }
 
+    /**
+     * Ensures provided boolean returns true, otherwise extracts a
+     * {@link LexicalEnvironment} from the provided form (if any) and throws a
+     * {@link PileSyntaxErrorException} with the provided message.
+     * 
+     * @param b
+     * @param form
+     * @param msg
+     */
     public static void ensureSyntax(boolean b, Object form, String msg) {
         if (!b) {
             Optional<LexicalEnvironment> lex = LexicalEnvironment.extract(form);
@@ -509,6 +518,15 @@ public class Helpers {
         }
     }
     
+    /**
+     * Ensures provided boolean returns true, otherwise extracts a
+     * {@link LexicalEnvironment} from the provided form (if any) and throws a
+     * {@link PileSyntaxErrorException} with the supplied message.
+     * 
+     * @param b
+     * @param form
+     * @param msg
+     */
     public static void ensureSyntax(boolean b, Object form, Supplier<String> msg) {
         if (!b) {
             Optional<LexicalEnvironment> lex = LexicalEnvironment.extract(form);
@@ -516,6 +534,15 @@ public class Helpers {
         }
     }
     
+    /**
+     * Ensures provided boolean returns true, otherwise extracts a
+     * {@link LexicalEnvironment} from the provided form (if any) and throws a
+     * {@link PileCompileException} with the provided message.
+     * 
+     * @param b
+     * @param form
+     * @param msg
+     */
     public static void ensureCompile(boolean b, Object form, String msg) {
         if (!b) {
             Optional<LexicalEnvironment> lex = LexicalEnvironment.extract(form);
@@ -523,6 +550,15 @@ public class Helpers {
         }
     }
     
+    /**
+     * Ensures provided boolean returns true, otherwise extracts a
+     * {@link LexicalEnvironment} from the provided form (if any) and throws a
+     * {@link PileCompileException} with the supplied message.
+     * 
+     * @param b
+     * @param form
+     * @param msg
+     */
     public static void ensureCompile(boolean b, Object form, Supplier<String> msg) {
         if (!b) {
             Optional<LexicalEnvironment> lex = LexicalEnvironment.extract(form);
