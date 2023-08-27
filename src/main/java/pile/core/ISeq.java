@@ -45,7 +45,7 @@ public interface ISeq<T> extends Iterable<T>, Conjable<T> {
     }
     
     default ISeq reverse() {
-        if (this instanceof ReverseableSeq rev) {
+        if (this instanceof ReversibleSeq rev) {
             return rev.reverse();
         }
         Cons last = null;

@@ -83,7 +83,7 @@ import pile.core.NativeValue;
 import pile.core.PCall;
 import pile.core.PileMethod;
 import pile.core.Ref;
-import pile.core.ReverseableSeq;
+import pile.core.ReversibleSeq;
 import pile.core.RuntimeRoot;
 import pile.core.RuntimeRoot.ProtocolRecord;
 import pile.core.Seqable;
@@ -1513,7 +1513,7 @@ public class NativeCore {
         return pre == null ? handle : pre;
     }
     
-    private static class RepeatSeq<T> extends AbstractSeq<T> implements Streamable, ReverseableSeq<T> {
+    private static class RepeatSeq<T> extends AbstractSeq<T> implements Streamable, ReversibleSeq<T> {
     
         private final long count;
         private final T value;
@@ -1717,7 +1717,7 @@ public class NativeCore {
         }
     }
     
-    private static class RangeSeq extends AbstractSeq implements Streamable, ReverseableSeq {
+    private static class RangeSeq extends AbstractSeq implements Streamable, ReversibleSeq {
 
         private final int cur, max;
         
@@ -1753,7 +1753,7 @@ public class NativeCore {
     
     }
     
-    private static class RangeReverseSeq extends AbstractSeq implements Streamable, ReverseableSeq {
+    private static class RangeReverseSeq extends AbstractSeq implements Streamable, ReversibleSeq {
 
         private final int cur, min, max;
 

@@ -15,7 +15,7 @@
  */
 package pile.core;
 
-public interface ReverseableSeq<T> {
+public interface ReversibleSeq<T> {
 
     ISeq<T> reverse();
 

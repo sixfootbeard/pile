@@ -17,7 +17,7 @@ package pile.core;
 
 import static pile.compiler.Helpers.*;
 
-public class ArraySeq<T> extends AbstractSeq<T> implements ReverseableSeq<T> {
+public class ArraySeq<T> extends AbstractSeq<T> implements ReversibleSeq<T> {
 
     private final T[] arr;
     private final int index;
