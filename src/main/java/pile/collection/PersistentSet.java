@@ -127,7 +127,7 @@ public abstract class PersistentSet<E> extends AbstractSet<E>
     }
 
     public static PersistentSet fromIterable(Iterable it) {
-		PersistentHashSet set = new PersistentHashSet<>();
+        PersistentSet set = PersistentHashSet.empty();
 		for (Object o : it) {
 			set = set.conj(o);
 		}

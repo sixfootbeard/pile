@@ -188,6 +188,10 @@ public abstract class PersistentVector<E> extends AbstractList<E>
     }
 
     public static PersistentVector create(Object[] args) {
+        if (args.length == 0) {
+            // saving a single list alloc
+            return EMPTY;
+        }
         return of(Arrays.asList(args));
     }
 

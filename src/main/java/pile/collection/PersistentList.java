@@ -185,7 +185,7 @@ public class PersistentList<T> implements PObj<PersistentList<T>>, Conjable<T>, 
     }
 
 	public static PersistentList createArr(Object... args) {
-		PersistentList p = new PersistentList<>();
+		PersistentList p = EMPTY;
 		for (Object o : args) {
 			p = p.conj(o);
 		}
