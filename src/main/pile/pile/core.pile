@@ -40,28 +40,24 @@
           ([x] x)
           ([x & rem] `(if ~x true (or ~@rem))))
 
-
-(defmacro -> [base & rem]
-         (loop* [base base
+(defmacro threader [mixfn base & rem]
+   (loop* [base base
                  rem rem]
             (if rem 
                  (let* [form (first rem)
-                        with-base (if (list? form)
-                                      (with-meta `(~(first form) ~base ~@(next form)) (meta form))   
-                                      (list form base))]
+                        lform (if (list? form) form (list form))
+                        with-base (with-meta (mixfn base lform) (meta form))]
                    (recur with-base (next rem)))
                  base)))
 
-(defmacro ->> [base & rem]
-         (loop* [base base
-                  rem rem]
-            (if rem    
-                  (let* [form (first rem)
-                         with-base (if (list? form)
-                                      (with-meta `(~@form ~base) (meta form))    
-                                      (list form base))]
-                   (recur with-base (next rem)))
-                 base)))
+(defmacro -> [base & rem] 
+   (apply threader (fn* [base form] `(~(first form) ~base ~@(next form))) base rem))
+
+(defmacro ->> [base & rem] 
+   (apply threader (fn* [base form] `(~@form ~base)) base rem))
+
+(defmacro some-> [base & rem]
+   (apply threader (fn* [base form] `(if (some? ~base) (do ~@form) nil)) base rem))
 
 (defmacro ensure
 	[& args]
