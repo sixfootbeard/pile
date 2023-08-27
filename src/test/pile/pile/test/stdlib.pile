@@ -410,3 +410,8 @@
      (is (= 1 (aget prim-arr 0)))
      (is (= 2 (aget prim-arr 1)))))
 
+;; (doto)
+(let [hm (doto (new java.util.HashMap) (.put 1 2) (.put 3 4))]
+     (is (= 2 (.size hm)))
+     (is (= 2 (.get hm 1)))
+     (is (= 4 (.get hm 3))))

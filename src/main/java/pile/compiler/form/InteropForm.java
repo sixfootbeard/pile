@@ -179,6 +179,7 @@ public class InteropForm implements Form {
                 yield new BaseClass(null, clazz);
             case INSTANCE:
                 Object val = Compiler.evaluate(cs, instanceOrClass);
+                ensureCompile(val != null, instanceOrClass, "Base val cannot be null");
                 Class<?> iclazz = val.getClass();
                 yield new BaseClass(val, iclazz);
         };

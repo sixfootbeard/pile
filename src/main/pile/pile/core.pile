@@ -307,10 +307,26 @@
                 ~(apply when-let rest body)))
           `(do ~@body))))
 
-(defmacro doto [base & forms]
-    (let* [sym (gensym)]
-        `(let* [~sym ~base]
-           ~@(lazy-map (fn* [f] `(~(first f) ~sym ~@(next f))) forms))))
+(defmacro doto 
+    """
+    Inserts the base argument into the first position in each of the provided forms. Only evaluates base once. Returns base.
+
+    (doto (new HashMap)
+      (.put 1 2)
+      (.put 3 4))
+    ;; equiv
+    (let [base (new HashMap)]
+      (do
+        (.put base 1 2)
+        (.put base 3 4)
+        base))
+    
+    """
+    [base & forms]
+    (let [sym (gensym)]
+        `(let [~sym ~base]
+           ~@(lazy-map (fn* [f] `(~(first f) ~sym ~@(next f))) forms)
+           ~sym)))
 
 (defn concat [l r]
    (lazy-seq
