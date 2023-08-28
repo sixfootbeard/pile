@@ -1,0 +1,52 @@
+;; Copyright 2023 John Hinchberger
+;; 
+;; Licensed under the Apache License, Version 2.0 (the "License");
+;; you may not use this file except in compliance with the License.
+;; You may obtain a copy of the License at
+;; 
+;;     http://www.apache.org/licenses/LICENSE-2.0
+;; 
+;; Unless required by applicable law or agreed to in writing, software
+;; distributed under the License is distributed on an "AS IS" BASIS,
+;; WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+;; See the License for the specific language governing permissions and
+;; limitations under the License.
+
+(ns pile.test.parser
+    (:refer pile.test pile.test.util))
+
+(test "Triple Quoted - empty"
+   (let [s """
+           """]
+     (= 0 (count s))))
+
+(test "Triple Quoted - empty multiple lines"
+   (let [s """
+           
+           """]
+     (= "\n" s)))
+
+(test "Triple Quoted - more empty multiple lines"
+   (let [s """
+           
+           
+           """]
+     (= "\n\n" s)))
+
+(test "Triple Quoted - single line"
+      (let [s """
+              foo
+              """]
+     (= "foo" s)))
+
+(test "Triple Quoted - single line less than start"
+      (let [s """
+         foo
+              """]
+     (= "foo" s)))
+
+(test "Triple Quoted - single line more than start"
+      (let [s """
+                   foo
+              """]
+     (= "foo" s)))

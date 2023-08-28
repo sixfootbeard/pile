@@ -17,7 +17,12 @@ package pile.core.parse;
 
 import java.io.IOException;
 import java.io.PushbackReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
+
+import pile.compiler.Helpers;
 
 public class TripleQuoteStringFormReader implements Reader {
 
@@ -36,55 +41,92 @@ public class TripleQuoteStringFormReader implements Reader {
             throw lex.makeError("Triple quote string header must end with a newline");
         }
         env.newline();
-        eatIndentation(env, pr);
         
         boolean done = false;
-        StringBuilder sb = new StringBuilder();
+        
+        List<String> lines = new ArrayList<>();
+        StringBuilder currentLine = new StringBuilder();
+        
         outer:
         while (! done) {
             int read = pr.read();
             switch (read) {
                 case -1: throw lex.makeError("Unexpected EOF while reading string literal.");
                 case '\n':
-                    sb.append((char)read);
+                    lines.add(currentLine.toString());
+                    currentLine.setLength(0);
                     env.newline();
-                    eatIndentation(env, pr);
                     break;
                 case '"': 
                     pr.unread('"');
                     if (readTripleQuote(pr)) {
+                        String currentStr = currentLine.toString();
+                        if (currentStr.length() > 0 && prefixSpaceCount(currentStr) >= 0) {
+                            lines.add(currentLine.toString());
+                        }
                         env.incRead(3);
                         break outer;
                     }
                     // fall through                 
-                default: 
-                    sb.append((char)read);
+                default:
+                    currentLine.append((char)read);
                     env.incRead();
                     break;
             }
         }
+        if (lines.size() == 0) {
+            return Optional.of(new ParserResult("", TypeTag.STRING));
+        }
+        var minPrefixOpt = lines.stream()
+                             .mapToInt(this::prefixSpaceCount)
+                             .filter(i -> i > 0)
+                             .min();
+                             
+        if (minPrefixOpt.isEmpty()) {
+            // we have lines but they are all empty. 
+            // would look visually like:
+            // """
+            // 
+            // """
+            
+            // Clearly different then just without any lines which should return empty:
+            // """
+            // """
+            return Optional.of(new ParserResult("\n".repeat(lines.size()), TypeTag.STRING));
+        }
+                             
+        String outputString = lines.stream().map(s -> removePrefix(s, minPrefixOpt.getAsInt())).collect(Collectors.joining("\n"));
         
-        ParserResult result = new ParserResult(sb.toString(), TypeTag.STRING);
+        ParserResult result = new ParserResult(outputString, TypeTag.STRING);
         return Optional.of(result);
     }
     
-    private void eatIndentation(LexicalEnvironment current, PushbackReader pr) throws IOException {
-        outer: 
-        for (;;) {
-            int read = pr.read();
-            switch (read) {
-                case ' ':
-                case '\t': 
-                    // fine
-                    current.incRead(); 
-                    break;
-                default:
-                    // user supplied some chars, bail.
-                    pr.unread(read);
-                    break outer;
+    /**
+     * 
+     * @param s
+     * @param prefixCount
+     * @return The substring starting at prefixCount or empty string if there are not enough characters.
+     */
+    private String removePrefix(String s, int prefixCount) {
+        if (s.length() <= prefixCount) {
+            return "";
+        } else {
+            return s.substring(prefixCount);
+        }
+    }
+    
+    /**
+     * 
+     * @param s 
+     * @return The number of leading spaces, or -1 if all leading characters are spaces (including empty string).
+     */
+    private int prefixSpaceCount(String s) {
+        for (int idx = 0; idx < s.length(); ++idx) {
+            if (s.charAt(idx) != ' ') {
+                return idx;
             }
         }
-        
+        return -1;
     }
 
     private boolean readTripleQuote(PushbackReader pr) throws IOException {
