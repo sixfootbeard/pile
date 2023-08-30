@@ -720,6 +720,28 @@ public class NativeCore {
         }
         return -1;
     }
+    
+    @Precedence(0)
+    @RenamedMethod("contains?")
+    public static boolean contains(List col, Object key) {
+        // TODO ehhh this is kind of silly
+        if (key instanceof Integer i) {
+            return col.size() <= i;
+        }
+        return false;
+    }
+    
+    @Precedence(1)
+    @RenamedMethod("contains?")
+    public static boolean contains(Map col, Object key) {
+        return col.containsKey(key);
+    }
+    
+    @Precedence(2)
+    @RenamedMethod("contains?")
+    public static boolean contains(Set col, Object key) {
+        return col.contains(key);
+    }
 
     @Precedence(1)
     public static Keyword keyword(String name) {

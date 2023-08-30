@@ -84,6 +84,10 @@ pile.repl> (plus 40 4)
 ;; 44
 #+end_src
 
+** TODO Varargs
+** TODO Closures
+** TODO Anonymous Functions
+
 * Control Flow
 
 Pile contains an 'if' expression which tests a conditional and yield a result from one of the branches. It takes the form:
@@ -152,27 +156,6 @@ Some things to note:
 - Looping is performed manually with recur, and if no recur exists on a particular branch the loop will exit.
 - A loop can have multiple locals which are updated each iteration.
 - The recur syntax updates each local with the provided expressions in the order the locals were defined.
-
-* TODO Sequences
-
-Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
-
-You can create sequences by calling the (seq ...) function. Sequences can be created from collections, streams or a combination of operations.
-
-Core Sequence functions: 
-#+begin_src clojure :eval no
-;; Creates a sequence
-(seq source)
-
-;; Returns the first element of the sequence, or nil if empty.
-(first sequence) 
-
-;; Returns a new sequence with the elements after the first element or nil if that sequence would be empty.
-(next sequence) 
-
-;; Returns the nth element in the sequence or nil if the index is greater than the number of elements left.
-(nth _sequence_ _index_) 
-#+end_src
 * Do Forms
 
 Occasionally it will be necessary to execute statements with side effects such as logging statements before performing other operations. To accomplish this you can use the do form:
@@ -194,7 +177,7 @@ The call to prn was executed but its result was discarded, and the result of the
 
 * TODO Collections
 
-Pile contains implementations of persistent collections along with literal syntax to construct each collection.
+Pile contains implementations of persistent collections along with literal syntax to construct each collection. Persistent collections are immutable and updates to the collection all return a new collection with the operation reflected in the new structure.
 
 ** List
 
@@ -209,6 +192,17 @@ Create persistent list using the varargs list function or the syntactic sugar '
 (= alist blist)
 ;; true
 #+end_src
+
+Lists can also be created by calling conj (short for conjoin) which yields a new list with the new item prepended to the front of the list:
+
+#+begin_src clojure :eval no
+pile.repl> (conj '(2 3 4) 1)
+;; (1 2 3 4)
+pile.repl> (conj nil 0)
+;; (0)
+#+end_src
+
+Access to the list items is accomplished via first/next:
 
 #+begin_src clojure :eval no
 pile.repl> (def alist (list 1 2 3))
@@ -227,7 +221,6 @@ pile.repl> (nth alist 2)
 *4: 3
 #+end_src
 
-
 ** Vector
 
 Implemented with an tree of arrays. 
@@ -243,26 +236,172 @@ pile.repl> (= avec bvec)
 *2: true
 #+end_src
 
+Vectors can also be created by conjoining elements, however the elements will be added to the end of the collection:
+
+#+begin_src clojure :eval no
+pile.repl> (conj [1 2 3] 4)
+*0: [1 2 3 4]
+#+end_src
+
 Vectors have the same access functions as lists: first/next/count/nth.
 
 ** Map
 
-Implemented with a HAMT with bitfield compression. Map literals use curly brackets {}
+Implemented with a hash array mapped trie with bitfield compression. 
+
+Create maps using the hash-map function or as a literal with curly brackets {}
 
 #+begin_src clojure :eval no
 (def amap {:a :b})
-(= :b (:a amap))
+(def bmap (hash-map :a :b))
+(= amap bmap)
+;; true
+#+end_src
+
+Elements can be accessed from the map using the (get) function.
+
+#+begin_src clojure :eval no
+(def amap {:a :b})
+(get amap :a)
+;; :b
+(get amap :z)
+;; nil
+(get amap :z :if-missing)
+;; :if-missing
+(contains? amap :a)
+;; true
+(contains? amap :z)
+;; false
 #+end_src
 
 ** Set
 
-Implementing using the map types internally. Set literals use #{}.
+Create sets using the hash-set function or as a literal with a hash and curly brackets #{}
+
+#+begin_src clojure :eval no
+(def aset #{1 4 :abcd "pop"})
+(def bset (hash-set 1 4 :abcd "pop" ))
+(= aset bset)
+;; true
+#+end_src
+
+You can test set inclusion with the same (contains?) function, which returns a boolean indicating if the item was in the set.
+
+#+begin_src clojure :eval no
+(def aset #{1 4 :abcd "pop"})
+(contains? aset 4)
+;; true
+(contains? aset "ma")
+;; false
+
+#+end_src
 
 ** TODO SortedMap
 
 ** TODO SortedSet
 
 ** TODO Queue
+* DONE Sequences
+
+Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
+
+You can create sequences by calling the (seq ...) function. Sequences can be created from collections, streams or a combination of operations.
+
+Core Sequence functions: 
+#+begin_src clojure :eval no
+;; Creates a sequence
+(seq source)
+
+;; Returns the first element of the sequence, or nil if empty.
+(first sequence) 
+
+;; Returns a new sequence with the elements after the first element or nil if that sequence would be empty.
+(next sequence) 
+
+;; Returns the nth element in the sequence or nil if the index is greater than the number of elements left.
+(nth sequence index) 
+#+end_src
+
+Similar to collections you can conjoin an element to a sequence which creates a new sequence with that element as its head.
+
+#+begin_src clojure :eval no
+(def s (seq [1 2 3]))
+(conj s 0)
+;; (0 1 2 3)
+#+end_src
+
+** DONE Destructuring
+
+Pile supports both sequential and associative destructuring in multiple forms. Destructuring is simply a succint syntax to unpack a data structure and assign elements to local variables in a method.
+
+** Sequential Destructuring
+
+Sequential Destructuring can be accomplished by providing a vector of symbols to be bound in place of a single symbol:
+
+#+begin_src clojure :eval no
+(def s (seq [1 2 3]))
+;; The following methods are equivalent
+(defn print-all [sequence]
+   (let [first-item (nth sequence 0)
+         second-item (nth sequence 1)
+         third-item (nth sequence 2)]
+     (prn "first item: " first-item)
+     (prn "second item: " second-item)
+     (prn "third item: " third-item)))
+;; 
+(defn print-all-dest [[first-item second-item third-item]]
+     (prn "first item: " first-item)
+     (prn "second item: " second-item)
+     (prn "third item: " third-item))
+
+#+end_src
+
+Notice instead of a single method argument 'sequence' we now have a vector of 3 items. The compiler will create a sequence from the provided first method argument and then assign the first/second/third item drawn from that sequence to the respective variables.
+
+This syntax can be used in multiple forms:
+- method arguments
+- let bindings
+- loop bindings
+
+** Associative Destructuring
+
+Associative Destructuring is like the sequential variant but instead can extract values out of an associative structure like a map.
+
+#+begin_src clojure :eval no
+(def mapping {:a 12 :foo "bar"})
+;; The following methods are equivalent
+(defn print-all [mapping]
+   (let [a-item (get mapping :a)
+         foo-item (get mapping :foo)]
+     (prn "a item: " a-item)
+     (prn "foo item: " foo-item)))
+;; 
+(defn print-all-dest [{a-item :a foo-item :foo]}]
+     (prn "a item: " a-item)
+     (prn "foo item: " foo-item))
+
+#+end_src
+
+The syntax is a map of symbols to keys in the map. The symbols will be bound to the value of the associated key in the map.
+
+** Advanced Destructuring
+
+Both forms of this destructuring can be arbitrarly nested and can be mixed:
+
+#+begin_src clojure :eval no
+(defn print-details [[{[first-name last-name] :name age :age} car-type]]
+   (prn "Firstname: " first-name)
+   (prn "Lastname: " last-name)
+   (prn "Age: " age)
+   (prn "Car type: " car-type))
+
+(print-details [{:name ["John" "Doe"] :age 50} :mustang])
+
+#+end_src
+
+We're sequentially destructuring the single method argument which is a vector into two parts. The first element we associatively destructure expecting keys :name and :age in the map. For the value of :name key we sequentially destructure it assigning the result to the variables first-name and last-name. The value of the :age key is assigned to 'age'. Back at the top level the second element of the vector is assigned to the car-type variable.
+
+* TODO Streams
 
 * Error Handling
 
@@ -419,6 +558,7 @@ Using the :: sugar
 ** TODO Dot Operator
 
 Pile also supports the dot operator '.' with the same syntax as Clojure.
+
 * TODO Concurrency
 ** Synchronization
 ** Atoms
