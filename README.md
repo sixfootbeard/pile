@@ -36,6 +36,7 @@ NB. This project is still being developed and should currently only be used for 
 - [Functional Interface Integration](#functional-interface-integration)
 - [First-Class Java Functions](#first-class-java-functions)
 - [Arbitrary-precision arithmetic](#arbitrary-precision-arithmetic)
+- [Text Blocks](#text-blocks)
 - [Condition System](#condition-system) (beta)
 - [AOT Compilation](#aot-compilation) (beta)
 
@@ -527,6 +528,23 @@ You can create arbitrary-precision integral literals with a 'N' suffix, and arbi
 ```
 
 All operations which would overflow or would lose precision are coerced to higher width or arbitrary precision types, depending on the context. 
+
+## Text Blocks
+
+Pile supports triple quoted strings called text blocks:
+
+```clojure
+(defn myfun
+      """
+      My
+      Really
+      Long
+      Docs
+      """
+      [args] body)
+```
+
+In the above case the resulting string is "My\nReally\nLong\nDocs". Indentation is trimmed to the minimum indentation of any non-empty line.
 
 ## Condition System
 
