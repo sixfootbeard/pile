@@ -66,6 +66,7 @@ import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.HiddenNativeMethod;
 import pile.core.method.LinkableMethod;
+import pile.core.parse.ParserConstants;
 import pile.core.parse.PileParser;
 import pile.nativebase.IndirectMethod;
 import pile.nativebase.NativeArrays;
@@ -101,8 +102,9 @@ public class StandardLibraryLoader {
     private static final Logger LOG = LoggerSupplier.getLogger(StandardLibraryLoader.class);
 
     private static final String PILE_CORE_NS = "pile.core";
-    private static final Library CORE_LIBRARY = new Library(PILE_CORE_NS, List.of(NativeMath.class, NativeCore.class, NativeArrays.class),
-            "/pile/core.pile");
+    
+    private static final Library CORE_LIBRARY = 
+            new Library(PILE_CORE_NS, List.of(NativeMath.class, NativeCore.class, NativeArrays.class), "/pile/core.pile");
 
     // @formatter:off
     private static final List<Library> EXTRA_LIBRARIES = List.of(
@@ -481,6 +483,7 @@ public class StandardLibraryLoader {
         
         AllSet macroSet = new AllSet();
         AllSet pureSet = new AllSet();
+        String classSrc = null;
         String doc = null;
 
         for (var arity : mm.entrySet()) {
@@ -522,6 +525,9 @@ public class StandardLibraryLoader {
                 } else {
                     parent = findParentType(parent, mh.type().returnType());
                 }
+                if (classSrc == null) {
+                    classSrc = vm.getDeclaringClass().getName();
+                }
             }
         }
         
@@ -533,6 +539,11 @@ public class StandardLibraryLoader {
         PersistentMap meta = PersistentMap.EMPTY;
         meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
         meta = meta.assoc(PileMethodLinker.MACRO_KEY, macro);
+        meta = meta.assoc(Keyword.of(PILE_CORE_NS, "native-source"), true);
+        
+        if (classSrc != null) {
+            meta = meta.assoc(ParserConstants.FILENAME_KEY, classSrc);
+        }
         if (!Object.class.equals(parent)) {
             meta = meta.assoc(PileMethodLinker.RETURN_TYPE_KEY, parent);
         }
@@ -556,6 +567,9 @@ public class StandardLibraryLoader {
         PersistentMap meta = PersistentMap.EMPTY;
         meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
         meta = meta.assoc(PileMethodLinker.MACRO_KEY, method.isAnnotationPresent(NativeMacro.class));
+        meta = meta.assoc(ParserConstants.FILENAME_KEY, method.getClass().toString());
+        meta = meta.assoc(Keyword.of(PILE_CORE_NS, "native-source"), true);
+
         if (doc != null) {
             meta = meta.assoc(CommonConstants.DOC, doc);
         }

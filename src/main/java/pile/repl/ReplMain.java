@@ -39,10 +39,8 @@ import pile.core.parse.ParserResult;
 import pile.core.parse.PileParser;
 
 public class ReplMain {
-//
-//    static {
-//        StandardLibraryLoader.loadRoot();
-//    }
+
+    private static final String VERSION = "0.0.1";
 
     public void run() throws Throwable {
 
@@ -56,6 +54,11 @@ public class ReplMain {
         
         PrintStream out = System.out;
         PrintStream err = System.err;
+        
+        out.println("Pile "+ VERSION);
+        out.println(" Help: (help 'function-name)");
+        out.println(" Exit: Control+C");
+        out.println("");
 
 
         int captureCount = 0;

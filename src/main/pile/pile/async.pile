@@ -17,11 +17,13 @@
 (import (java.util.concurrent RecursiveTask CompletableFuture))
 
 (defmacro async
-    "Asynchronously run the provided expression. Prefer this if the function will 
-     block for any reason (lock, semaphore, IO, etc). The result is a running task
-     whose result value can be directly waited on (pile.core.async/deref) or can 
-     be cancelled (pile.core.async/cancel). Addtionally, the result may be used
-     in an await call"
+    """
+    Asynchronously run the provided expression. Prefer this if the function will 
+    block for any reason (lock, semaphore, IO, etc). The result is a running task
+    whose result value can be directly waited on (pile.core.async/deref) or can 
+    be cancelled (pile.core.async/cancel). Addtionally, the result may be used
+    in an await call.
+    """
     [& body] `(async* (fn [] ~@body)))
 
 ;; await in native
