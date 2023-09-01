@@ -44,7 +44,6 @@ import pile.core.indy.PileMethodLinker;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractCompiledMethod;
-import pile.core.method.ClosureCompiledMethod;
 import pile.core.parse.LexicalEnvironment;
 
 @SuppressWarnings("rawtypes")

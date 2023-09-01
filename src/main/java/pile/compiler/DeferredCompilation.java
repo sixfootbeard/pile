@@ -18,9 +18,6 @@ package pile.compiler;
 import java.util.Optional;
 import java.util.function.Consumer;
 
-import org.objectweb.asm.ConstantDynamic;
-
-import pile.collection.PersistentArrayVector;
 import pile.core.parse.TypeTag;
 
 /**

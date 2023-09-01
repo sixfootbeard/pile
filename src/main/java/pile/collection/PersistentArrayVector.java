@@ -15,26 +15,16 @@
  */
 package pile.collection;
 
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
-import org.objectweb.asm.ConstantDynamic;
-
 import pile.core.AbstractSeq;
-import pile.core.Conjable;
 import pile.core.ISeq;
-import pile.core.Metadata;
-import pile.core.PCall;
 import pile.core.PObj;
-import pile.core.Seqable;
 import pile.util.Pair;
 
 public class PersistentArrayVector<V> extends PersistentVector<V> implements PObj {
@@ -59,7 +49,7 @@ public class PersistentArrayVector<V> extends PersistentVector<V> implements POb
 		public ISeq<V> next() {
 			int nextIdx = idx + 1;
 			if (nextIdx == count) {
-				return null; // ISeq.empty();
+				return ISeq.EMPTY;
 			}
 			Object[] arr = current;
 			if (nextIdx % NODE_SIZE == 0) {

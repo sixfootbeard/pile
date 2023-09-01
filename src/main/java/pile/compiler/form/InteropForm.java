@@ -16,15 +16,12 @@
 package pile.compiler.form;
 
 import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
 import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -42,21 +39,17 @@ import org.objectweb.asm.Type;
 import pile.collection.PersistentList;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
-import pile.compiler.Constants;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
-import pile.compiler.InteropException;
 import pile.compiler.MethodStack;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.Scopes.ScopeLookupResult;
 import pile.compiler.typed.Any;
 import pile.compiler.typed.DynamicTypeLookup;
 import pile.compiler.typed.FunctionalInterfaceAdapter;
-import pile.compiler.typed.TypeMatcher;
 import pile.compiler.typed.TypedHelpers;
 import pile.core.ISeq;
 import pile.core.Namespace;
-import pile.core.StaticTypeMismatchException;
 import pile.core.Symbol;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.binding.NativeDynamicBinding;
@@ -71,7 +64,6 @@ import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
-import pile.util.Pair;
 
 public class InteropForm implements Form {
 

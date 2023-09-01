@@ -17,7 +17,6 @@ package pile.collection;
 
 import static pile.util.CollectionUtils.*;
 
-import pile.core.Conjable;
 import pile.core.ISeq;
 import pile.nativebase.NativeCore;
 import pile.util.Pair;

@@ -21,11 +21,10 @@ import static pile.compiler.Helpers.*;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.function.Function;
 
 import org.objectweb.asm.ConstantDynamic;
@@ -34,11 +33,7 @@ import pile.compiler.Constants;
 import pile.compiler.form.CollectionLiteralForm;
 import pile.core.Conjable;
 import pile.core.ISeq;
-import pile.core.Metadata;
-import pile.core.PCall;
-import pile.core.Seqable;
 import pile.core.exception.PileException;
-import pile.core.indy.CallableLink;
 
 public abstract class PersistentSet<E> extends AbstractSet<E>
 		implements PersistentCollection<E>, Conjable<E>, FMap<PersistentSet> {

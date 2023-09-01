@@ -84,7 +84,6 @@ public class PersistentArrayMap<K, V> extends PersistentMap<K, V> {
 
     @Override
     protected PersistentMap<K, V> assocGeneric(Object key, Object val) {
-        // TODO Max size before going to actual hash map
         int index = findSlot((K) key);
 
         int length = elements.length;
@@ -101,7 +100,7 @@ public class PersistentArrayMap<K, V> extends PersistentMap<K, V> {
                 return new PersistentArrayMap<>(copied, meta);
             }
         } else {
-            // inplace
+            // in-place
             Object[] copied = Arrays.copyOf(elements, length);
             copied[index] = key;
             copied[index + 1] = val;

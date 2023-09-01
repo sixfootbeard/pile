@@ -24,15 +24,14 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
+import pile.collection.PersistentArrayVector;
 import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
 import pile.collection.PersistentSet;
 import pile.collection.PersistentVector;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
-import pile.collection.PersistentArrayVector;
 import pile.core.Namespace;
 import pile.core.Symbol;
 

@@ -15,7 +15,6 @@
  */
 package pile.collection;
 
-import pile.core.Conjable;
 import pile.core.ISeq;
 import pile.util.Pair;
 

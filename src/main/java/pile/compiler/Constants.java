@@ -20,16 +20,15 @@ import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.core.indy.IndyHelpers.*;
 
+import java.lang.invoke.ConstantBootstraps;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.lang.invoke.ConstantBootstraps;
-import java.lang.invoke.MethodType;
 import java.util.Optional;
 import java.util.Set;
 
 import org.objectweb.asm.ConstantDynamic;
-import org.objectweb.asm.Type;
 
 import pile.compiler.form.BooleanForm;
 import pile.compiler.form.NumberForm;
@@ -50,14 +49,8 @@ public class Constants {
 	 */
 	@SuppressWarnings("preview")
     public static Optional<?> toConst(Object deref) {
-		if (deref == null) {
-			return Optional.empty();
-        }
-        var oclazz = deref.getClass();
-        if (SIMPLE_CONSTANT_CLASSES.contains(oclazz)) {
-            return Optional.of(deref);
-        }
-        return switch (deref) {
+		return switch (deref) {
+            case null -> Optional.empty();
             case ConstForm<?> con -> con.toConst();
             case Class<?> clz when ! clz.isPrimitive() -> Optional.of(getType(clz));
             case Enum<?> enumVal -> Optional.of(IndyHelpers.forEnum(enumVal));
@@ -70,16 +63,22 @@ public class Constants {
             case BigDecimal bd -> Optional.of(makeCondy("bigdecimal", NumberForm.class, "bigdecimal",
                     getConstantBootstrapDescriptor(getType(BigDecimal.class), STRING_TYPE), BigDecimal.class,
                     bd.toString()));
-            default -> Optional.empty();
+            default -> {
+                if (SIMPLE_CONSTANT_CLASSES.contains(deref.getClass())) {
+                    yield Optional.of(deref);
+                } else {
+                    yield Optional.empty();
+                }
+            }
+            
         };
 	}
 	
 	public static Optional<?> toConstAndNull(Object v) {
-	    if (v == null) {
-            ConstantDynamic condy = nullCondy();
-            return Optional.of(condy);
-	    }
-	    return toConst(v);
+	    return switch (v) {
+	        case null -> Optional.of(nullCondy());
+	        default -> toConst(v); 
+	    };	    
 	}
 
     public static ConstantDynamic nullCondy() {

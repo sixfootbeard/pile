@@ -18,8 +18,7 @@ package pile.collection;
 import pile.core.PCall;
 
 /**
- * Apply the transformation to each element in the context and then return a
- * context of the same type.
+ * Apply the supplied function in the context of this type.
  */
 public interface FMap<C> {
 

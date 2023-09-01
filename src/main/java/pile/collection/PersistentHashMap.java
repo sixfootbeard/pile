@@ -15,8 +15,6 @@
  */
 package pile.collection;
 
-import static pile.compiler.Helpers.*;
-
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;

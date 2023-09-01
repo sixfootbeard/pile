@@ -15,16 +15,13 @@
  */
 package pile.compiler;
 
-import static java.util.Objects.*;
 import static pile.compiler.Helpers.*;
-import static pile.nativebase.NativeCore.*;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 
 import pile.compiler.form.VarScope;
 import pile.core.Namespace;
@@ -46,8 +43,6 @@ import pile.util.Pair;
  * <li>(leaveScope)
  * </ol>
  * 
- * @author john
- *
  */
 public class Scopes {
 

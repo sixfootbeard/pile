@@ -18,14 +18,11 @@ package pile.compiler.form;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
-import java.util.Iterator;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.commons.GeneratorAdapter;
 
 import pile.collection.PersistentList;
 import pile.compiler.Compiler;
@@ -33,12 +30,9 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.MacroEvaluated;
 import pile.compiler.MethodStack;
-import pile.compiler.RecurId;
 import pile.core.ISeq;
 import pile.core.Keyword;
 import pile.core.binding.IntrinsicBinding;
-import pile.core.exception.PileSyntaxErrorException;
-import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 
 public class DoForm implements Form {

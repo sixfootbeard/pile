@@ -38,7 +38,6 @@ import pile.compiler.CompilerState.AnnotationData;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.form.VarScope;
-import pile.compiler.typed.Any;
 import pile.core.Symbol;
 
 /**

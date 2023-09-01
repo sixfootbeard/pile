@@ -18,7 +18,6 @@ package pile.compiler;
 import static pile.util.CollectionUtils.*;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Method;
 import java.util.HashMap;

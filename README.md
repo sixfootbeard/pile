@@ -490,7 +490,7 @@ Pile supports both sequential and associative destructuring in both method argum
 
 ## Streams
 
-Pile supports stateful, lazy transformation streams. These operations take a source, a set of transformations and a (optional) terminal operation.
+Pile supports stateful, lazy transformation streams. These operations take a source, a set of transformations and a terminal operation.
 
 ```clojure
 (stream (range 10) (filter #(> % 5)) (map #(* % 3)) (into []))

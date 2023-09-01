@@ -15,11 +15,6 @@
  */
 package pile.collection;
 
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,7 +31,6 @@ import pile.core.Cons;
 import pile.core.ISeq;
 import pile.core.PObj;
 import pile.core.Seqable;
-import pile.core.indy.PersistentLiteralLinker;
 import pile.nativebase.NativeCore;
 
 public class PersistentList<T> implements PObj<PersistentList<T>>, Conjable<T>, Counted, Seqable<T>, Iterable<T> {

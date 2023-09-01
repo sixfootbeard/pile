@@ -19,7 +19,6 @@ import static pile.compiler.Helpers.*;
 
 import pile.core.PCall;
 import pile.core.exception.PileException;
-import pile.core.indy.CallableLink;
 import pile.util.Pair;
 
 public interface Associative<K, V> extends PCall {

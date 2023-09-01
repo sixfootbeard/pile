@@ -16,39 +16,30 @@
 package pile.collection;
 
 import static org.objectweb.asm.Type.*;
-import static pile.compiler.Helpers.*;
 
 import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 import org.objectweb.asm.ConstantDynamic;
 
-import java.util.Set;
-
 import pile.compiler.Constants;
 import pile.compiler.form.CollectionLiteralForm;
-import pile.compiler.form.NullForm;
 import pile.core.Conjable;
-import pile.core.ConstForm;
 import pile.core.ISeq;
-import pile.core.Metadata;
-import pile.core.Namespace;
 import pile.core.PCall;
-import pile.core.Seqable;
 import pile.nativebase.NativeCore;
-import pile.util.Pair;
 
 public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
         implements PersistentCollection<Entry<K, V>>, Associative<K, V>, Conjable, FMap<PersistentMap> {
