@@ -258,6 +258,15 @@ Create maps using the hash-map function or as a literal with curly brackets {}
 ;; true
 #+end_src
 
+New elements can be included in the map by either conj'ing a pair or calling assoc with a new key and value.
+
+#+begin_src clojure :eval no
+(conj {:a :b :c :d} [:a :z])
+;; {:a :z :c :d}
+(assoc {:a :b :c :d} :a :z)
+;; {:a :z :c :d}
+#+end_src
+
 Elements can be accessed from the map using the (get) function.
 
 #+begin_src clojure :eval no
@@ -334,7 +343,7 @@ Similar to collections you can conjoin an element to a sequence which creates a 
 
 Pile supports both sequential and associative destructuring in multiple forms. Destructuring is simply a succint syntax to unpack a data structure and assign elements to local variables in a method.
 
-** Sequential Destructuring
+*** Sequential Destructuring
 
 Sequential Destructuring can be accomplished by providing a vector of symbols to be bound in place of a single symbol:
 
@@ -363,7 +372,7 @@ This syntax can be used in multiple forms:
 - let bindings
 - loop bindings
 
-** Associative Destructuring
+*** Associative Destructuring
 
 Associative Destructuring is like the sequential variant but instead can extract values out of an associative structure like a map.
 
@@ -384,7 +393,7 @@ Associative Destructuring is like the sequential variant but instead can extract
 
 The syntax is a map of symbols to keys in the map. The symbols will be bound to the value of the associated key in the map.
 
-** Advanced Destructuring
+*** Advanced Destructuring
 
 Both forms of this destructuring can be arbitrarly nested and can be mixed:
 
@@ -402,6 +411,27 @@ Both forms of this destructuring can be arbitrarly nested and can be mixed:
 We're sequentially destructuring the single method argument which is a vector into two parts. The first element we associatively destructure expecting keys :name and :age in the map. For the value of :name key we sequentially destructure it assigning the result to the variables first-name and last-name. The value of the :age key is assigned to 'age'. Back at the top level the second element of the vector is assigned to the car-type variable.
 
 * TODO Streams
+
+Pile supports stateful, lazy transformation streams. These operations take a source, a set of transformations and a terminal operation.
+
+#+begin_src clojure :eval no
+(stream (range 10) (filter #(> % 5)) (map #(* % 3)) (into []))
+;; [18 21 24 27]
+#+end_src
+
+We've created a stream from the sequence produced by (range 10) filtered it and collected the results in vector. 
+
+There are no special Pile types that define intermediate/terminal functions. Intermediate functions are simply functions which return a function which accepts a single parameter of a java.util.stream.Stream and returns a java.util.stream.Stream. Terminal functions also create a function which take in a Stream but produce a single value. They can be thought of as any function which matches the following type:
+
+#+begin_src java :eval no
+public Function<Stream, Stream> intermediateFunction(...)
+public Function<Stream, Object> terminalFunction(...)
+#+end_src
+
+Since the implementation uses actual streams they interoperate with Java produced streams easily.
+
+Intermediate Operators: map, filter, reduce, mapcat, take, take-while, drop, drop-while, interpose, enumerate
+Terminal Operators: any?, all?, into, foreach, sorted, joining
 
 * Error Handling
 
