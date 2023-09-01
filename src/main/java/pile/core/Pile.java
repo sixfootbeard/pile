@@ -46,7 +46,7 @@ public class Pile {
      * @return The current value of the ns/name
      * @throws NullPointerException If the namespace or name don't exist.
      */
-    private static Object get(String ns, String fname) {
+    public static Object get(String ns, String fname) {
         Namespace namespace = RuntimeRoot.defineOrGet(ns);
         requireNonNull(namespace, "Namespace doesn't exist");
         Binding bind = Namespace.getIn(namespace, fname);

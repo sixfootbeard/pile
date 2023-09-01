@@ -325,7 +325,7 @@ public class PileParser {
 
 	public PileParser() {}
 	
-	public static Object parseSingle(String s) {
+	public static ParserResult parseSingle(String s) {
 		StringReader sr = new StringReader(s);
 		
 		try {

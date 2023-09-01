@@ -114,7 +114,9 @@ public class TryForm extends AbstractListForm {
     }
 
     private TryParts parse(CompilerState cs) {
-        // TODO Try to enforce ordering
+        // TODO Enforce ordering
+        // TODO Actually use full symbol namespace instead of just name
+        // TODO Allow multiple try expressions (ala do).
         PersistentList body = expectList(second(form));
         List<CatchPart> catches = new ArrayList<>();
         Object finallyBody = null;
@@ -126,7 +128,7 @@ public class TryForm extends AbstractListForm {
 
             ensure(PILE_NAMESPACE.equals(slr.namespace()),
                     "Wrong sym namespace, expected " + PILE_NAMESPACE + ", found " + slr.namespace());
-
+            
             if ("catch".equals(sym.getName())) {
                 var catchForm = expectList(f);
                 // catch clazz var-sym body

@@ -14,7 +14,12 @@
 
 (ns pile.repl)
 
-(defmacro doc [sym] `(-> ~sym var meta :doc))
+#_(defmacro doc [sym] `(-> ~sym var meta :doc))
+
+(def exit-flag false)
+
+(defn quit "Quits the repl" [] (set! exit-flag true))
+(defn exit "Exits the repl" [] (set! exit-flag true))
 
 (defn help [sym]
    (if (not (symbol? sym))

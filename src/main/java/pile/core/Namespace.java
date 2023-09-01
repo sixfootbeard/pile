@@ -285,12 +285,13 @@ public class Namespace {
         }
         
         Binding bind = Namespace.getIn(ns, name);
-        requireNonNull(bind, () -> "Could not find " + ns + "/" + name);
+        var varNs = RuntimeRoot.get(bind.namespace());
+        requireNonNull(bind, () -> "Could not find " + varNs + "/" + name);
         final Var v;
         if (PileMethodLinker.isFinal(bind)) {
-            v = new FinalVar<>(ns, name, bind);
+            v = new FinalVar<>(varNs, name, bind);
         } else {
-            v = new IndirectVar<>(ns, name);
+            v = new IndirectVar<>(varNs, name);
         }
         return v;
     }

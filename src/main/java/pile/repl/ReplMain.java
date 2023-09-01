@@ -40,7 +40,7 @@ import pile.core.parse.PileParser;
 
 public class ReplMain {
 
-    private static final String VERSION = "0.0.1";
+    private static final String VERSION = "0.0.1-SNAPSHOT";
 
     public void run() throws Throwable {
 
@@ -57,12 +57,12 @@ public class ReplMain {
         
         out.println("Pile "+ VERSION);
         out.println(" Help: (help 'function-name)");
-        out.println(" Exit: Control+C");
+        out.println(" Exit: Control+C, (quit), (exit)");
         out.println("");
 
 
         int captureCount = 0;
-        for (;;) {
+        while (! shouldExit()) {
             String prefix = NativeDynamicBinding.NAMESPACE.getValue() + "> "; 
 
             out.print(prefix);
@@ -116,6 +116,11 @@ public class ReplMain {
 
         }
     }
+    
+    private boolean shouldExit() {
+        return (boolean) Pile.get("pile.repl", "exit-flag");
+    }
+  
 
     public static void main(String[] args) throws Throwable {
         ReplMain main = new ReplMain();

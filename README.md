@@ -12,7 +12,7 @@ Pile is a Lisp implementation that runs on the JVM. It targets Java 20+ to take 
 
 All syntactic and conceptual similarities with Clojure are intentional as it was the inspiration for this language, however no code was used. 
 
-NB. Design, implementation and optimization of the language are still in progress. Don't use for anything important.
+NB. This project is still being developed and should currently only be used for evaluation.
 
 # Feature List
 
@@ -29,19 +29,19 @@ NB. Design, implementation and optimization of the language are still in progres
 - [Generic Functions](#generic-functions)
 - [Multimethods](#multimethods)
 - [Static Typing (Optional)](#static-typing-optional)
-- Lazy Sequence
+- Lazy Sequences
 - [Async/Await](#async-await)
 - [Java Interop](#java-interop)
 - [Streams](#streams)
 - [Functional Interface Integration](#functional-interface-integration)
 - [First-Class Java Functions](#first-class-java-functions)
 - [Arbitrary-precision arithmetic](#arbitrary-precision-arithmetic)
-- [Condition System](#condition-system)
+- [Condition System](#condition-system) (beta)
 - [AOT Compilation](#aot-compilation) (beta)
 
 # Running
 
-Currently the only way to run the language is the repl which can be executed by running the 'repl' script at the root project level. This simply builds the project from source and then loads the repl.
+Currently the only way to run the language is the repl which can be executed by running the 'repl' script at the root project level. This simply builds the project from source and then loads the repl. For history support and control sequences you should run the repl from something like emacs or launch the main method 'pile.repl.ReplMain' from your IDE.
 
 # Documentation
 
@@ -152,22 +152,26 @@ Created functions can close over their lexical environment allowing them to refe
 
 You can annotate symbols in certain contexts with types:
 - Let bindings
+
 ```clojure
 (let [^String s (some-str-fn)] ... )
 ```
 
 - Method arguments
+
 ```clojure
 (defn indexof [^String s n] (. s indexOf n))
 (= 3 (indexof "foobar" "b"))
 ```
 
 - Return types
+
 ```clojure
 (defn returns-str ^String [] "foobar")
 ```
 
 These types are strictly checked, and are not simply hints. For example, this will throw an a ClassCastException:
+
 ```clojure
 (defn accepts-str [^String s] s)
 (accepts-str 12) ;; Throws CCE
@@ -305,6 +309,8 @@ item: 3
 
 This adaptation works for all SAM types, not just java specific ones. 
 
+This feature currently only works when the SAM type is unambiguous at compile time. This may change in the future to be more dynamic.
+
 There is also support to convert SAM types into callable Pile methods with the pile.core/to-fn function. It accepts an instance of a SAM type and returns a callable function bound to that object calling that single method.
 
 ```clojure
@@ -378,7 +384,7 @@ The order of the super-type/interface-types with the method definitions is not s
          (interface1-method [this] ...))
 ```
 
-While this is allowed it is preferred if the types preceed their associated method definitions.
+While this is allowed it is preferred if the types precede their associated method definitions.
 
 ### anon-cls
 
