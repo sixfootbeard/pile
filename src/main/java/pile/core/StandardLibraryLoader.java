@@ -252,6 +252,7 @@ public class StandardLibraryLoader {
             }
 
             long end = System.currentTimeMillis();
+            // FIXME Debug
             LOG.info("Loaded total stdlib in %d ms [native=%dms, parsed=%dms, compiled=%dms]", end - start, nativeTime,
                     parseTime, compileTime);
 

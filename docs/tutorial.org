@@ -35,7 +35,7 @@ Some REPL tips:
 - You can use the REPL function 'help' on a function to show arguments, comments, and examples for that function
 
 #+begin_src clojure :eval no
-(help prn)
+(help 'prn)
 #+end_src
 
 - Exiting the REPL is accomplished by pressing CTRL+C at an empty prompt.
@@ -112,13 +112,13 @@ pile.repl> (if (> 3 4) "less than!")
 
 * Local Variables
 
-You can define local variables within functions and at the namespace level using the 'let' [[*Expressions][expression]]. These local variables will be usable only within the body of the let expression. 
+You can define local variables within functions and at the namespace level using the 'let' expression. These local variables will be usable only within the body of the let expression. 
 
 #+begin_src clojure :eval no
-(let bindings body)
+(let [bindings] body)
 #+end_src
 
-'bindings' is an even length [[*Vector][vector]] of alternating variables and expressions to assign to those variables.
+'bindings' is an even length vector of alternating variables and expressions to assign to those variables.
 
 #+begin_src clojure :eval no
 pile.repl> (def categorize (fn [a b] 
