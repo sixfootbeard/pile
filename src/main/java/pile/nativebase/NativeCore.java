@@ -74,6 +74,8 @@ import pile.core.Atom;
 import pile.core.Conjable;
 import pile.core.Cons;
 import pile.core.ConsSequence;
+import pile.core.Coroutine;
+import pile.core.Coroutine.CoroutineSync;
 import pile.core.Hierarchy;
 import pile.core.ISeq;
 import pile.core.JavaMethod;
@@ -1849,4 +1851,30 @@ public class NativeCore {
             return new RangeSeq(start, count);
         }
     }
+    
+    // Coroutine
+    @PileDoc("""
+             Yields a value within a coroutine and waits for the next resume. Must only be called while executing a coroutine, 
+             otherwise an IllegalStateException is thrown.
+             """)
+    public static void yield(Object o) throws InterruptedException {
+        CoroutineSync sync = Coroutine.SYNC_LOCAL.get();
+        if (sync == null) {
+            throw new IllegalStateException("Cannot yield; not in a coroutine.");
+        }
+        sync.putValueAndSleep(o);
+    }
+    
+    @PileDoc("Resumes execution of a coroutine, blocking until the coroutine yields a value and returns that value or nil if the coroutine is complete.")
+    public static Object resume(Coroutine c) throws InterruptedException {
+        return c.resume();
+    }
+    
+    @PileDoc("Creates a new coroutine calling the provided function.")
+    public static Coroutine coroutine(PCall fn) {
+        var c = new Coroutine(new CoroutineSync(), fn);
+        c.run();
+        return c;
+    }
+    
 }
