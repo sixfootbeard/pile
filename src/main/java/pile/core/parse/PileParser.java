@@ -326,16 +326,21 @@ public class PileParser {
 	public PileParser() {}
 	
 	public static ParserResult parseSingle(String s) {
-		StringReader sr = new StringReader(s);
-		
-		try {
-			LexicalEnvironment env = new LexicalEnvironment("<string>");
-            var packed = TOP_READER.parse(env, new PushbackReader(sr, 5));
-			return packed.orElseThrow(() -> env.makeError("Parse error"));
-		} catch (IOException e) {
-			throw new ParserException(e);
-		}
+	    LexicalEnvironment env = new LexicalEnvironment("<string>");
+	    StringReader sr = new StringReader(s);
+	    return parseSingle(env, sr).orElseThrow(() -> env.makeError("Parse error"));
 	}
+	
+	public static Optional<ParserResult> parseSingleOpt(String s) {
+	    LexicalEnvironment env = new LexicalEnvironment("<string>");
+	    return parseSingle(env, new StringReader(s));
+    }
+    
+    
+    public static Optional<ParserResult> parseSingle(java.io.Reader r) {
+        LexicalEnvironment env = new LexicalEnvironment("<string>");
+        return parseSingle(env, r);
+    }
 	
     public static Optional<ParserResult> parseSingle(LexicalEnvironment env, java.io.Reader r) {
         try {
@@ -345,11 +350,6 @@ public class PileParser {
         } catch (IOException e) {
             throw new ParserException(e);
         }
-    }
-	
-    public static Object parseSingle(java.io.Reader r) {
-        LexicalEnvironment env = new LexicalEnvironment("<string>");
-        return parseSingle(env, r);
     }
 	
 	public static Object parseData(java.io.Reader sr) {

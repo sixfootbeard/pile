@@ -30,6 +30,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 import org.objectweb.asm.Type;
@@ -43,6 +44,7 @@ import pile.collection.PersistentArrayVector;
 import pile.core.ISeq;
 import pile.core.Namespace;
 import pile.core.Symbol;
+import pile.core.exception.PileCompileException;
 import pile.core.exception.PileSyntaxErrorException;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.ParserConstants;
@@ -287,6 +289,7 @@ public class ParameterParser {
             if (strSym.equals("&")) {
                 sym = expectSymbol(it.next());
                 strSym = sym.getName();
+                validateArgumentUniqueness(indexes.keySet(), strSym);
 
                 MethodParameter arg = new MethodParameter(strSym, ISeq.class);
                 indexes.put(strSym, index);
@@ -297,22 +300,30 @@ public class ParameterParser {
                 if (it.hasNext()) {
                     throw new PileSyntaxErrorException("Can only have trailing vararg", LexicalEnvironment.extract(form));
                 }
-                break;
+            } else {
+                validateArgumentUniqueness(indexes.keySet(), strSym);
+                
+                Class<?> argType = Any.class;
+                Class<?> annotatedType = sym.getAnnotatedType(ns);
+                if (annotatedType != null) {
+                    argType = annotatedType;
+                }
+                
+                MethodParameter arg = new MethodParameter(strSym, argType);
+                indexes.put(strSym, index);
+                args.add(arg);
+                ++index;
             }
-
-            Class<?> argType = Any.class;
-            Class<?> annotatedType = sym.getAnnotatedType(ns);
-            if (annotatedType != null) {
-                argType = annotatedType;
-            }
-
-            MethodParameter arg = new MethodParameter(strSym, argType);
-            indexes.put(strSym, index);
-            args.add(arg);
-            ++index;
         }
 
         return new ParameterList(args, indexes, isVarArgs, false);
+    }
+    
+    public void validateArgumentUniqueness(Set<String> existing, String newArg) {
+        if (existing.contains(newArg)) {
+            String msg = "Duplicate argument parameter: " + newArg;
+            throw new PileCompileException(msg, LexicalEnvironment.extract(form));
+        }   
     }
 
     public static ParameterList noName(List<Class<?>> args) {

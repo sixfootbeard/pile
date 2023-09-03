@@ -20,6 +20,7 @@ import static java.util.Objects.*;
 import static pile.compiler.Helpers.*;
 import static pile.util.CollectionUtils.*;
 
+import java.io.Reader;
 import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
@@ -102,6 +103,7 @@ import pile.core.log.LogLevel;
 import pile.core.method.FunctionUtils;
 import pile.core.method.LinkableMethod;
 import pile.core.parse.ParserConstants;
+import pile.core.parse.ParserResult;
 import pile.core.parse.PileParser;
 import pile.core.runtime.ArrayGetMethod;
 import pile.nativebase.method.PileInvocationException;
@@ -124,9 +126,22 @@ public class NativeCore {
     public static final Keyword RESOLVED_NS = Keyword.of("pile.core", "resolved-ns");
     public static final int LAST = Integer.MAX_VALUE;
     
-    @PileDoc("Evaluates the provided syntax (not strings). See read-string for parsing strings into syntax.")
+    @PileDoc("Evaluates the provided syntax (not strings). See read for parsing strings into syntax.")
     public static Object eval(Object o) throws Throwable {
         return Compiler.evaluate(new CompilerState(), o);
+    }
+    
+    @Precedence(0)
+    @PileDoc("Reads a single piece of syntax from the provided string/reader.")
+    public static Object read(String s) {
+        return read_string(s);
+    }
+    
+    @Precedence(1)
+    @PileDoc("Reads a single piece of syntax from the provided string/reader.")
+    public static Object read(Reader s) {
+        var pr = PileParser.parseSingle(s);
+        return pr.map(ParserResult::result).orElse(null);
     }
     
     @PileDoc("Reads a single piece of syntax from the provided string.")
