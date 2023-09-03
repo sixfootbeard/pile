@@ -28,6 +28,7 @@ import pile.compiler.DeferredCompilation;
 import pile.compiler.DeferredRegex;
 import pile.core.Namespace;
 import pile.core.exception.PileCompileException;
+import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 import pile.util.ConstantDynamicBootstrap;
 
@@ -47,7 +48,7 @@ public class RegexForm implements Form {
 		} else if (form instanceof DeferredRegex dr) {
 			this.patternStr = dr.getPattern();
 		} else {
-			throw new PileCompileException("Unexpeced regex form: " + form.getClass());
+			throw new PileCompileException("Unexpeced regex form type: " + form.getClass(), LexicalEnvironment.extract(form));
 		}
 		this.ns = ns;
 	}

@@ -25,8 +25,6 @@ public class PileCompileException extends PileException implements SourceLocatio
 
     private Optional<LexicalEnvironment> lex = Optional.empty();
 
-    private String msg;
-
     /**
      * 
      */

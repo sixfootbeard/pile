@@ -141,7 +141,7 @@ public class DefGenericForm extends AbstractListForm {
                 Impl impl = new Impl(pv, Optional.empty());
                 out.add(impl);
             } else if (head instanceof PersistentList pl) {
-                throw new UnsupportedOperationException("generic method: default impls");
+                throw new PileCompileException("Unsupported: generic method: default impls", LexicalEnvironment.extract(head, form));
             } else {
                 throw new PileCompileException("Unexpected generic method form", LexicalEnvironment.extract(head, form));
             }
@@ -182,7 +182,7 @@ public class DefGenericForm extends AbstractListForm {
                 return new GenericMethod(clazz, name, entry.getValue());
             } else {
                 ensure(methodArity.varArgsMethod() != null, "Should have a varargs if no normal methods are set");
-                throw new UnsupportedOperationException("Generic method: varargs");
+                throw new PileCompileException("Unsupported: Generic method: varargs", LexicalEnvironment.extract(form));
             }
         } finally {
             cs.leaveInterface();

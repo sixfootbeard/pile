@@ -129,7 +129,7 @@ public class AOTHandler {
             m.invokeInterface(getType(Map.class), Method.getMethod(Map.class.getMethod("remove", Object.class)));
             m.pop();
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException("Unexpected AOT state: " + state);
         }
             
 

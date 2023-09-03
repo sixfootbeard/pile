@@ -154,6 +154,7 @@
                                 <argument>--enable-preview</argument>
                                 <argument>-Djava.library.path=target/lib</argument>
                                 <argument>-Dpile.aot=read</argument>
+                                <argument>-XX:+UseZGC</argument>
                                 <argument>-classpath</argument>
                                 <classpath />
                                 <argument>pile.repl.ReplMain</argument>

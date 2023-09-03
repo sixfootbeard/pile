@@ -40,11 +40,14 @@ import pile.compiler.MethodStack;
 import pile.core.Namespace;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
+import pile.core.exception.PileExecutionException;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 
 public class RecurForm implements Form {
 
+    private static final String RECUR_NOT_IN_TAIL_POSITION = "recur not in tail position";
+    
     private final PersistentList form;
     private final Namespace ns;
 
@@ -59,7 +62,7 @@ public class RecurForm implements Form {
         return new DeferredCompilation(TypeTag.SEXP, IntrinsicBinding.RECUR, (cs) -> {
         
             if (! cs.isCompiledRecurPosition()) {
-                throw new PileCompileException("recur not in tail position", LexicalEnvironment.extract(form));
+                throw new PileCompileException(RECUR_NOT_IN_TAIL_POSITION, LexicalEnvironment.extract(form));
             }
 
             MethodVisitor mv = cs.getCurrentMethodVisitor();
@@ -72,7 +75,7 @@ public class RecurForm implements Form {
 
             if (form.count() != expectedSize + 1) {
                 throw new PileCompileException(
-                        "Wrong size recur. Expected=" + expectedSize + ", found=" + (form.count() - 1),
+                        wrongArityRecurMessage(expectedSize),
                         LexicalEnvironment.extract(form));
             }
 
@@ -125,9 +128,8 @@ public class RecurForm implements Form {
     public Object evaluateForm(CompilerState cs) throws Throwable {
     
         if (! cs.isEvalRecurPosition()) {
-            throw new PileCompileException("recur not in tail position", LexicalEnvironment.extract(form));
+            throw new PileCompileException(RECUR_NOT_IN_TAIL_POSITION, LexicalEnvironment.extract(form));
         }
-
 
         LoopEvaluationTarget target = cs.lastLoopEvalTarget();
         target.doRecur().set(true);
@@ -135,7 +137,7 @@ public class RecurForm implements Form {
         int expectedSize = target.size();
 
         if (form.count() != expectedSize + 1) {
-            throw error("Wrong size recur. Expected=" + expectedSize + ", found=" + (form.count() - 1));
+            throw new PileExecutionException(wrongArityRecurMessage(expectedSize), LexicalEnvironment.extract(form));
         }
 
         Iterator fit = form.iterator();
@@ -146,6 +148,10 @@ public class RecurForm implements Form {
 
         return null;
 
+    }
+
+    private String wrongArityRecurMessage(int expectedSize) {
+        return "Wrong size recur. Expected=" + expectedSize + ", found=" + (form.count() - 1);
     }
 
 }

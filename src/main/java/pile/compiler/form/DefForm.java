@@ -40,6 +40,7 @@ import pile.core.binding.Unbound;
 import pile.core.compiler.aot.AOTHandler;
 import pile.core.compiler.aot.AOTHandler.AOTType;
 import pile.core.exception.PileCompileException;
+import pile.core.exception.PileSyntaxErrorException;
 import pile.core.indy.PileMethodLinker;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
@@ -123,14 +124,14 @@ public class DefForm implements Form {
             final Binding bind = switch (type) {
                 case VALUE -> new ImmutableBinding(ns.getName(), BindingType.VALUE, initializerValue, meta, new SwitchPoint());
                 case DYNAMIC -> new ThreadLocalBinding<>(ns.getName(), name, initializerValue, meta, new SwitchPoint()); 
-                default  -> throw new PileCompileException("Unexpected binding type");                   
+                default -> throw new PileCompileException("Unexpected binding type: " + type, LexicalEnvironment.extract(form));                   
             };
             ns.define(name, bind);
 
             return VarForm.getIn(ns, name);
         } catch (Throwable e) {
-            LOG.errorEx("Error while defining: %s / %s", e, ns.getName(), sym.getName());
-            throw e;
+            String msg = String.format("Error while defining: %s / %s", ns.getName(), sym.getName());
+            throw new PileCompileException(msg, LexicalEnvironment.extract(form), e);
         }
     }
     

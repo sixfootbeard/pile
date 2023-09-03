@@ -287,7 +287,7 @@ public class SetForm extends AbstractListForm {
                 return new ConstantCallSite(handle.asType(type));
             }
             default:
-                throw new PileInternalException("Bad method:" + method);
+                throw new PileInternalException("Bad indy method:" + method);
         }
     }
 

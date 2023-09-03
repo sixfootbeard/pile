@@ -123,7 +123,7 @@ public class SymbolForm implements Form {
         ScopeLookupResult slr = cs.getScope().lookupSymbolScope(toEval);
 
         if (slr == null) {
-            throw new PileCompileException("Cannot find symbol '" + toEval + "' from namespace: " + ns.getName());
+            throw new PileCompileException("Cannot find referenced symbol '" + toEval, LexicalEnvironment.extract(toEval));
         }
 
         switch (slr.scope()) {
@@ -137,7 +137,7 @@ public class SymbolForm implements Form {
                 return ((Value) slr.val()).getValue();
 
             default:
-                throw new PileCompileException("Unsupported symbol scope: " + slr.scope());
+                throw new PileCompileException("Unsupported symbol scope: " + slr.scope(), LexicalEnvironment.extract(toEval));
         }
     }
 
@@ -242,7 +242,7 @@ public class SymbolForm implements Form {
                         handle = virt.bindTo(binding);
                         yield handle.asType(type);
                     }
-                    default -> throw new PileInternalException("Unexpected type:" + btype); 
+                    default -> throw new PileInternalException("Could not create method handle from binding type: " + btype); 
 
                 };
 
@@ -406,7 +406,8 @@ public class SymbolForm implements Form {
                     }); 
                 }
             default:
-                throw new PileException("Unhandled symbol var scope:" + slr.scope());
+                throw new PileCompileException("Unhandled symbol var scope: " + slr.scope(),
+                        LexicalEnvironment.extract(sym));
         }
 
     }

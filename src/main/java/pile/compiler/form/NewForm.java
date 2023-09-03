@@ -48,8 +48,10 @@ import pile.core.ISeq;
 import pile.core.Namespace;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
+import pile.core.exception.PileException;
 import pile.core.exception.PileExecutionException;
 import pile.core.indy.InteropLinker;
+import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 import pile.util.CollectionUtils;
 
@@ -71,10 +73,13 @@ public class NewForm implements Form {
 
     private void compile(CompilerState cs) {
         var sym = expectSymbol(second(form));
-        Class<?> clazz = sym.getAsClass(ns);
-        if (clazz == null) {
-            throw new PileCompileException("Cannot find class: " + sym.getName());
+        Class<?> clazz;
+        try {
+            clazz = sym.getAsClass(ns);
+        } catch (PileException e) {
+            throw new PileCompileException("Could not resolve symbol to a class:" + sym, LexicalEnvironment.extract(form), e);
         }
+        
         ISeq args = nnext(form);
 
         List<TypeRecord> compileArgs = Compiler.compileArgs(cs, args);
@@ -92,23 +97,23 @@ public class NewForm implements Form {
         Lookup lookup = lookup();
 
         var sym = expectSymbol(second(form));
-        Class<?> clazz = sym.getAsClass(ns);
-        Objects.requireNonNull(clazz, "Unknown class symbol '" + sym.getName() + "', did you forget to import it?");
+        Class<?> clazz;
+        try {
+            clazz = sym.getAsClass(ns);
+        } catch (PileException e) {
+            throw new PileExecutionException("Could not resolve symbol to a class:" + sym, LexicalEnvironment.extract(form), e);
+        }
 
         ISeq args = nnext(form);
-
         List collected = Compiler.evaluateArgs(cs, args);
-
         List<Class<?>> argClasses = Helpers.getArgClasses(collected);
-
-        MethodType methodType = methodType(clazz, argClasses);
-        
+        MethodType methodType = methodType(clazz, argClasses);        
         MethodHandle cons = InteropLinker.findConstructor(lookup, clazz, argClasses);
 
         try {
             return cons.asType(methodType).invokeWithArguments(collected);
         } catch (Throwable e) {
-            throw new PileExecutionException("Cannot call constructor: " + cons, e);
+            throw new PileExecutionException("Cannot call constructor: " + cons, LexicalEnvironment.extract(form), e);
         }
     }
 

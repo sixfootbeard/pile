@@ -25,11 +25,10 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.core.Namespace;
 import pile.core.exception.PileCompileException;
+import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 
 public class MonitorExitForm extends AbstractListForm {
-
-
 
     public MonitorExitForm(PersistentList form, Namespace ns) {
         super(form, ns);
@@ -54,7 +53,9 @@ public class MonitorExitForm extends AbstractListForm {
 
     @Override
     public Object evaluateForm(CompilerState cs) throws Throwable {
-        throw new PileCompileException("monitor-exit: Evaluation not supported. Use the locking intrinsic instead of this directly.");
+        throw new PileCompileException(
+                "monitor-exit: Evaluation not supported. Use the locking intrinsic instead of this directly.",
+                LexicalEnvironment.extract(form));
     }
 
 }

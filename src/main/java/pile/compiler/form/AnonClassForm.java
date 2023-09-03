@@ -153,11 +153,12 @@ public class AnonClassForm extends AbstractListForm {
 
                 if (!asClass.isInterface()) {
                     if ((asClass.getModifiers() & Modifier.FINAL) != 0) {
-                        var pos = LexicalEnvironment.extract(sym);
-                        throw new PileCompileException("Super type may not be final.", pos);
+                        throw new PileCompileException("Super type may not be final.",
+                                LexicalEnvironment.extract(sym, form));
                     }
                     if (superType != null) {
-                        throw new PileCompileException("Cannot have more than one non-interface supertype", LexicalEnvironment.extract(o, form));
+                        throw new PileCompileException("Cannot have more than one non-interface supertype",
+                                LexicalEnvironment.extract(o, form));
                     }
                     Class<?> superClass = asClass;
                     if (! it.hasNext()) {

@@ -132,7 +132,7 @@
 (test= "55" (-> ambi .getArr (aget 1)))
 
 (testFail "CompileFail" UnlinkableMethodException
-  (defn two-cons-fail [arg]
+  (fn [arg]
     (anon-cls TestBaseTwoConstructorOneMethod [arg]
       (getArg [this] "arg"))))
 

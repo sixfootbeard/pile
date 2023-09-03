@@ -466,7 +466,6 @@ public class SExpr implements Form {
                 handle = MethodHandles.insertArguments(handle, 0, unspliceMask);
                 handle = handle.asCollector(Object[].class, type.parameterCount());
                 return new ConstantCallSite(handle.asType(type));
-//                throw new IllegalArgumentException("Unsplice vector not supported yet");
             }
         } else {
             throw new PileInternalException("Unsplice not supported for type: " + returnType);

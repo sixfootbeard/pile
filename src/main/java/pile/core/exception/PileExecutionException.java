@@ -15,29 +15,25 @@
  */
 package pile.core.exception;
 
+import java.util.Optional;
+
+import pile.core.parse.LexicalEnvironment;
+
 /**
  * 
  * @author john
  *
  */
-public class PileExecutionException extends PileException {
+public class PileExecutionException extends PileException implements SourceLocation {
 
     /**
      * 
      */
     private static final long serialVersionUID = -1911556607212751741L;
 
+    private Optional<LexicalEnvironment> lex = Optional.empty();
+
     public PileExecutionException() {
-        super();
-    }
-
-    public PileExecutionException(String message, Throwable cause, boolean enableSuppression,
-            boolean writableStackTrace) {
-        super(message, cause, enableSuppression, writableStackTrace);
-    }
-
-    public PileExecutionException(String message, Throwable cause) {
-        super(message, cause);
     }
 
     public PileExecutionException(String message) {
@@ -46,6 +42,30 @@ public class PileExecutionException extends PileException {
 
     public PileExecutionException(Throwable cause) {
         super(cause);
+    }
+
+    public PileExecutionException(String message, Throwable cause) {
+        super(message, cause);
+    }
+
+    public PileExecutionException(String message, Throwable cause, boolean enableSuppression,
+            boolean writableStackTrace) {
+        super(message, cause, enableSuppression, writableStackTrace);
+    }
+
+    public PileExecutionException(String msg, Optional<LexicalEnvironment> maybeLex) {
+        super(PileSyntaxErrorException.makeMessage(msg, maybeLex));
+        this.lex = maybeLex;
+    }
+
+    public PileExecutionException(String msg, Optional<LexicalEnvironment> maybeLex, Throwable t) {
+        super(PileSyntaxErrorException.makeMessage(msg, maybeLex), t);
+        this.lex = maybeLex;
+    }
+
+    @Override
+    public Optional<LexicalEnvironment> getLocation() {
+        return lex;
     }
 
 }

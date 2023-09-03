@@ -298,11 +298,13 @@ public class InteropForm implements Form {
         Class<?> clazz = classOrInstance.getAsClass(ns);
         try {
             if (clazz == null) {
-                throw new PileCompileException("Unknown class symbol '" + classOrInstance + "' in " + ns.getName());
+                throw new PileCompileException("Unknown class symbol '" + classOrInstance + "' in " + ns.getName(),
+                            LexicalEnvironment.extract(form));
             } else {
                 Field f = clazz.getField(symStr);
                 if (!Modifier.isStatic(f.getModifiers())) {
-                    throw new PileCompileException("Cannot invoke static getter syntax on a non-static field: " + f);
+                    throw new PileCompileException("Cannot invoke static getter syntax on a non-static field: " + f,
+                            LexicalEnvironment.extract(form));
                 } else {
                     Class<?> returnType = f.getType();
                     String fieldDescriptor = Type.getDescriptor(returnType);
@@ -312,9 +314,9 @@ public class InteropForm implements Form {
                 }
             }
         } catch (SecurityException e) {
-            throw new PileCompileException("Security exception trying to access field");
+            throw new PileCompileException("Security exception trying to access field", LexicalEnvironment.extract(form));
         } catch (NoSuchFieldException e) {
-            throw new PileCompileException("Unable to find field");
+            throw new PileCompileException("Unable to find field: " + symStr, LexicalEnvironment.extract(form));
         }
 
     }
@@ -340,9 +342,9 @@ public class InteropForm implements Form {
             } catch (SecurityException e) {
                 // pass
                 // TODO Try to continue on to indy?
-            } catch (NoSuchFieldException e) {
-                throw new PileCompileException("Could not find field: " + javaClass + "." + fieldOrMethodName);
-                // Fall through to indy which will die at runtime (if this even gets hit)
+            } catch (NoSuchFieldException e) {                
+                String msg = "Could not find field: " + javaClass + "." + fieldOrMethodName;                
+                throw new PileCompileException(msg, LexicalEnvironment.extract(form));
             }
         }
 
