@@ -1606,15 +1606,15 @@ public class NativeCore {
         return (o instanceof PileMethod);
     }
     
-    // ===============
-    // Protocol
-    // ===============
-
     public static void load_class(String s) throws ClassNotFoundException {
         Class<?> clazz = Helpers.loadClass(s);
         Namespace ns = NativeDynamicBinding.NAMESPACE.deref();
         ns.createClassSymbol(clazz.getSimpleName(), clazz);        
     }
+    
+    // ===============
+    // Protocol
+    // ===============
     
     public static List<Class<?>> extenders(Class<?> protoClass) {
         ProtocolRecord pr = RuntimeRoot.getProtocolMetadata(protoClass);
@@ -1646,35 +1646,6 @@ public class NativeCore {
     public static void prefer_protocol(Class proto, Class higher, Class lower) {
         RuntimeRoot.addPreference(proto, higher, lower);
     }
-    
-//    @RenamedMethod("import")
-//    public static void importNs(Object form) throws ClassNotFoundException {
-//        Namespace ns = NativeDynamicBinding.NAMESPACE.deref();
-//        for (var part : next(form)) {
-//            var type = type(part);
-//            switch (type) {
-//                case SYMBOL: {
-//                    var clazz = loadClass(strSym(part));
-//                    ns.createClassSymbol(clazz.getSimpleName(), clazz);        
-//                    break;
-//                }
-//                case SEXP: {
-//                    var base = strSym(first(part));
-//                    ISeq<Object> suffixes = next(part);
-//                    for (var suffix : suffixes) {
-//                        var sym = base + "." + strSym(suffix);
-//                        var clazz = loadClass(sym);
-//                        ns.createClassSymbol(clazz.getSimpleName(), clazz);        
-//                    }
-//                    break;
-//                }
-//                default:
-//                    var lex = LexicalEnvironment.extract(part, form);
-//                    throw new PileCompileException("Invalid import type '" + type + "', expected SYMBOL or SEXP", lex);
-//                
-//            }
-//        }
-//    }
 
     private static class EnumeratedSpliterator implements Spliterator {
 

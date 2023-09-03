@@ -23,6 +23,7 @@ import java.util.List;
 
 import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
+import pile.collection.PersistentVector;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
@@ -46,6 +47,7 @@ import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractCompiledMethod;
 import pile.core.parse.LexicalEnvironment;
+import pile.nativebase.NativeCore;
 
 @SuppressWarnings("rawtypes")
 public class DefForm implements Form {
@@ -60,11 +62,19 @@ public class DefForm implements Form {
 
     @Override
     public DeferredCompilation compileForm(CompilerState compilerState) {
-        throw new PileCompileException("Cannot compile a def", LexicalEnvironment.extract(form));
+        throw new PileCompileException("Cannot compile a def. Use (let ...) to create local variables.", LexicalEnvironment.extract(form));
     }
 
     @Override
     public Object evaluateForm(CompilerState cs) throws Throwable {
+    
+        if (form.count() > 3) {
+            String msg = "def form should have at most 3 parts (defn symbol value).";
+            if (form.count() == 4 && PersistentVector.class.isAssignableFrom(NativeCore.getClass(nth(form, 2)))) {
+                msg += " Were you trying to define a function 'defn'?";
+            }
+            throw new PileSyntaxErrorException(msg, LexicalEnvironment.extract(form));
+        }
 
         Symbol sym = expectSymbol(fnext(form));
         boolean isFinal = PileMethodLinker.isFinal(sym);
