@@ -1,5 +1,3 @@
-Pile Language
-
 # Overview
 
 Pile is a Lisp implementation that runs on the JVM. It targets Java 20+ to take advantage of new Java features. 
