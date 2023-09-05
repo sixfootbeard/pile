@@ -46,6 +46,7 @@ import pile.compiler.typed.TypeMatcher;
 import pile.compiler.typed.TypedHelpers;
 import pile.core.ISeq;
 import pile.core.Namespace;
+import pile.core.Symbol;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
 import pile.core.exception.PileException;
@@ -72,13 +73,7 @@ public class NewForm implements Form {
     }
 
     private void compile(CompilerState cs) {
-        var sym = expectSymbol(second(form));
-        Class<?> clazz;
-        try {
-            clazz = sym.getAsClass(ns);
-        } catch (PileException e) {
-            throw new PileCompileException("Could not resolve symbol to a class:" + sym, LexicalEnvironment.extract(form), e);
-        }
+        Class<?> clazz = getConstructorType();
         
         ISeq args = nnext(form);
 
@@ -90,19 +85,25 @@ public class NewForm implements Form {
         cs.getMethodStack().push(clazz);
     }
 
+    private Class<?> getConstructorType() {
+        Symbol sym = expect(nth(form, 1), IS_SYMBOL, "Constructor type must be a symbol."); 
+
+        Class<?> clazz;
+        try {
+            clazz = sym.getAsClass(ns);
+        } catch (PileException e) {
+            throw new PileCompileException("Could not resolve symbol to a class:" + sym, LexicalEnvironment.extract(form), e);
+        }
+        return clazz;
+    }
+
     @Override
     public Object evaluateForm(CompilerState cs) throws Throwable {
         // (new class-sym arg0 arg1...)
 
         Lookup lookup = lookup();
 
-        var sym = expectSymbol(second(form));
-        Class<?> clazz;
-        try {
-            clazz = sym.getAsClass(ns);
-        } catch (PileException e) {
-            throw new PileExecutionException("Could not resolve symbol to a class:" + sym, LexicalEnvironment.extract(form), e);
-        }
+        Class<?> clazz = getConstructorType();
 
         ISeq args = nnext(form);
         List collected = Compiler.evaluateArgs(cs, args);
@@ -116,5 +117,14 @@ public class NewForm implements Form {
             throw new PileExecutionException("Cannot call constructor: " + cons, LexicalEnvironment.extract(form), e);
         }
     }
+    
+    public static String DOCUMENTATION = """
+            Calls a constructor with the provided arguments.
+            
+            ;; (new class-symbol arg_0 arg_1 ... arg_N)            
+            (new java.util.Date 0L)
+            ;; There is syntactic sugar for constructors using a trailing dot
+            (java.util.Date. 0L)
+            """;
 
 }

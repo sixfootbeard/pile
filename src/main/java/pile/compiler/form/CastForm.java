@@ -27,6 +27,7 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.MethodStack;
 import pile.core.Namespace;
+import pile.core.Symbol;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
 import pile.core.parse.LexicalEnvironment;
@@ -41,13 +42,12 @@ public class CastForm extends AbstractListForm {
     @Override
     public DeferredCompilation compileForm(CompilerState compilerState) {
         // (cast class-sym expr)
-        DeferredCompilation defer = Compiler.compileDefer(compilerState, nth(form, 2));
         return new DeferredCompilation(TypeTag.SEXP, IntrinsicBinding.CAST, cs -> {
             handleLineNumber(cs.getCurrentMethodVisitor(), form);
-            defer.compile().accept(cs);
+            Compiler.compile(cs, nth(form, 2));
             MethodStack stack = cs.getMethodStack();
             Class<?> topClazz = stack.pop();
-            var castClass = expectSymbol(second(form)).getAsClass(ns);
+            var castClass = getTargetClass();
             if (!(topClazz.equals(castClass))) {
                 try { 
                     cs.getCurrentGeneratorAdapter().cast(getType(topClazz), getType(castClass));
@@ -61,12 +61,27 @@ public class CastForm extends AbstractListForm {
 
     }
 
+    private Class<?> getTargetClass() {
+        Object classSym = second(form);
+        Symbol sym = expect(classSym, IS_SYMBOL, "Cast class must be a symbol");
+        return sym.getAsClass(ns);
+    }
+
     @Override
     public Object evaluateForm(CompilerState cs) throws Throwable {
         // (cast class-sym expr)
         var evaluated = Compiler.evaluate(cs, nth(form, 2));
-        var clazz = expectSymbol(second(form)).getAsClass(ns);
+        var clazz = getTargetClass();
         return clazz.cast(evaluated);
     }
+    
+    public static String DOCUMENTATION = """
+            Casts the resulting expression to the provided type. This may throw a ClassCastException if it fails.  
+            
+            ;; (cast class-symbol expression)
+            (cast java.lang.CharSequence "abcd")
+            
+            Since the compiler will always prefer the static types when choosing between candidates this can be useful in forcing a particular overloaded method to always be called.
+            """;
 
 }

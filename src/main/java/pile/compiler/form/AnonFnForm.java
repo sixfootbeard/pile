@@ -139,5 +139,16 @@ public class AnonFnForm implements Form {
 			return o;
 		}
 	}
+	
+	public static String DOCUMENTATION = """
+            Creates an anonymous function with an implied parameter list. 
+            Method arguments are specified by either a single '%' for the first argument or '%N' which is the Nth argument.
+            Typically called using the syntactic sugar.
+            
+            ;; All of the following are equivalent.
+            #(f %)
+            (anon-fn (f %))
+            (fn [first-arg] (f first-arg))
+            """;
 
 }

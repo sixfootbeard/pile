@@ -291,5 +291,22 @@ public class CaseForm extends AbstractListForm {
     private record CaseTuple(Object reifiedConstant, Object condyValue, Object valueExpr, int hash, int exprSlot) {}
     private record ParsedCaseStatement(Object reifiedConstant, Object valueExpr) {}
     private record ParsedForm(List<ParsedCaseStatement> valueExprPairs, Optional<Object> defaultExpr) {}
+    
+    public static String DOCUMENTATION = """
+            The case form tests a candidate against multiple constants (much like a switch statement in Java) and evaluates the associated constant form:
+            
+            (case candidate 
+                  constant_0 form_0
+                  constant_1 form_1
+                  ...
+                  )
+                  
+            (case :a 
+                  :z "Is a z keyword"
+                  :a "The keyword a")
+            ;; "The keyword a"
+            
+            The case statement may end with a single form which is returned if no other constants match. If omitted and no constants match then the form throws an IllegalArgumentException.
+            """;
 
 }

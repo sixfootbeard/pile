@@ -315,5 +315,22 @@ public class AnonClassForm extends AbstractListForm {
             }
         }
     }
+    
+    public static String DOCUMENTATION = """
+            Creates an anonymous class. 
+            
+            The class may implement multiple interfaces and up to one extends class.  This class may close over local values.
+            
+            (anon-cls 
+                ExtendsClass [super class args]
+                (method [this arg])
+                Interface
+                (another-method [this arg]))
+            ;; Example
+            (defn source []
+              (let [inst (Instant/now)]
+                (anon-cls java.time.InstantSource (instant [this] inst))))
+            """;
+    
 
 }

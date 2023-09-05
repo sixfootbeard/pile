@@ -158,5 +158,24 @@ public class DefTypeForm extends AbstractListForm {
     }
     
     private record SpecializedMethod(GenericMethod gm, PersistentVector args, PersistentList body) {}
+    
+    public static String DOCUMENTATION = """
+            Creates a new named type.
+            
+            This type may define fields, an optional supertype, and any number of interfaces and methods.
+            
+            ;; (deftype TypeName [type constructor arguments]
+            ;;     Supertype [supertype constructor arguments]
+            ;;     Interface0
+            ;;     (ifacefn [this] ...)
+            ;;     Interface1
+            ;;     (otherfn [this a b] ...))
+            
+            ;; Define an empty iterator implementation with no fields.
+            (deftype EmptyIter [] 
+               java.util.Iterator 
+               (hasNext [this] false) 
+               (next [this] (throw (java.util.NoSuchElementException.)))) 
+            """;
 
 }

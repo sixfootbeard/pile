@@ -39,5 +39,5 @@ public interface Form {
     default MacroEvaluated macroEvaluateForm(CompilerState cs, Keyword context) throws Throwable {
         return new MacroEvaluated(evaluateForm(cs), false);
     }
-
+    
 }

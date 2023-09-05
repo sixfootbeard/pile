@@ -69,23 +69,23 @@ public class DefForm implements Form {
     public Object evaluateForm(CompilerState cs) throws Throwable {
     
         if (form.count() > 3) {
-            String msg = "def form should have at most 3 parts (defn symbol value).";
+            String msg = "def form should have at most 3 parts (def symbol value).";
             if (form.count() == 4 && PersistentVector.class.isAssignableFrom(NativeCore.getClass(nth(form, 2)))) {
                 msg += " Were you trying to define a function 'defn'?";
             }
             throw new PileSyntaxErrorException(msg, LexicalEnvironment.extract(form));
         }
-
-        Symbol sym = expectSymbol(fnext(form));
+        
+        Symbol sym = expect(nth(form, 1), IS_SYMBOL, "Defined name must be a symbol."); 
         boolean isFinal = PileMethodLinker.isFinal(sym);
         boolean isMacro = PileMethodLinker.isMacro(sym);
 
-        String name = Helpers.strSym(sym);
+        String name = sym.getName();
         
         var ns = NativeDynamicBinding.NAMESPACE.getValue();
         
         Object initializerValue = null;
-        boolean hasinitializerValue = form.count() == 3;
+        boolean hasinitializerValue = (form.count() == 3);
         
         // 
         BindingType type = determineType(sym);
@@ -165,6 +165,19 @@ public class DefForm implements Form {
         }
         
     }
+    
+    public static String DOCUMENTATION = """
+            Defines a value assigned to a symbol name in the current namespace.
+            
+            (def symbol value)
+            
+            It's possible to simply define a symbol without an initial value.
+            
+            The symbol can be annotated:
+            
+            (def ^:final symbol value)   ;; This symbol cannot be redefined with (def ...) or (set! ...)
+            (def ^:dynamic symbol value) ;; This symbol's value will be thread-local and can be changed with (set! ...) 
+            """;
     
 
 }

@@ -83,5 +83,12 @@ public class LockForm extends AbstractListForm {
             return Compiler.evaluate(cs, form.pop().pop().head());
         }
     }
+    
+    public static String DOCUMENTATION = """
+            Synchronizes on an object and evaluates the provided expression.
+            
+            ;; (locking object expr)
+            (defn lock-run [obj f] (locking obj (f))
+            """;
 
 }

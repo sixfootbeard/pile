@@ -100,5 +100,15 @@ public class VarForm implements Form {
     public static Var getIn(Namespace ns, String name) {
         return getIn(ns, new Symbol(name));
     }
+    
+    public static String DOCUMENTATION = """
+            Creates a Var by looking up the provided symbol in the current namespace.            
+            ;; (var symbol)
+            
+            ;; ns a.b.c
+            (def foo 12)
+            (var foo)
+            ;; #'a.b.c/foo
+            """;
 
 }

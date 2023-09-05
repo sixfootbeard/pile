@@ -53,39 +53,41 @@ import pile.compiler.macro.SyntaxQuoteForm;
 import pile.compiler.macro.UnquoteForm;
 import pile.compiler.macro.UnquoteSpliceForm;
 import pile.core.Metadata;
+import pile.core.parse.ParserConstants;
+import pile.util.CommonConstants;
 
 public enum IntrinsicBinding implements Binding {
-    DEF("def", DefForm::new),
+    DEF("def", DefForm.DOCUMENTATION, DefForm::new),
     FN("fn*", MethodForm::new),
     LET("let*", LetForm::new),
-    DO("do", DoForm::new),
-    IF("if", IfForm::new),
-    CASE_FORM("case", CaseForm::new),
-    CAST("cast", CastForm::new),
+    DO("do",DoForm.DOCUMENTATION, DoForm::new),
+    IF("if", IfForm.DOCUMENTATION, IfForm::new),
+    CASE_FORM("case", CaseForm.DOCUMENTATION, CaseForm::new),
+    CAST("cast", CastForm.DOCUMENTATION, CastForm::new),
     
     // Loops
     LOOP("loop*", LoopForm::new),
     RECUR("recur", RecurForm::new),
     
     // locking
-    LOCK("locking", LockForm::new),
-    MONITOR_ENTER("monitor-enter", MonitorEnterForm::new),
-    MONITOR_EXIT("monitor-exit", MonitorExitForm::new),
+    LOCK("locking", LockForm.DOCUMENTATION, LockForm::new),
+    MONITOR_ENTER("monitor-enter", "Use the locking form instead of this.", MonitorEnterForm::new),
+    MONITOR_EXIT("monitor-exit", "Use the locking form instead of this.", MonitorExitForm::new),
     
-    VAR("var", VarForm::new),
-    SET("set!", SetForm::new),
+    VAR("var", VarForm.DOCUMENTATION, VarForm::new),
+    SET("set!", SetForm.DOCUMENTATION, SetForm::new),
     
     // Type creation
-    DEF_TYPE("deftype", DefTypeForm::new),
-    ANON_FN("anon-fn", AnonFnForm::new),
-    ANON_CLASS("anon-cls", AnonClassForm::new),
+    DEF_TYPE("deftype", DefTypeForm.DOCUMENTATION, DefTypeForm::new),
+    ANON_FN("anon-fn", AnonFnForm.DOCUMENTATION, AnonFnForm::new),
+    ANON_CLASS("anon-cls", AnonClassForm.DOCUMENTATION, AnonClassForm::new),
     
     // Java interop
-    INTEROP(".", InteropForm::new),
-    NEW("new", NewForm::new),
+    INTEROP(".", InteropForm.DOCUMENTATION, InteropForm::new),
+    NEW("new", NewForm.DOCUMENTATION, NewForm::new),
     
     // Namespace
-    NS("ns", NamespaceForm::new), 
+    NS("ns", NamespaceForm.DOCUMENTATION, NamespaceForm::new), 
     
     // Macros
     // DEFMACRO is in core.pile bootstrap
@@ -109,19 +111,28 @@ public enum IntrinsicBinding implements Binding {
 	
 
     private final String name;
-
+    private final boolean isMacro;
+    private final String documentation;
 	private final Function<PersistentList, Form> cons;
 	
-	private final boolean isMacro;
 
     IntrinsicBinding(String name, Function<PersistentList, Form> cons) {
     	this(name, false, cons);
     }
     
+    IntrinsicBinding(String name, String documentation, Function<PersistentList, Form> cons) {
+        this(name, false, documentation, cons);
+    }
+    
     IntrinsicBinding(String name, boolean isMacro, Function<PersistentList, Form> cons) {
+        this(name, isMacro, null, cons);
+    }
+    
+    IntrinsicBinding(String name, boolean isMacro, String documentation, Function<PersistentList, Form> cons) {
         this.name = name;
         this.isMacro = isMacro;
         this.cons = cons;
+        this.documentation = documentation;
     }
     
     @Override
@@ -135,7 +146,11 @@ public enum IntrinsicBinding implements Binding {
 
     @Override
     public PersistentMap meta() {
-        return PersistentMap.createArr(Binding.BINDING_TYPE_KEY, BindingType.INTRINSIC);
+        PersistentMap meta = PersistentMap.createArr(Binding.BINDING_TYPE_KEY, BindingType.INTRINSIC);
+        if (documentation != null) {
+            meta = meta.assoc(CommonConstants.DOC, documentation);
+        }
+        return meta;
     }
 
     @Override

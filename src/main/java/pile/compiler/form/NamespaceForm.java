@@ -93,4 +93,11 @@ public class NamespaceForm implements Form {
         return null;
     }
 
+    public static String DOCUMENTATION = """
+            Sets the current namespace.
+            
+            ;; (ns full-namespace-symbol)
+            (ns a.b.c)
+            """;
+
 }

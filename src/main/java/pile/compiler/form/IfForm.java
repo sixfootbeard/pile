@@ -141,5 +141,14 @@ public class IfForm implements Form {
 			}
 		}
 	}
+	
+	public static String DOCUMENTATION = """
+            The 'if' expression tests a condition and returns the result of the 'then' branch if true, and the 'else' branch if false.
+            
+            ;; (if test then else)
+            
+            (if (< 3 10) "less than" "greater than")
+            ;; "less than"
+            """;
 
 }

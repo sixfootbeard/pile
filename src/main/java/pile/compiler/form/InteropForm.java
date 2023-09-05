@@ -500,4 +500,33 @@ public class InteropForm implements Form {
                 formRecord.fieldOrMethodName(), argStr);
         return new PileSyntaxErrorException(msg, maybeLex);
     }
+    
+    public static String DOCUMENTATION = """
+            Generic interop function.
+            
+            ;; Static Method Call
+            ;; (. class-symbol (method arg_0 arg_1 .. arg_N))
+            ;; (. class-symbol method arg_0 arg_1 .. arg_N)
+            ;; (class-symbol/method arg_0 arg_1 .. arg_N)
+            (. String (format "first: %s second %s" "one" "two"))
+            (String/format "first: %s second %s" "one" "two")
+            
+            ;; Instance Method Call
+            ;; (. base (method arg_0 arg_1 .. arg_N))
+            ;; (.method base arg_0 arg_1 .. arg_N)
+            (. "abcd" (length))
+            (.length "abcd")
+            
+            ;; Static Field Get
+            ;; (. class-symbol -member-symbol)
+            ;; (class-symbol/-member-symbol)
+            (. Integer -BYTES)
+            (Integer/-BYTES)
+            
+            ;; Instance Field Get
+            ;; (. base -member-symbol)
+            (def coord (pile.util.Coordinate.))
+            (. coord -x)
+            
+            """;
 }

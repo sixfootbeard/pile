@@ -155,6 +155,35 @@ public class Helpers {
    
 
     // Helpers
+    
+    public interface Validator<T> { public T validate(Object o); }
+    
+    public static Validator<Symbol> IS_SYMBOL = validateClass(Symbol.class, "Expected Symbol, found %s");
+
+    private static Validator<Symbol> validateClass(Class<Symbol> clazz, String msg) {
+        return (o) -> {
+            Class<? extends Object> actualClass = o.getClass();
+            try {
+                return clazz.cast(o);
+            } catch (ClassCastException e) {
+                String emsg = String.format(msg,  actualClass.getName());
+                throw new PileSyntaxErrorException(emsg, LexicalEnvironment.extract(o));
+            }             
+        };
+    }    
+    
+    public static <T> T expect(Object o, Validator<T> validator) {
+        return validator.validate(o);
+    }
+    
+    public static <T> T expect(Object o, Validator<T> validator, String msg) {
+        try {
+            return validator.validate(o);
+        } catch (PileSyntaxErrorException e) {
+            throw new PileSyntaxErrorException(msg, e);
+        }
+    }
+
 
     public static Symbol expectSymbol(Object o) {
         expectType(o, TypeTag.SYMBOL);

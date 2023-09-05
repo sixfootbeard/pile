@@ -134,5 +134,14 @@ public class DoForm implements Form {
         
         return last;
     }
+    
+    public static String DOCUMENTATION = """
+            Do form evaluates multiple expression while only yielding the last expressions result.
+            
+            ;; returns 1, but also prints foo
+            (do 
+                (prn "foo") 
+                1)             
+            """;
 
 }

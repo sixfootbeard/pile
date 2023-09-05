@@ -290,5 +290,17 @@ public class SetForm extends AbstractListForm {
                 throw new PileInternalException("Bad indy method:" + method);
         }
     }
+    
+    public static String DOCUMENTATION = """
+            Sets a var/instance-field/static-field to a new value.
+            
+            (def a 12)
+            ;; (set! var new-value)
+            (set! a 55)
+            ;; object set (instance)
+            (set! (. object -field) "val")
+            ;; class object set (static)
+            (set! (. ClassName -field) "val")
+            """;
 
 }
