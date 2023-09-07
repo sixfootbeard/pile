@@ -33,16 +33,16 @@
 (defmacro and
           ([] true)
           ([x] x)
-          ([x & rem] `(if ~x (and ~@rem) false)))
+          ([x & rem] `(let* [ev# ~x] (if ev# (and ~@rem) false))))
 
 (defmacro or
-          ([] true)
+          ([] false)
           ([x] x)
-          ([x & rem] `(if ~x true (or ~@rem))))
+          ([x & rem] `(let* [ev# ~x] (if ev# ev# (or ~@rem)))))
 
 (defmacro threader [mixfn base & rem]
    (loop* [base base
-                 rem rem]
+           rem rem]
             (if rem 
                  (let* [form (first rem)
                         lform (if (list? form) form (list form))
