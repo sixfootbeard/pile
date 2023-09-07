@@ -799,7 +799,16 @@
 (defn even? [n] (= 0 (rem n 2)))
 (def odd? (comp not even?))
 
-(defmacro letfn [specs & body]
+(defmacro letfn 
+     """
+     Evaluates an expression in the context of any number of potentially mutually recursive function definitions.
+
+     (letfn [f-one ([args] body)  ;; body can reference f-two
+             f-two ([args] body)] ;; body can reference f-one
+        (expression) ;; can reference f-one & f-two
+     )
+     """
+     [specs & body]
      (let [pairs (partition 2 specs)
            fnsyms (stream pairs (map first) (map #(vector % (gensym))) (into {}))]
          `(let [~@(mapcat #(vector (second %) (list 'atom)) fnsyms)

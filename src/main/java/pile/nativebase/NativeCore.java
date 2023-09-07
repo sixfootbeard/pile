@@ -29,6 +29,7 @@ import java.lang.invoke.SwitchPoint;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -1222,10 +1223,12 @@ public class NativeCore {
         return Proxy.newProxyInstance(NativeCore.class.getClassLoader(), implementedInterfaces, handler);
     }
 
+    @PileDoc("This function simply returns its argument.")
     public static <T> T identity(T input) {
         return input;
     }
 
+    @PileDoc("This returns a function which always returns the provided argument.")
     public static <T> PileMethod constantly(T input) {
         return new PileMethod() {
 
@@ -1280,6 +1283,7 @@ public class NativeCore {
         return ! Helpers.ifCheck(o);
     }
     
+    @PileDoc("Returns the number of elements in the collection/sequence/string. Single arg is for streams.")
     @Precedence(0)
     public static int count(Counted c) {
         return c.count();
@@ -1316,6 +1320,12 @@ public class NativeCore {
         return FunctionUtils.of(Stream.class, long.class, Stream::count);
     }
     
+    @PileDoc("""
+            Returns a composition of calling each function, from right to left, 
+            passing the results of the prior function call to the next function.            
+            
+            (def odd? (comp not even?))            
+            """)
     public static LinkableMethod comp(Object... methods) {
         LinkableMethod out = null;
         for (int i = methods.length - 1; i >= 0; --i) {
@@ -1329,6 +1339,7 @@ public class NativeCore {
         return out;
     }
     
+    @PileDoc("Returns a map from namespace names to the namespace itself.")
     public static Map<String, Namespace> ns_map() {
         return PersistentMap.from(RuntimeRoot.getMap());
     }
@@ -1425,19 +1436,24 @@ public class NativeCore {
         return ns_publics(namespace);
     }
     
+    @PileDoc("Returns a sequence of keys in the provided map.")
     public static ISeq keys(Map map) {
         return seq(map.keySet());
     }
     
+    
+    @PileDoc("Returns a sequence of values in the provided map.")
     public static ISeq vals(Map map) {
         return seq(map.values());
     }
     
+    @PileDoc("Sorts the provided collection with the default comparator function (compare...)")
     @Precedence(0)
     public static ISeq sort(Collection o) {
         return sort(NativeCore::compare, o);
     }
     
+    @PileDoc("Sorts the provided collection with the provided comparator.")
     @Precedence(1)
     public static ISeq sort(Comparator cmp, Collection o) {
         Object[] arr = o.toArray();
@@ -1449,10 +1465,16 @@ public class NativeCore {
         return src.fmap(tx);
     }
     
+    @PileDoc("Sleeps the current thread until the provided milliseconds or duration have elapsed.")
     public static void sleep(int ms) throws InterruptedException {
         Thread.sleep(ms);
     }
     
+    public static void sleep(Duration duration) throws InterruptedException {
+        Thread.sleep(duration);
+    }
+    
+    @PileDoc("Returns the class of the provided object, or null.")
     @RenamedMethod("class")
     public static Class getClass(Object o) {
         return o == null ? null : o.getClass();
@@ -1474,11 +1496,13 @@ public class NativeCore {
         return o == null ? false : clz.isAssignableFrom(o.getClass());
     }
     
+    @PileDoc("Returns true if the provided binding is dynamic, false otherwise.")
     @RenamedMethod("dynamic?")
     public static boolean isDynamic(Binding b) {
         return Binding.getType(b) == BindingType.DYNAMIC;
     }
     
+    @PileDoc("Returns true if the provided binding is final, false otherwise.")
     @RenamedMethod("final?")
     public static boolean isFinal(Binding b) {
         return PileMethodLinker.isFinal(b);
@@ -1533,6 +1557,12 @@ public class NativeCore {
     @PileDoc("""
             Transforms a java instance of a single abstract method type into a pile function type 
             which is natively callable.
+            
+            (import java.util.Comparator)
+            (def java-cmp (Comparator/naturalOrder))
+            (def call-cmp (to-fn java-cmp))
+            (call-cmp 55 66)
+            ;; -1
             """)
     public static PCall to_fn(Object o) throws Throwable {
         requireNonNull(o);
@@ -1606,6 +1636,7 @@ public class NativeCore {
         return (o instanceof PileMethod);
     }
     
+    @PileDoc("Loads, but does not initialize, the full class name defined by the provided string and defines a shortname symbol with class as its value.")
     public static void load_class(String s) throws ClassNotFoundException {
         Class<?> clazz = Helpers.loadClass(s);
         Namespace ns = NativeDynamicBinding.NAMESPACE.deref();
