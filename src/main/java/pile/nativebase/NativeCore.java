@@ -1466,10 +1466,12 @@ public class NativeCore {
     }
     
     @PileDoc("Sleeps the current thread until the provided milliseconds or duration have elapsed.")
+    @Precedence(0)
     public static void sleep(int ms) throws InterruptedException {
         Thread.sleep(ms);
     }
     
+    @Precedence(1)
     public static void sleep(Duration duration) throws InterruptedException {
         Thread.sleep(duration);
     }

@@ -15,6 +15,8 @@
  */
 package pile.core;
 
+import static pile.util.CollectionUtils.*;
+
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
@@ -45,6 +47,7 @@ import pile.collection.PersistentMap;
 import pile.collection.PersistentSet;
 import pile.collection.PersistentVector;
 import pile.compiler.Compiler;
+import pile.compiler.Helpers;
 import pile.compiler.math.BinaryComparisonMethod;
 import pile.compiler.math.BinaryMathMethod;
 import pile.compiler.math.BinaryPredicateMethod;
@@ -64,6 +67,7 @@ import pile.core.exception.UnlinkableMethodException;
 import pile.core.indy.PileMethodLinker;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
+import pile.core.method.FunctionUtils;
 import pile.core.method.HiddenNativeMethod;
 import pile.core.method.LinkableMethod;
 import pile.core.parse.ParserConstants;
@@ -491,6 +495,9 @@ public class StandardLibraryLoader {
             Integer args = arity.getKey();
             List<Method> methodList = arity.getValue();
             if (methodList.size() > 1) {
+                if (any(methodList, m -> m.getAnnotation(Precedence.class) == null)) {
+                    throw new PileInternalException("Method " + name + " should have a @Precendence");
+                }
                 Collections.sort(methodList, Comparator.comparingInt(m -> m.getAnnotation(Precedence.class).value()));
             }
             for (var vm : methodList) {

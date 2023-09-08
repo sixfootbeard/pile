@@ -159,8 +159,10 @@ public class Helpers {
     public interface Validator<T> { public T validate(Object o); }
     
     public static Validator<Symbol> IS_SYMBOL = validateClass(Symbol.class, "Expected Symbol, found %s");
+    public static Validator<PersistentVector> IS_VECTOR = validateClass(PersistentVector.class, "Expected Vector, found %s");
+    
 
-    private static Validator<Symbol> validateClass(Class<Symbol> clazz, String msg) {
+    private static <T> Validator<T> validateClass(Class<T> clazz, String msg) {
         return (o) -> {
             Class<? extends Object> actualClass = o.getClass();
             try {

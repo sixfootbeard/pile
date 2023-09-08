@@ -236,5 +236,13 @@ public class CollectionUtils {
             src = next.next();
         }
     }
+    
+    public static <C> boolean all(Collection<C> col, Predicate<C> p) {
+        return col.stream().allMatch(p);
+    } 
 
+
+    public static <C> boolean any(Collection<C> col, Predicate<C> p) {
+        return col.stream().anyMatch(p);
+    } 
 }
