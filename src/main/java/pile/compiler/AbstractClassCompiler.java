@@ -15,29 +15,18 @@
  */
 package pile.compiler;
 
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
 import static org.objectweb.asm.Opcodes.*;
-import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
-import static pile.util.CollectionUtils.*;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.invoke.MethodType;
-import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -51,19 +40,14 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 import pile.collection.PersistentList;
-import pile.collection.PersistentVector;
 import pile.compiler.CompilerState.ClosureRecord;
-import pile.compiler.MethodCollector.MethodArity;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.annotation.GeneratedMethod;
 import pile.compiler.annotation.PileVarArgs;
 import pile.compiler.form.VarScope;
 import pile.core.CoreConstants;
-import pile.core.Keyword;
 import pile.core.Namespace;
-import pile.core.Symbol;
-import pile.core.binding.Binding;
 import pile.core.binding.NativeDynamicBinding;
 import pile.core.compiler.aot.AOTHandler;
 import pile.core.compiler.aot.AOTHandler.AOTType;
@@ -77,66 +61,22 @@ import pile.core.runtime.generated_classes.LookupHolder;
  * 
  * Compiles method representations into bytecode. <br>
  * <br>
- * Defining a type (deftype):
- * <ol>
- * <li>enterClass
- * <li>{@link #createExplicitConstructorWithFields(CompilerState, ParameterList)}
- * <li>createSingleMethod*
- * <li>{@link #exitClass(CompilerState)}
- * </ol>
- * Defining a closure (all closed over symbols are captured):
- * <ol>
- * <li>enterClass
- * <li>{@link #createClosure()}
- * <li>createSingleMethod*
- * <li>{@link #exitClass(CompilerState)}
- * </ol>
- * Defining an anonymous class (explicit constructor + closure args)
- * <ol>
- * <li>enterClass
- * <li>{@link #createAnonymousClass(CompilerState)}
- * <li>{@link #setTargetSuperConstructor(ParameterList)}
- * <li>createSingleMethod*
- * <li>{@link #exitClass(CompilerState)}
- * </ol>
  * 
- * After:
- * <ul>
- * <li>{@link #getCompiledClass()}
- * <li>{@link #wrap(CompilerState)} ?
- * </ul>
  *
  * @see SingleMethodCompilerBuilder
  */
 public abstract class AbstractClassCompiler {
 
-    public static final Keyword RETURN_TYPE_KEY = Keyword.of(null, "return-type");
-
-    private static final Lookup MC_LOOKUP = lookup();
     private static final Logger LOG = LoggerSupplier.getLogger(AbstractClassCompiler.class);
 
-    static enum MethodCompilerType { CLOSURE, DEF_TYPE, ANON_CLASS; }
-
-    public record CompiledMethodResult(Class<?> clazz, Map<String, ClosureRecord> closureSymbols) {
-    }
-
-    private static final String NAMESPACE_GET_METHOD = Type.getMethodDescriptor(Type.getType(Binding.class),
-            Type.getType(Namespace.class), Type.getType(String.class));
-    private static final String DEREF_METHOD = Type
-            .getMethodDescriptor(Type.getType(Object.class)/* , Type.getType(Deref.class) */);
-
     private static final AtomicInteger formSuffix = new AtomicInteger();
-
-    private static final Symbol DO_SYM = new Symbol("pile.core", "do");
     
     private final Namespace ns;
     private final String className;
     private final String packageName;
-    private List<Class<?>> interfaces;
     
-    // anon class
-//    private ParameterList constructorArgs = null;
     protected Class<?> superType = null;
+    protected List<Class<?>> interfaces;
 
     private Class<?> generatedClass;
     private boolean hasFieldScope = false;
@@ -333,18 +273,18 @@ public abstract class AbstractClassCompiler {
         }
 
         generatedClass = LookupHolder.LOOKUP.defineClass(classArray);
-    }
-
-    
+    }    
 
     protected List<MethodParameter> toArgRecord(Map<String, ClosureRecord> closureSymbols) {
         return closureSymbols.entrySet().stream()
                 .map(entry -> new MethodParameter(entry.getKey(), entry.getValue().type()))
                 .toList();
-    }
+    }    
+    
+    static enum MethodCompilerType { CLOSURE, DEF_TYPE, ANON_CLASS; }
 
-    
-    
+    public record CompiledMethodResult(Class<?> clazz, Map<String, ClosureRecord> closureSymbols) {}
+
     public static void defineConstructor(CompilerState cs, ParameterList pr) {
         
         MethodVisitor cons = cs.enterMethod("<init>", void.class, ACC_PUBLIC, pr);
@@ -370,49 +310,8 @@ public abstract class AbstractClassCompiler {
             cons.visitEnd();
         } finally {
             cs.leaveMethod();
-        }
-    
+        }    
     }
-
-
-
-    public record SuperTypeCall(Class clazz, PersistentVector args) {}
-    
-//    public static void defineConstructor(CompilerState cs, SuperTypeCall superCall, ParameterList pr) {
-//        
-//        MethodVisitor cons = cs.enterMethod("<init>", void.class, ACC_PUBLIC, pr);
-//        try {
-//            GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
-//            cons.visitCode();
-//    
-//            cons.visitVarInsn(ALOAD, 0);
-//            if (superCall == null) {
-//                cons.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
-//            } else {
-//                // TODO Find target to call?
-//            }
-//    
-//            int index = 0;
-//            for (MethodParameter ar : pr.args()) {
-//                // Constructor field
-//                cons.visitVarInsn(ALOAD, 0);
-//                ga.loadArg(index);
-//                ga.putField(Type.getType("L" + cs.getCurrentInternalName() + ";"), ar.name(), ar.getCompilableType());
-//                ++index;
-//            }
-//    
-//            cons.visitInsn(RETURN);
-//            cons.visitMaxs(0, 0);
-//            cons.visitEnd();
-//        } finally {
-//            cs.leaveMethod();
-//        }
-//    
-//    }
-//
-//    public static void defineConstructor(CompilerState cs, ParameterList pr) {
-//        defineConstructor(cs, null, pr);
-//    }
 
     public static void printDebug(byte[] classArray) {
         if (LOG.isEnabled(LogLevel.TRACE)) {
@@ -433,28 +332,4 @@ public abstract class AbstractClassCompiler {
         }
     }
 
-    public static MethodArity collectPileMethods(Class<?> clazz) throws IllegalAccessException, InstantiationException {
-        Map<Integer, MethodHandle> airityHandles = new HashMap<>();
-        MethodHandle varArgsMethod = null;
-        int varArgsSize = -1;
-
-        for (Method m : clazz.getDeclaredMethods()) {
-            if (m.isAnnotationPresent(GeneratedMethod.class)) {
-                MethodHandle handle = MethodHandles.lookup().unreflect(m);
-
-                boolean isVarArgs = m.isAnnotationPresent(PileVarArgs.class);
-                if (isVarArgs) {
-                    varArgsMethod = handle;
-                    // base ... iseq (2)
-                    varArgsSize = handle.type().parameterCount() - 2;
-                } else {
-                    int mCount = m.getParameterCount();
-                    airityHandles.put(mCount, handle);
-                }
-            }
-        }
-
-        // TODO kwargs unrolled
-        return new MethodArity(airityHandles, varArgsMethod, varArgsSize, null);
-    }
 }

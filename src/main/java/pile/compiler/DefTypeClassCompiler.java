@@ -30,11 +30,25 @@ import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.core.Namespace;
 
+/**
+ * Defining a type (deftype):
+ * <ol>
+ * <li>enterClass
+ * <li>{@link #setFieldList(ParameterList)}
+ * <li>{@link #setSuperTypeConstructorCall(ParameterList, PersistentVector)}?
+ * <li>{@link #defineConstructor(CompilerState)}
+ * <li>createSingleMethod*
+ * <li>{@link #exitClass(CompilerState)}
+ * </ol>
+ * 
+ * @author john
+ *
+ */
 public class DefTypeClassCompiler extends AbstractClassCompiler {
 
     // required, but may be empty
     private ParameterList fieldList;
-    
+
     // optional, may be null;
     private ParameterList superTypeConstructorTypes;
     private PersistentVector superTypeConstructorArgumentSyntax;
@@ -46,12 +60,12 @@ public class DefTypeClassCompiler extends AbstractClassCompiler {
     public DefTypeClassCompiler(Namespace ns, String className, String internalName) {
         super(ns, className, internalName);
     }
-    
+
     public void setFieldList(ParameterList fieldList) {
         this.fieldList = fieldList;
     }
-    
-    public void setSuperTypeConstructorCall(ParameterList superTypeConstructorTypes, 
+
+    public void setSuperTypeConstructorCall(ParameterList superTypeConstructorTypes,
             PersistentVector superTypeConstructorArgumentSyntax) {
         this.superTypeConstructorTypes = superTypeConstructorTypes;
         this.superTypeConstructorArgumentSyntax = superTypeConstructorArgumentSyntax;

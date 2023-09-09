@@ -32,6 +32,15 @@ import org.objectweb.asm.Type;
 import pile.compiler.CompilerState.ClosureRecord;
 import pile.core.Namespace;
 
+/**
+ * <ol>
+ * <li>enterClass
+ * <li>createSingleMethod*
+ * <li>{@link #defineConstructor(CompilerState)}
+ * <li>{@link #exitClass(CompilerState)}
+ * </ol>
+ * 
+ */
 public class ClosureClassCompiler extends AbstractClassCompiler {
 
     public ClosureClassCompiler(Namespace ns) {
@@ -44,11 +53,11 @@ public class ClosureClassCompiler extends AbstractClassCompiler {
 
     public void defineConstructor(CompilerState cs) {
         ensure(Object.class.equals(superType), "Closure must have object supertype");
-        
+
         ClassVisitor writer = cs.getCurrentVisitor();
 
         Map<String, ClosureRecord> closureSymbols = cs.getClosureSymbols();
-        
+
         List<Class<?>> closureTypes = mapL(closureSymbols.values(), cr -> toCompilableType(cr.type()));
         MethodType methodType = methodType(void.class, closureTypes);
 
@@ -62,7 +71,7 @@ public class ClosureClassCompiler extends AbstractClassCompiler {
         int index = 1;
         for (Entry<String, ClosureRecord> f : closureSymbols.entrySet()) {
             Class<?> type = toCompilableType(f.getValue().type());
-            
+
             // FIXME the indexes here are probably wrong, use GA methods instead.
             cons.visitVarInsn(ALOAD, 0);
             cons.visitVarInsn(ALOAD, index);
@@ -74,7 +83,7 @@ public class ClosureClassCompiler extends AbstractClassCompiler {
         cons.visitInsn(RETURN);
         cons.visitMaxs(0, 0);
         cons.visitEnd();
-        
+
     }
 
 }

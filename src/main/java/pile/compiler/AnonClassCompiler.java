@@ -31,6 +31,20 @@ import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.core.Namespace;
 
+/**
+ * Creates a new type with a target superconstuctor and closed over arguments.
+ * 
+ * <ol>
+ * <li>enterClass
+ * <li>{@link #setTargetSuperConstructor(ParameterList)}
+ * <li>createSingleMethod*
+ * <li>{@link #defineConstructor(CompilerState)}
+ * <li>{@link #exitClass(CompilerState)}
+ * </ol>
+ * 
+ * @author john
+ *
+ */
 public class AnonClassCompiler extends AbstractClassCompiler {
 
     private ParameterList constructorArgs;
@@ -42,26 +56,32 @@ public class AnonClassCompiler extends AbstractClassCompiler {
     public AnonClassCompiler(Namespace ns, String className, String internalName) {
         super(ns, className, internalName);
     }
-    
+
     public void setTargetSuperConstructor(ParameterList cons) {
         this.constructorArgs = cons;
     }
 
+    /**
+     * Define a constructor with an argument list superTargetConstructorArgs +
+     * closureArgs.
+     * 
+     * @param cs
+     */
     public void defineConstructor(CompilerState cs) {
         requireNonNull(constructorArgs, "Must set constructor args");
-        
+
         Map<String, ClosureRecord> closureSymbols = cs.getClosureSymbols();
-        
+
         // append (called constructor args) + (closure args)
         List<MethodParameter> closureArgs = toArgRecord(closureSymbols);
-        
+
         final ParameterList base;
         if (constructorArgs == null) {
             base = ParameterList.empty();
         } else {
             base = constructorArgs;
         }
-        
+
         ParameterList withClosureArgs = base.append(closureArgs);
         int flags = ACC_PUBLIC;
         if (withClosureArgs.isJavaVarArgs()) {
@@ -71,7 +91,7 @@ public class AnonClassCompiler extends AbstractClassCompiler {
         try {
             GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
             String internalSupertypeName = getType(superType).getInternalName();
-        
+
             cons.visitCode();
             cons.visitVarInsn(ALOAD, 0);
             if (constructorArgs == null) {
@@ -84,24 +104,24 @@ public class AnonClassCompiler extends AbstractClassCompiler {
                 cons.visitMethodInsn(INVOKESPECIAL, internalSupertypeName, "<init>",
                         base.toMethodType(void.class).descriptorString(), false);
             }
-        
+
             int index = base.args().size();
             for (MethodParameter ar : closureArgs) {
                 ClosureRecord cr = closureSymbols.get(ar.name());
                 // Constructor field
                 cons.visitVarInsn(ALOAD, 0);
                 ga.loadArg(index);
-                ga.putField(Type.getType("L" + cs.getCurrentInternalName() + ";"), cr.memberName(), 
+                ga.putField(Type.getType("L" + cs.getCurrentInternalName() + ";"), cr.memberName(),
                         ar.getCompilableType());
                 ++index;
             }
-        
+
             cons.visitInsn(RETURN);
             cons.visitMaxs(0, 0);
             cons.visitEnd();
         } finally {
             cs.leaveMethod();
-        }        
+        }
     }
 
 }
