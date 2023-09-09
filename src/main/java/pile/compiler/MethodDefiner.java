@@ -22,6 +22,8 @@ import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -40,8 +42,11 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 
 import pile.collection.PersistentList;
 import pile.collection.PersistentVector;
+import pile.compiler.MethodCollector.MethodArity;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
+import pile.compiler.annotation.GeneratedMethod;
+import pile.compiler.annotation.PileVarArgs;
 import pile.compiler.form.AnonClassForm;
 import pile.compiler.form.DefTypeForm;
 import pile.compiler.form.InteropForm;
@@ -82,12 +87,12 @@ public class MethodDefiner {
     public MethodDefiner() {
     }
 
-    public Map<MethodRecord, ActualMethod> defineMethods(Namespace ns, CompilerState cs, ClassCompiler comp,
+    public Map<MethodRecord, ActualMethod> defineMethods(Namespace ns, CompilerState cs, AbstractClassCompiler comp,
             List<Class<?>> interfaces, List<MethodRecord> methods) {
         return defineMethods(ns, cs, comp, null, interfaces, methods);
     }
 
-    public Map<MethodRecord, ActualMethod> defineMethods(Namespace ns, CompilerState cs, ClassCompiler comp,
+    public Map<MethodRecord, ActualMethod> defineMethods(Namespace ns, CompilerState cs, AbstractClassCompiler comp,
            Class<?> maybeSuperType, List<Class<?>> interfaces, List<MethodRecord> methods) {
         
         // @formatter:off
@@ -253,6 +258,31 @@ public class MethodDefiner {
         }
         return renames;
 
+    }
+
+    public static MethodArity collectPileMethods(Class<?> clazz) throws IllegalAccessException, InstantiationException {
+        Map<Integer, MethodHandle> airityHandles = new HashMap<>();
+        MethodHandle varArgsMethod = null;
+        int varArgsSize = -1;
+    
+        for (Method m : clazz.getDeclaredMethods()) {
+            if (m.isAnnotationPresent(GeneratedMethod.class)) {
+                MethodHandle handle = MethodHandles.lookup().unreflect(m);
+    
+                boolean isVarArgs = m.isAnnotationPresent(PileVarArgs.class);
+                if (isVarArgs) {
+                    varArgsMethod = handle;
+                    // base ... iseq (2)
+                    varArgsSize = handle.type().parameterCount() - 2;
+                } else {
+                    int mCount = m.getParameterCount();
+                    airityHandles.put(mCount, handle);
+                }
+            }
+        }
+    
+        // TODO kwargs unrolled
+        return new MethodArity(airityHandles, varArgsMethod, varArgsSize, null);
     }
 
     /**

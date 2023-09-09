@@ -39,8 +39,8 @@ import org.objectweb.asm.Type;
 
 import pile.collection.PersistentList;
 import pile.collection.PersistentVector;
-import pile.compiler.ClassCompiler;
-import pile.compiler.ClassCompiler.CompiledMethodResult;
+import pile.compiler.AbstractClassCompiler.CompiledMethodResult;
+import pile.compiler.AnonClassCompiler;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
@@ -48,6 +48,7 @@ import pile.compiler.MethodDefiner;
 import pile.compiler.MethodDefiner.MethodRecord;
 import pile.compiler.MethodStack;
 import pile.compiler.MethodStack.TypeRecord;
+import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.ParameterParser;
 import pile.compiler.typed.Any;
 import pile.compiler.typed.StaticTypeLookup;
@@ -189,9 +190,8 @@ public class AnonClassForm extends AbstractListForm {
         
         var compiledSuper = superType == null ? Object.class : superType.superType();
 
-        ClassCompiler method = new ClassCompiler(ns, typeName, CoreConstants.GEN_PACKAGE);
+        var method = new AnonClassCompiler(ns, typeName, CoreConstants.GEN_PACKAGE);
         try (var ignored = method.enterClass(cs, compiledSuper, interfaces)) {
-            method.createAnonymousClass(cs);
 
             new MethodDefiner().defineMethods(ns, cs, method, compiledSuper, interfaces, methods);
 
@@ -203,8 +203,10 @@ public class AnonClassForm extends AbstractListForm {
             List<Object> evaluatedArgs = new ArrayList<>();
             boolean isVarArgs = false;
 
-            if (superType != null) {
-                // has super
+            if (Object.class.equals(compiledSuper)) {
+                method.setTargetSuperConstructor(ParameterList.empty());
+            } else {
+             // has super
                 constructorArgs = superType.superConstructorArgs();
                 // ~~ Merge constructor + closure args
                 // find constructor implied by vector args
@@ -237,6 +239,7 @@ public class AnonClassForm extends AbstractListForm {
 
             closureArgs = closureArgs.pushAll(closureSyms);
 
+            method.defineConstructor(cs);
             method.exitClass(cs);
             CompiledMethodResult cmr = method.wrap(cs);
             return new DefinedAnonClass(cmr.clazz(), constructorArgs, closureArgs, closureStart, evaluatedArgs, isVarArgs);

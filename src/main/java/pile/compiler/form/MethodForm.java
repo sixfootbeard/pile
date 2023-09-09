@@ -39,14 +39,15 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
 import pile.collection.PersistentList;
-import pile.compiler.ClassCompiler;
-import pile.compiler.ClassCompiler.CompiledMethodResult;
+import pile.compiler.AbstractClassCompiler.CompiledMethodResult;
+import pile.compiler.ClosureClassCompiler;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.CompilerState.ClosureRecord;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodCollector.MethodArity;
+import pile.compiler.MethodDefiner;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.typed.Any;
 import pile.core.CoreConstants;
@@ -106,7 +107,7 @@ public class MethodForm implements Form {
         Object instance;
         MethodArity m;
         try {
-            m = ClassCompiler.collectPileMethods(compileClass);
+            m = MethodDefiner.collectPileMethods(compileClass);
             // TODO Should only be one, right?
             Constructor<?> cons = compileClass.getDeclaredConstructors()[0];
             instance = cons.newInstance(args.toArray(Object[]::new));
@@ -144,11 +145,9 @@ public class MethodForm implements Form {
 		    className = "aot$"+ className;
 		}
 		
-		var compiler = new ClassCompiler(ns, className, targetPackage);
+		var compiler = new ClosureClassCompiler(ns, className, targetPackage);
 
         try (var ignored = compiler.enterClass(cs)) {
-            compiler.createClosure();
-
             Class<?> anno = Helpers.getTypeHint(form, ns).orElse(Any.class);
             switch (type) {
                 case VEC:
@@ -167,6 +166,7 @@ public class MethodForm implements Form {
                     throw new PileCompileException("Unexpected form type: " + type, LexicalEnvironment.extract(second, form));
             }
 
+            compiler.defineConstructor(cs);
             compiler.exitClass(cs);
             return compiler.wrap(cs);
         } catch (IllegalAccessException e) {
@@ -218,7 +218,7 @@ public class MethodForm implements Form {
 
 	@InvokeDynamicBootstrap
 	public static CallSite bootstrap(Lookup caller, String method, MethodType type, Class<?> clazz) throws Throwable {
-		MethodArity m = ClassCompiler.collectPileMethods(clazz);
+		MethodArity m = MethodDefiner.collectPileMethods(clazz);
 		
 		// may be either noargs or the closure constructor
 		Constructor<?>[] constructors = clazz.getConstructors();

@@ -47,6 +47,7 @@ public class StaticMethodLookupTest {
     
     @Test
     public void testObject() {
+        // Remember object is not _any type_, see Any test.
         testNoMatch(t(Object.class), t(String.class));
         testNoMatch(t(Object.class), t(CharSequence.class));
         testMatch(t(Object.class), t(Object.class));

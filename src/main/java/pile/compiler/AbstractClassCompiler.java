@@ -51,6 +51,7 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 import pile.collection.PersistentList;
+import pile.collection.PersistentVector;
 import pile.compiler.CompilerState.ClosureRecord;
 import pile.compiler.MethodCollector.MethodArity;
 import pile.compiler.ParameterParser.MethodParameter;
@@ -80,7 +81,7 @@ import pile.core.runtime.generated_classes.LookupHolder;
  * <ol>
  * <li>enterClass
  * <li>{@link #createExplicitConstructorWithFields(CompilerState, ParameterList)}
- * <li>createSingleMethod
+ * <li>createSingleMethod*
  * <li>{@link #exitClass(CompilerState)}
  * </ol>
  * Defining a closure (all closed over symbols are captured):
@@ -107,12 +108,12 @@ import pile.core.runtime.generated_classes.LookupHolder;
  *
  * @see SingleMethodCompilerBuilder
  */
-public class ClassCompiler {
+public abstract class AbstractClassCompiler {
 
     public static final Keyword RETURN_TYPE_KEY = Keyword.of(null, "return-type");
 
     private static final Lookup MC_LOOKUP = lookup();
-    private static final Logger LOG = LoggerSupplier.getLogger(ClassCompiler.class);
+    private static final Logger LOG = LoggerSupplier.getLogger(AbstractClassCompiler.class);
 
     static enum MethodCompilerType { CLOSURE, DEF_TYPE, ANON_CLASS; }
 
@@ -134,19 +135,17 @@ public class ClassCompiler {
     private List<Class<?>> interfaces;
     
     // anon class
-    private ParameterList constructorArgs = null;
-    private Class<?> superType = null;
+//    private ParameterList constructorArgs = null;
+    protected Class<?> superType = null;
 
-    private Class<?> clazz;
+    private Class<?> generatedClass;
     private boolean hasFieldScope = false;
 
-    private MethodCompilerType methodType;
-
-    public ClassCompiler(Namespace ns) {
+    public AbstractClassCompiler(Namespace ns) {
         this(ns, "fclass$" + ns.getSuffix(), CoreConstants.GEN_PACKAGE);
     }
 
-    public ClassCompiler(Namespace ns, String className, String internalName) {
+    public AbstractClassCompiler(Namespace ns, String className, String internalName) {
         this.ns = NativeDynamicBinding.NAMESPACE.getValue();
         this.className = className;
         this.packageName = internalName;
@@ -167,36 +166,7 @@ public class ClassCompiler {
         return () -> cs.leaveClass();
     }
     
-    public void createClosure() {
-        setMethodType(MethodCompilerType.CLOSURE);
-    }
-
-    /**
-     * Create a constructor with the provided fields. This is optional, and cannot
-     * be called if creating a closure.
-     * 
-     * @param cs
-     * @param pr
-     */
-    public void createExplicitConstructorWithFields(CompilerState cs, ParameterList pr) {
-        setMethodType(MethodCompilerType.DEF_TYPE);
-        // Fields
-        createFields(cs, pr);
-
-        // Constructor
-        defineConstructor(cs, pr);
-        
-    }
     
-    public void createAnonymousClass(CompilerState cs) {
-        setMethodType(MethodCompilerType.ANON_CLASS);
-        
-        // ??
-    }
-
-    public void setTargetSuperConstructor(ParameterList cons) {
-        this.constructorArgs = cons;
-    }
 
     /**
      * Create a method:
@@ -295,22 +265,6 @@ public class ClassCompiler {
                 .withAnnotations(annos).withMethodFlags(methodFlags).withBody(cons).build();
     }
     
-    
-
-//    public void exitMethod(CompilerState cs) {
-//        try {
-//            MethodVisitor method = cs.getCurrentMethodVisitor();
-//            method.visitMaxs(0, 0);
-//            method.visitEnd();
-//        } catch (Throwable t) {
-//            t.printStackTrace();
-//            throw t;
-//        } finally {
-//            cs.leaveMethod();
-//            cs.getScope().leaveScope();
-//        }
-//    }
-
     /**
      * Complete defining this class and compile it.
      * 
@@ -318,21 +272,7 @@ public class ClassCompiler {
      * @throws IllegalAccessException
      */
     public void exitClass(CompilerState cs) throws IllegalAccessException {
-
         ClassVisitor writer = cs.getCurrentVisitor();
-        switch (methodType) {
-            case DEF_TYPE:
-                ensure(cs.getClosureSymbols().isEmpty(),
-                        "Cannot define a method with an explicit constructor and closed over variables");
-                break;
-            case CLOSURE:
-                defineClosureConstructor(cs, writer);
-                break;
-            case ANON_CLASS:
-                defineAnonConstructor(cs, writer);
-                break;
-
-        }
 
         // cleanup
         writer.visitEnd();
@@ -342,7 +282,7 @@ public class ClassCompiler {
             cs.getScope().leaveScope();
         }
     }
-    
+
     public String getInternalName() {
         return packageName + "/" + className;
     }
@@ -353,10 +293,10 @@ public class ClassCompiler {
      * @return
      */
     public Class<?> getCompiledClass() {
-        if (clazz == null) {
+        if (generatedClass == null) {
             throw new PileInternalException("Called in the wrong order");
         }
-        return clazz;
+        return generatedClass;
     }
     
     public CompiledMethodResult wrap(CompilerState cs) {
@@ -364,9 +304,8 @@ public class ClassCompiler {
         return new CompiledMethodResult(getCompiledClass(), closureSymbols);
     }
 
-   
-    private void createFields(CompilerState cs, ParameterList pr) {
-        ensure(!hasFieldScope, "Cannot create multiple fields");
+    protected void createFields(CompilerState cs, ParameterList pr) {
+        ensure(!hasFieldScope, "Cannot create multiple field scopes");
         ClassVisitor visitor = cs.getCurrentVisitor();
         Scopes scope = cs.getScope();
         scope.enterScope(VarScope.FIELD);
@@ -384,11 +323,6 @@ public class ClassCompiler {
         this.hasFieldScope = true;
     }
 
-    private void setMethodType(MethodCompilerType type) {
-        ensure(methodType == null, "Cannot set method type more than once");
-        this.methodType = type;        
-    }
-
     private void createClass(CompilerState cs) throws IllegalAccessException {
         byte[] classArray = cs.compileClass();
 
@@ -398,114 +332,29 @@ public class ClassCompiler {
             AOTHandler.writeAOTClass(packageName, className, classArray);
         }
 
-        clazz = LookupHolder.LOOKUP.defineClass(classArray);
+        generatedClass = LookupHolder.LOOKUP.defineClass(classArray);
     }
 
-    private void defineAnonConstructor(CompilerState cs, ClassVisitor writer) {
+    
 
-        Map<String, ClosureRecord> closureSymbols = cs.getClosureSymbols();
-
-        // append (called constructor args) + (closure args)
-        List<MethodParameter> closureArgs = toArgRecord(closureSymbols);
-
-        final ParameterList base;
-        if (constructorArgs == null) {
-            base = ParameterList.empty();
-        } else {
-            base = constructorArgs;
-        }
-
-        ParameterList withClosureArgs = base.append(closureArgs);
-        int flags = ACC_PUBLIC;
-        if (withClosureArgs.isJavaVarArgs()) {
-            flags |= ACC_VARARGS;
-        }
-        MethodVisitor cons = cs.enterMethod("<init>", void.class, flags, withClosureArgs);
-        try {
-            GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
-
-            cons.visitCode();
-            cons.visitVarInsn(ALOAD, 0);
-            if (constructorArgs == null) {
-                cons.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
-            } else {
-                for (int i = 0; i < base.args().size(); ++i) {
-                    // Load by slot index
-                    ga.loadArg(i);
-                }
-                cons.visitMethodInsn(INVOKESPECIAL, getType(superType).getInternalName(), "<init>",
-                        base.toMethodType(void.class).descriptorString(), false);
-            }
-
-            int index = base.args().size();
-            for (MethodParameter ar : closureArgs) {
-                ClosureRecord cr = closureSymbols.get(ar.name());
-                // Constructor field
-                cons.visitVarInsn(ALOAD, 0);
-                ga.loadArg(index);
-                ga.putField(Type.getType("L" + cs.getCurrentInternalName() + ";"), cr.memberName(), 
-                        ar.getCompilableType());
-                ++index;
-            }
-
-            cons.visitInsn(RETURN);
-            cons.visitMaxs(0, 0);
-            cons.visitEnd();
-        } finally {
-            cs.leaveMethod();
-        }
-    }
-
-    private List<MethodParameter> toArgRecord(Map<String, ClosureRecord> closureSymbols) {
+    protected List<MethodParameter> toArgRecord(Map<String, ClosureRecord> closureSymbols) {
         return closureSymbols.entrySet().stream()
                 .map(entry -> new MethodParameter(entry.getKey(), entry.getValue().type()))
                 .toList();
     }
 
-    private void defineClosureConstructor(CompilerState cs, ClassVisitor writer) {
-
-        Map<String, ClosureRecord> closureSymbols = cs.getClosureSymbols();
-        
-        List<Class<?>> closureTypes = mapL(closureSymbols.values(), cr -> toCompilableType(cr.type()));
-        MethodType methodType = methodType(void.class, closureTypes);
-
-        MethodVisitor cons = writer.visitMethod(ACC_PUBLIC | ACC_SYNTHETIC, "<init>", methodType.descriptorString(),
-                null, null);
-
-        cons.visitCode();
-        cons.visitVarInsn(ALOAD, 0);
-        cons.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
-
-        int index = 1;
-        for (Entry<String, ClosureRecord> f : closureSymbols.entrySet()) {
-            Class<?> type = toCompilableType(f.getValue().type());
-            
-            // FIXME the indexes here are probably wrong, use GA methods instead.
-            cons.visitVarInsn(ALOAD, 0);
-            cons.visitVarInsn(ALOAD, index);
-            cons.visitFieldInsn(PUTFIELD, cs.getCurrentInternalName(), f.getValue().memberName(),
-                    Type.getDescriptor(type));
-            ++index;
-        }
-
-        cons.visitInsn(RETURN);
-        cons.visitMaxs(0, 0);
-        cons.visitEnd();
-    }
-
-    private static MethodHandle bind(MethodHandle handle, Object base) {
-        return handle.bindTo(base);
-    }
-
+    
+    
     public static void defineConstructor(CompilerState cs, ParameterList pr) {
         
         MethodVisitor cons = cs.enterMethod("<init>", void.class, ACC_PUBLIC, pr);
         try {
             GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
-    
             cons.visitCode();
+    
             cons.visitVarInsn(ALOAD, 0);
             cons.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+    
     
             int index = 0;
             for (MethodParameter ar : pr.args()) {
@@ -524,6 +373,46 @@ public class ClassCompiler {
         }
     
     }
+
+
+
+    public record SuperTypeCall(Class clazz, PersistentVector args) {}
+    
+//    public static void defineConstructor(CompilerState cs, SuperTypeCall superCall, ParameterList pr) {
+//        
+//        MethodVisitor cons = cs.enterMethod("<init>", void.class, ACC_PUBLIC, pr);
+//        try {
+//            GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
+//            cons.visitCode();
+//    
+//            cons.visitVarInsn(ALOAD, 0);
+//            if (superCall == null) {
+//                cons.visitMethodInsn(INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+//            } else {
+//                // TODO Find target to call?
+//            }
+//    
+//            int index = 0;
+//            for (MethodParameter ar : pr.args()) {
+//                // Constructor field
+//                cons.visitVarInsn(ALOAD, 0);
+//                ga.loadArg(index);
+//                ga.putField(Type.getType("L" + cs.getCurrentInternalName() + ";"), ar.name(), ar.getCompilableType());
+//                ++index;
+//            }
+//    
+//            cons.visitInsn(RETURN);
+//            cons.visitMaxs(0, 0);
+//            cons.visitEnd();
+//        } finally {
+//            cs.leaveMethod();
+//        }
+//    
+//    }
+//
+//    public static void defineConstructor(CompilerState cs, ParameterList pr) {
+//        defineConstructor(cs, null, pr);
+//    }
 
     public static void printDebug(byte[] classArray) {
         if (LOG.isEnabled(LogLevel.TRACE)) {

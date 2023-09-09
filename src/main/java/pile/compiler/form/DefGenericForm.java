@@ -32,14 +32,14 @@ import org.objectweb.asm.Opcodes;
 
 import pile.collection.PersistentList;
 import pile.collection.PersistentVector;
-import pile.compiler.ClassCompiler;
+import pile.compiler.AbstractClassCompiler;
 import pile.compiler.CompilerState;
+import pile.compiler.CompilerState.AnnotationData;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodCollector;
-import pile.compiler.ParameterParser;
-import pile.compiler.CompilerState.AnnotationData;
 import pile.compiler.MethodCollector.MethodArity;
+import pile.compiler.ParameterParser;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.annotation.GeneratedMethod;
 import pile.compiler.annotation.PileVarArgs;
@@ -169,7 +169,7 @@ public class DefGenericForm extends AbstractListForm {
             cs.leaveMethod();
 
             byte[] classArray = cs.compileClass();
-            ClassCompiler.printDebug(classArray);
+            AbstractClassCompiler.printDebug(classArray);
             Class<?> clazz = LookupHolder.LOOKUP.defineClass(classArray);
             MethodCollector coll = new MethodCollector(clazz, LookupHolder.LOOKUP);
             Map<String, MethodArity> methodMap = coll.collectPileMethods();

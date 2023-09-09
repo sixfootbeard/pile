@@ -31,15 +31,16 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
 import pile.collection.PersistentList;
-import pile.compiler.ClassCompiler;
+import pile.compiler.AbstractClassCompiler.CompiledMethodResult;
+import pile.compiler.ClosureClassCompiler;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
+import pile.compiler.DefTypeClassCompiler;
 import pile.compiler.MethodDefiner;
-import pile.compiler.MethodStack;
-import pile.compiler.ParameterParser;
-import pile.compiler.ClassCompiler.CompiledMethodResult;
 import pile.compiler.MethodDefiner.MethodRecord;
+import pile.compiler.MethodStack;
 import pile.compiler.MethodStack.TypeRecord;
+import pile.compiler.ParameterParser;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.form.AnonFnForm;
@@ -246,9 +247,10 @@ public class FunctionalInterfaceAdapter {
         var consArgs = ParameterList.empty().append(new MethodParameter(closureSym.getName(), ANY_CLASS));
 
         // Compile
-        ClassCompiler cc = new ClassCompiler(ns);
+        var cc = new DefTypeClassCompiler(ns);
         try (var ignored = cc.enterClass(cs, superType, interfaces)) {
-            cc.createExplicitConstructorWithFields(cs, consArgs);
+            cc.setFieldList(consArgs);
+            cc.defineConstructor(cs);
 
             // FIXME This double wrapping is kinda silly
             PersistentList<Object> body = PersistentList.createArr(PersistentList.fromList(fcall));
@@ -307,16 +309,16 @@ public class FunctionalInterfaceAdapter {
         PersistentList fcall = expandedForm.pop().pop();
 
         // Compile
-        ClassCompiler cc = new ClassCompiler(ns);
+        var cc = new ClosureClassCompiler(ns);
         try (var ignored = cc.enterClass(cs, superType, interfaces)) {
-            cc.createClosure();
-
+            
             var withThis = argPr.prepend(new MethodParameter(gensym().getName(), ANY_CLASS));
 
             MethodDefiner def = new MethodDefiner();
             MethodRecord mrec = new MethodRecord(m.getName(), withThis, fcall);
             def.defineMethods(ns, cs, cc, superType, interfaces, List.of(mrec));
 
+            cc.defineConstructor(cs);
             cc.exitClass(cs);
             // Push class we just compiled, which is-a <functionalInterface> type
             return cc.wrap(cs);

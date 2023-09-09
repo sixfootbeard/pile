@@ -27,7 +27,6 @@ import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,7 +39,7 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.commons.Method;
 
-import pile.compiler.ClassCompiler;
+import pile.compiler.AbstractClassCompiler;
 import pile.core.CoreConstants;
 import pile.core.runtime.generated_classes.LookupHolder;
 
@@ -164,7 +163,7 @@ public class AOTHandler {
 
         byte[] classArray = writer.toByteArray();
         
-        ClassCompiler.printDebug(classArray);
+        AbstractClassCompiler.printDebug(classArray);
         
         writeAOTClass(CoreConstants.GEN_PACKAGE_DOT, AOT_GEN_CLASS_NAME, classArray);
         

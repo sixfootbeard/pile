@@ -33,16 +33,16 @@ import org.objectweb.asm.Opcodes;
 import pile.collection.PersistentHashMap;
 import pile.collection.PersistentList;
 import pile.collection.PersistentVector;
-import pile.compiler.ClassCompiler;
+import pile.compiler.AbstractClassCompiler;
 import pile.compiler.CompilerState;
+import pile.compiler.CompilerState.AnnotationData;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodCollector;
-import pile.compiler.ParameterParser;
-import pile.compiler.SingleMethodCompilerBuilder;
-import pile.compiler.CompilerState.AnnotationData;
 import pile.compiler.MethodCollector.MethodArity;
+import pile.compiler.ParameterParser;
 import pile.compiler.ParameterParser.ParameterList;
+import pile.compiler.SingleMethodCompilerBuilder;
 import pile.compiler.annotation.GeneratedMethod;
 import pile.compiler.annotation.PileVarArgs;
 import pile.core.CoreConstants;
@@ -55,12 +55,10 @@ import pile.core.RuntimeRoot.ProtocolMethodDescriptor;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
 import pile.core.exception.PileCompileException;
-import pile.core.exception.PileException;
 import pile.core.method.HiddenCompiledMethod;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 import pile.core.runtime.generated_classes.LookupHolder;
-import pile.util.Pair;
 
 public class DefProtocolForm extends AbstractListForm {
 
@@ -112,7 +110,7 @@ public class DefProtocolForm extends AbstractListForm {
             }
 
             byte[] classArray = cs.compileClass();
-            ClassCompiler.printDebug(classArray);
+            AbstractClassCompiler.printDebug(classArray);
             clazz = LookupHolder.LOOKUP.defineClass(classArray);
         } finally {
             cs.leaveInterface();
@@ -199,10 +197,10 @@ public class DefProtocolForm extends AbstractListForm {
             }
             
             // Constructor
-            ClassCompiler.defineConstructor(cs, ParameterList.empty());
+            AbstractClassCompiler.defineConstructor(cs, ParameterList.empty());
             
             byte[] classArray = cs.compileClass();
-            ClassCompiler.printDebug(classArray);
+            AbstractClassCompiler.printDebug(classArray);
             return LookupHolder.LOOKUP.defineClass(classArray);
         } finally {
             cs.leaveClass();

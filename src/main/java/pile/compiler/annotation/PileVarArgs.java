@@ -18,14 +18,14 @@ package pile.compiler.annotation;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
-import pile.compiler.ClassCompiler;
+import pile.compiler.AbstractClassCompiler;
 import pile.compiler.MethodCollector;
 
 /**
  * This is placed on compiled methods if their signature has a trailing varargs.
  * 
  * @see MethodCollector
- * @see ClassCompiler
+ * @see AbstractClassCompiler
  *
  */
 @Retention(RetentionPolicy.RUNTIME)

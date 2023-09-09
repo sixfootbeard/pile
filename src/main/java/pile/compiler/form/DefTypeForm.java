@@ -15,49 +15,43 @@
  */
 package pile.compiler.form;
 
-import static java.util.Objects.*;
-import static org.objectweb.asm.Opcodes.*;
 import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
+import static pile.util.CollectionUtils.*;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
+import java.lang.reflect.Constructor;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
-import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.commons.GeneratorAdapter;
 
 import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
 import pile.collection.PersistentVector;
-import pile.compiler.ClassCompiler;
 import pile.compiler.CompilerState;
+import pile.compiler.DefTypeClassCompiler;
 import pile.compiler.DeferredCompilation;
+import pile.compiler.Helpers;
 import pile.compiler.MethodDefiner;
-import pile.compiler.ParameterParser;
 import pile.compiler.MethodDefiner.MethodRecord;
+import pile.compiler.ParameterParser;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.Scopes.ScopeLookupResult;
 import pile.compiler.annotation.GeneratedMethod;
 import pile.compiler.annotation.PileVarArgs;
+import pile.compiler.typed.StaticTypeLookup;
+import pile.compiler.typed.TypedHelpers;
 import pile.core.CoreConstants;
 import pile.core.ISeq;
 import pile.core.Keyword;
-import pile.core.Namespace;
 import pile.core.Symbol;
 import pile.core.binding.Binding;
 import pile.core.exception.PileCompileException;
-import pile.core.exception.PileException;
+import pile.core.exception.PileSyntaxErrorException;
 import pile.core.method.GenericMethod;
 import pile.core.parse.LexicalEnvironment;
 
@@ -81,11 +75,11 @@ public class DefTypeForm extends AbstractListForm {
 
     @Override
     public Object evaluateForm(CompilerState cs) throws Throwable {
-
         // name args (interface methods*)*
         String typeName = strSym(second(form));
         final List<Class<?>> interfaces = new ArrayList<>();
         List<MethodRecord> methods = new ArrayList<>();
+        SuperArgs superArgs = null;
 
         // Collect interfaces to pre-define for the class we're going to create
         Iterator<Object> it = ISeq.iter(form.pop().pop().pop().seq()).iterator();
@@ -93,7 +87,13 @@ public class DefTypeForm extends AbstractListForm {
             Object o = it.next();
             if (o instanceof Symbol sym) {
                 var clazz = sym.getAsClass(ns);
-                interfaces.add(clazz);
+                if (clazz.isInterface()) {
+                    interfaces.add(clazz);
+                } else {
+                    Object maybeArgs = it.next();
+                    PersistentVector vectorArgs = expect(maybeArgs, Helpers.IS_VECTOR, "Supertype must be followed by a vector of arguments");
+                    superArgs = new SuperArgs(clazz, vectorArgs);
+                }
             } else if (o instanceof PersistentList pl) {
                 methods.addAll(MethodDefiner.parseNamed(ns, pl));
             } else if (SPECIALIZATION_KW.equals(o)) {
@@ -117,14 +117,32 @@ public class DefTypeForm extends AbstractListForm {
         // FIXME Should we use the name of the type the user wanted?
         ParameterParser consArgs = new ParameterParser(ns, ISeq.iter(seq(nth(form, 2))));
         ParameterList parsedCons = consArgs.parse();
-        ClassCompiler comp = new ClassCompiler(ns, typeName, CoreConstants.GEN_PACKAGE);
-        try (var exit = comp.enterClass(cs, Object.class, interfaces)) {
-            comp.createExplicitConstructorWithFields(cs, parsedCons);
+        var comp = new DefTypeClassCompiler(ns, typeName, CoreConstants.GEN_PACKAGE);
+        Class superType = superArgs == null ? Object.class : superArgs.superType();
+        try (var exit = comp.enterClass(cs, superType, interfaces)) {
+            comp.setFieldList(parsedCons);
+            
+            if (superArgs != null) {
+                ParameterParser pp = new ParameterParser(ns, superArgs.args());
+                ParameterList parsed = pp.parse();
+                StaticTypeLookup<Constructor> stl = new StaticTypeLookup<>(TypedHelpers::ofConstructor);
+                List<Class<?>> staticTypes = mapL(parsed.args(), MethodParameter::type);
+                
+                // TODO LExical env
+                Constructor targetCons = stl.findSingularMatchingTarget(staticTypes,
+                        TypedHelpers.findConstructors(superType))
+                        .orElseThrow(() -> new PileSyntaxErrorException("Could not find unambiguous constructor to call"));
+                ParameterList consTypes = ParameterParser.from(targetCons);
+                
+                comp.setSuperTypeConstructorCall(consTypes, superArgs.args());
+            }
+            comp.defineConstructor(cs);
 
             // Define all the methods
             MethodDefiner definer = new MethodDefiner();
             definer.defineMethods(ns, cs, comp, interfaces, methods);
 
+            
             comp.exitClass(cs);
             Class<?> clazz = comp.getCompiledClass();
             ns.createClassSymbol(clazz.getSimpleName(), clazz);
@@ -153,8 +171,10 @@ public class DefTypeForm extends AbstractListForm {
         return out;
     }
 
-    public record ParsedForm(PersistentMap<Class<?>, PersistentVector<?>> mappedTypes, Class<?> currentClass,
-            PersistentVector<?> currentForms) {
+    record SuperArgs(Class superType, PersistentVector args) {}
+
+    public record ParsedForm(SuperArgs superArgs, PersistentMap<Class<?>, PersistentVector<?>> mappedTypes,
+            Class<?> currentClass, PersistentVector<?> currentForms) {
     }
     
     private record SpecializedMethod(GenericMethod gm, PersistentVector args, PersistentList body) {}
