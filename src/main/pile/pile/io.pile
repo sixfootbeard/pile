@@ -14,7 +14,8 @@
 
 (ns pile.core.io)
 
-(import (java.nio ByteBuffer)
+(import (java.lang Appendable)
+        (java.nio ByteBuffer)
         (java.nio.charset Charset)
         (java.nio.channels Channel Channels Pipe ReadableByteChannel WritableByteChannel FileChannel)
         (java.io InputStream OutputStream File FileInputStream FileOutputStream)
@@ -26,18 +27,59 @@
 
 ;; Path
 
-(defgeneric to-path "Create a java.nio.file.Path" [source])
-(defimpl to-path [^Path path] path)
-(defimpl to-path [^String s] (Path/of s))
-(defimpl to-path [^File f] (.toPath f))
+(defgeneric path "Create a java.nio.file.Path" [source])
+(defimpl path [^Path path] path)
+(defimpl path [^String s] (Path/of s))
+(defimpl path [^File f] (.toPath f))
 
 
 (defn read-all [f cs]
-      (-> f to-path (Files/readString (charset cs))))
+      (-> f path (Files/readString (charset cs))))
 
 (defn line-stream [f cs]
-      (-> f to-path (Files/lines (charset cs))))
+      (-> f path (Files/lines (charset cs))))
 
 (defn lines [f cs]
       (seq (line-stream f cs)))
 
+(defn exists? [f] (-> f path Files/exists))
+(defn file? [f] (-> f path Files/isRegularFile))
+(defn directory? [d] (-> d path Files/isDirectory))
+(defn list-stream [d] (-> d path Files/list))
+(defn move [s d] (Files/move (path s) (path d)))
+(defn delete [f] (-> f path (Files/delete)))
+
+(defn tmp-file 
+   ([] (tmp-file nil nil))
+   ([prefix suffix] (Files/createTempFile prefix suffix))
+   ([p prefix suffix] (Files/createTempFile p prefix suffix)))
+
+(defn tmp-dir
+   ([] (tmp-dir nil nil))
+   ([prefix suffix] (Files/createTempDirectory prefix suffix))
+   ([p prefix suffix] (Files/createTempDirectory p prefix suffix)))
+
+;; TODO Fix
+#_(defn walk
+   "Walks the given directory structure, calling the provided function on each file path"
+   ([p f] (Files/walkFileTree p (FileOnlyWalk. f))))
+
+(defn file-stream [d] (Files/walkFileTree d))
+
+(defgeneric copy "Append all bytes from the source to dest" [source dest])
+(defimpl copy [^Path source ^OutputStream dest] (Files/copy source dest))
+(defimpl copy [^InputStream source ^Path dest] 
+   (with [os (-> dest path .toFile (FileOutputStream. true))]
+      (.transfer source os)))
+(defimpl copy [source dest]
+   (with [is (-> source path .toFile FileInputStream.)]
+      (copy is (path dest))))
+
+(defn writer [target cs]
+   (Files/newBufferedWriter (path target) (charset cs)))
+
+(defn write [^Appendable w ^String s]
+   (.append w s))
+
+(defn write-bytes [^OutputStream os ^bytes b]
+   (.write os b))
