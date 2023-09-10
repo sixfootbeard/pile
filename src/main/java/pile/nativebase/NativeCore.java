@@ -128,8 +128,8 @@ public class NativeCore {
     public static final int LAST = Integer.MAX_VALUE;
     
     @PileDoc("Evaluates the provided syntax (not strings). See read for parsing strings into syntax.")
-    public static Object eval(Object o) throws Throwable {
-        return Compiler.evaluate(new CompilerState(), o);
+    public static Object eval(Object syntax) throws Throwable {
+        return Compiler.evaluate(new CompilerState(), syntax);
     }
     
     @Precedence(0)
@@ -152,7 +152,7 @@ public class NativeCore {
     }
     
     @PileDoc("Takes any number of arguments and just returns.")
-    public static void pass(Object... o) {
+    public static void pass(Object... ignored) {
         return;
     }
     
@@ -162,12 +162,12 @@ public class NativeCore {
     }
     
     @RenamedMethod("catch")
-    public static void ncatch(Object... o) {
+    public static void ncatch(Object... ignored) {
         throw new PileInvocationException("catch called outside of a try block");
     }
     
     @RenamedMethod("finally")
-    public static void nfinally(Object... o) {
+    public static void nfinally(Object... ignored) {
         throw new PileInvocationException("finally called outside a try block");
     }
     
@@ -178,13 +178,13 @@ public class NativeCore {
     
 
 
-    public static Object macroexpand(Object in) throws Throwable {
+    public static Object macroexpand(Object syntax) throws Throwable {
         // RETHINK scoping problems when compiled?
-        return SExpr.macroExpand(new CompilerState(), NativeDynamicBinding.NAMESPACE.getValue(), in);
+        return SExpr.macroExpand(new CompilerState(), NativeDynamicBinding.NAMESPACE.getValue(), syntax);
     }
 
-    public static Object macroexpand1(Object in) throws Throwable {
-        return SExpr.macroExpandOne(new CompilerState(), NativeDynamicBinding.NAMESPACE.getValue(), in);
+    public static Object macroexpand1(Object syntax) throws Throwable {
+        return SExpr.macroExpandOne(new CompilerState(), NativeDynamicBinding.NAMESPACE.getValue(), syntax);
     }
 
     @PileDoc("Creates a symbol with the provided name.")
@@ -214,9 +214,9 @@ public class NativeCore {
     }
     
     @PileDoc("Returns the annotated type on the syntax.")
-    public static Class<?> annotated_type(Object o) {
+    public static Object annotated_type(Object o) {        
         return switch (o) {
-            case Metadata m -> (Class<?>) m.meta().get(ParserConstants.ANNO_TYPE_KEY);
+            case Metadata m -> m.meta().get(ParserConstants.ANNO_TYPE_KEY);
             default -> null;
         };        
     }
@@ -271,7 +271,7 @@ public class NativeCore {
         }
     }
 
-    
+    @PileDoc("Dereferences the provided Ref or Future.")
     @Precedence(0)
     public static Object deref(Object o) throws Throwable {
         return switch (o) {
@@ -328,8 +328,8 @@ public class NativeCore {
     }
     
     @PileDoc("Returns the result of reversing the sequence.")
-    public static ISeq reverse(Object o) {
-        ISeq seq = seq(o);
+    public static ISeq reverse(Object seqable) {
+        ISeq seq = seq(seqable);
         if (seq == ISeq.EMPTY) {
             return ISeq.EMPTY;
         }
@@ -420,7 +420,7 @@ public class NativeCore {
 
     }
 
-    @PileDoc("Creates a new persistent list with the provided head and (unevaluated) tail sequence.")
+    @PileDoc("Creates a new persistent list with the provided head and (unrealized) tail sequence.")
     @Precedence(LAST)
     public static ISeq cons(Object head, Object tail) {
         return switch (tail) {

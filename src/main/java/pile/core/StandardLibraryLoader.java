@@ -22,10 +22,12 @@ import java.io.PrintStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.invoke.MethodType;
 import java.lang.invoke.SwitchPoint;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,6 +50,7 @@ import pile.collection.PersistentSet;
 import pile.collection.PersistentVector;
 import pile.compiler.Compiler;
 import pile.compiler.Helpers;
+import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.math.BinaryComparisonMethod;
 import pile.compiler.math.BinaryMathMethod;
 import pile.compiler.math.BinaryPredicateMethod;
@@ -481,6 +484,7 @@ public class StandardLibraryLoader {
                 .collect(CollectionUtils.toMultiMap());
 
         final Map<Integer, List<MethodHandle>> airityHandles = new HashMap<>();
+        final List<PersistentVector<Symbol>> argLists = new ArrayList<>();
         MethodHandle varArgsMethod = null;
         int varArgsAirity = -1;
 
@@ -500,9 +504,13 @@ public class StandardLibraryLoader {
                 }
                 Collections.sort(methodList, Comparator.comparingInt(m -> m.getAnnotation(Precedence.class).value()));
             }
-            for (var vm : methodList) {
-                MethodHandle mh = lookup.unreflect(vm);
-                int parameterCount = mh.type().parameterCount();
+            for (var method : methodList) {
+                PersistentVector<Symbol> argList = createArgList(method);
+                argLists.add(argList);
+                
+                MethodHandle mh = lookup.unreflect(method);
+                MethodType methodType = mh.type();
+                int parameterCount = methodType.parameterCount();
                 if (mh.isVarargsCollector()) {
                     if (varArgsMethod != null) {
                         throw new PileInternalException("Can only have one varargs native: " + name);
@@ -517,13 +525,13 @@ public class StandardLibraryLoader {
                     airityHandles.computeIfAbsent(parameterCount, k -> new ArrayList<>()).add(mh);
                 }
 
-                boolean hasMacroAnno = vm.isAnnotationPresent(NativeMacro.class);
-                boolean hasPureAnno = vm.isAnnotationPresent(PureFunction.class);
+                boolean hasMacroAnno = method.isAnnotationPresent(NativeMacro.class);
+                boolean hasPureAnno = method.isAnnotationPresent(PureFunction.class);
 
                 macroSet.update(hasMacroAnno);
                 pureSet.update(hasPureAnno);
                 
-                PileDoc methodDoc = vm.getAnnotation(PileDoc.class);
+                PileDoc methodDoc = method.getAnnotation(PileDoc.class);
                 if (methodDoc != null) {
                     doc = methodDoc.value();
                 }
@@ -534,7 +542,7 @@ public class StandardLibraryLoader {
                     parent = findParentType(parent, mh.type().returnType());
                 }
                 if (classSrc == null) {
-                    classSrc = vm.getDeclaringClass().getName();
+                    classSrc = method.getDeclaringClass().getName();
                 }
             }
         }
@@ -548,6 +556,7 @@ public class StandardLibraryLoader {
         meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
         meta = meta.assoc(PileMethodLinker.MACRO_KEY, macro);
         meta = meta.assoc(Keyword.of(PILE_CORE_NS, "native-source"), true);
+        meta = meta.assoc(CommonConstants.ARG_LIST, argLists);
         
         if (classSrc != null) {
             meta = meta.assoc(ParserConstants.FILENAME_KEY, classSrc);
@@ -584,6 +593,26 @@ public class StandardLibraryLoader {
         
         Binding meth = new ImmutableBinding(ns.getName(), BindingType.VALUE, fn, meta, new SwitchPoint());
         ns.define(methodName, meth);
+    }
+
+    private static PersistentVector<Symbol> createArgList(Method method) {
+        List<Symbol> out = new ArrayList<>();
+        boolean isVarArg = method.isVarArgs();
+        for (Parameter p : method.getParameters()) {
+            String name = p.getName();
+            Class<?> type = p.getType();
+            Symbol sym = new Symbol(name);
+            if (! Object.class.equals(type)) {
+                sym = sym.withTypeAnnotation(type);
+            }
+            out.add(sym);
+        }
+        if (method.isVarArgs()) {
+            Symbol last = out.remove(out.size() - 1);
+            out.add(new Symbol("&"));
+            out.add(new Symbol(last.getName()));
+        }
+        return PersistentVector.fromList(out);
     }
 
     private static MethodHandle filterVoidReturns(MethodHandle mh) {

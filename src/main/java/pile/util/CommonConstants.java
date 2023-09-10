@@ -20,5 +20,7 @@ import pile.core.Keyword;
 public class CommonConstants {
 
     public static Keyword DOC = Keyword.of("doc");
+    public static Keyword ARG_LIST = Keyword.of("arg-lists");
+
 
 }

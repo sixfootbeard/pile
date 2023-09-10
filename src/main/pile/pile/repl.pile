@@ -21,6 +21,20 @@
 (defn quit "Quits the repl" [] (set! exit-flag true))
 (defn exit "Exits the repl" [] (set! exit-flag true))
 
+(defn arg-list-item [list]
+    (stream list
+            (map (fn [arg]
+                   (str (if (annotated-type arg)
+                          (str "^" (annotated-type arg) " ")
+                          "")
+                        arg)))
+            (joining " " "[" "]")))
+
+(defn arg-list-str [lists]
+   (stream lists
+           (map arg-list-item)
+           (joining "  ")))
+
 (defn help [sym]
    (if (not (symbol? sym))
      (prn "Help argument must be a symbol, eg. (help 'stream)")
@@ -33,6 +47,7 @@
                 filename (:pile.core/filename m)
                 line-number (:pile.core/line-number m)
                 doc (:doc m)
+                arglists (:arg-lists m)
                 builder (new java.lang.StringBuilder)]
           (pile.core.string/append builder v)
           (if filename 
@@ -44,6 +59,11 @@
                       (do (pile.core.string/append builder ":")
                           (pile.core.string/append builder line-number)))
                   (pile.core.string/append builder ")")))
+          
+          (when arglists
+             (pile.core.string/append builder "\n")                    
+             (pile.core.string/append builder "Argument Lists: ")
+             (pile.core.string/append builder (arg-list-str arglists)))
           (pile.core.string/append builder "\n\n")                    
           (pile.core.string/append builder (if doc doc "<no documentation>"))                    
           (pile.core.string/append builder "\n")

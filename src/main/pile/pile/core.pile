@@ -613,7 +613,11 @@
       "Joins all the elements in the stream/sequence into a string with a delimiter. 0/1-arity are terminal stream operations. 2-arity is for use in lazy sequences."
       ([] (joining ","))
       ([delim] (fn [^Stream s] (.collect s (java.util.stream.Collectors/joining delim))))
-      ([delim col] ((joining delim) (to-stream col))))
+      ([delim col] ((joining delim) (to-stream col)))
+      ([delim start end] (fn [^Stream s] (.collect s (java.util.stream.Collectors/joining delim start end))))
+)
+
+
 
 
 (defn foreach
