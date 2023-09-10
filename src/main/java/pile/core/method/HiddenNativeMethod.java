@@ -136,9 +136,12 @@ public class HiddenNativeMethod implements PileMethod {
                         GuardBuilder guard = new GuardBuilder(target, relink, statictypes);
                         for (int i = 0; i < args.length; ++i) {
                             if (contention[i]) {
-                                guard.guardSubtype(i, target.type().parameterType(i));
-                                // FIXME Bad for seq(null), will always relink...
-                                guard.guardNotNull(i);
+                                if (Void.class.equals(actualTypes.get(i))) {
+                                    guard.guardNull(i);
+                                } else {
+                                    guard.guardSubtype(i, target.type().parameterType(i));
+                                    guard.guardNotNull(i);
+                                }
                             }
                         }
                         return guard.getHandle();

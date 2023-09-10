@@ -114,6 +114,9 @@ class LookupHelpers {
         if (staticType.equals(Any.class)) {
             return true;
         }
+        if (Void.class.equals(staticType) && ! isPrimitive(methodArgumentType)) {
+            return true;
+        }
         return matchSubtype(staticType, methodArgumentType);
         // TODO Numeric too?
     }

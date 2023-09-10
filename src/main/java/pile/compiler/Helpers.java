@@ -471,13 +471,9 @@ public class Helpers {
         }
         return typeArray;
     }
-
+    
     public static List<Class<?>> getArgClasses(Object[] args) {
-        List<Class<?>> typeArray = new ArrayList<>(args.length);
-        for (Object o : args) {
-            typeArray.add(o == null ? Object.class : o.getClass());
-        }
-        return typeArray;
+        return getArgClasses(Arrays.asList(args));
     }
 
     /**

@@ -144,7 +144,12 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
                 // will blow up.
                 continue;
             }
-            builder.guardExact(i, runtimeTypes.get(i));
+            Class<?> paramType = runtimeTypes.get(i);
+            if (Void.class.equals(paramType)) {
+                builder.guardNull(i);
+            } else {
+                builder.guardExact(i, paramType);
+            }
         }
         
         LOG.debug("Dynamically linking to %s", matchedMethod.get());
