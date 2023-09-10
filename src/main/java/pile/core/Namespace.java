@@ -273,6 +273,10 @@ public class Namespace {
                 ns = (Namespace) slr.val();
             } else if (Binding.class.equals(slr.type())) {
                 Object val = slr.val();
+                // TODO Find a way to fix this.
+                if (val instanceof Binding b) {
+                    val = b.getValue();
+                }
                 if (val instanceof Namespace boundNs) {
                     ns = boundNs;
                 } else {
