@@ -28,53 +28,36 @@
                    name)))
 
 
+(defmacro test [msg & exp]
+    `(do  
+        (*notifier* :test-start ~msg)
+        (try 
+          (do ~@exp 
+              (*notifier* :test-success ~msg))
+          (catch Throwable t (*notifier* :test-failure ~msg t)))))
 
-(defmacro test
-    ([exp] (let [msg (str "test-" *test-suffix*)]
-              `(do (test ~msg ~exp)
-                   (swap! #'*test-suffix* inc))))
-    ([msg exp]
-            `(do  
-                (*notifier* :test-start ~msg)
-                (try 
-                  (if ~exp 
-                    (*notifier* :test-success ~msg)
-                    (*notifier* :test-failure ~msg (str "Assertion Failed.")))
-                (catch Throwable t (*notifier* :test-failure ~msg t))))))
+(defmacro is 
+     ([syntax msg]
+       `(if (do ~syntax)
+            nil
+            (throw (RuntimeException. ~msg))))
+     ([syntax]
+        `(is ~syntax ~(str syntax " threw exception"))))
 
-(defmacro test=
-    ([a b]
-      (let [msg (gen-test-name)]
-        `(test= ~msg ~a ~b)))
-    ([msg a b]
-     `(test ~msg (let [lhs ~a
-                       rhs ~b]
-                    (= lhs rhs)))))
-           
-(defmacro testFail 
+
+(defmacro expect-fail 
     [msg ex-type form]
     `(do  
-       (*notifier* :test-start ~msg)
        (try 
            (do ~form 
-               (*notifier* :test-failure ~msg (str "Expected failure, found none.")))
-           (catch ~ex-type t (*notifier* :test-success ~msg))
-           (catch Throwable t (*notifier* :test-failure ~msg t)))))         
+               (throw (RuntimeException. "Expected failure, found none.")))
+           (catch ~ex-type t true)
+           (catch Throwable t (throw (RuntimeException. ~msg t)))))) 
 
-(defmacro is
-    ([tcond]
-      `(is ~tcond ~(str tcond)))
-    ([tcond message]
-      (let [test-name (gen-test-name)]
-        `(do  
-           (*notifier* :test-start ~test-name)
-           (try 
-             (if ~tcond 
-               (*notifier* :test-success ~test-name)
-               (*notifier* :test-failure ~test-name (str ~message " returned false.")))
-             (catch Throwable t
-               (let [wrapped (new java.lang.RuntimeException (str ~message " threw exception") t)]
-                 (*notifier* :test-failure ~test-name wrapped))))))))
+(defmacro each-form [& syntax]
+   `(do 
+        ~@syntax
+        (let [f# (fn [] ~@syntax)] (f#))))
 
 (defmacro both= [expect expr]
     `(do 

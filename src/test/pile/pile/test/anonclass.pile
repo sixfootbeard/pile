@@ -29,129 +29,101 @@
 ;; Methods: implemented as expected (check interop)
 
 ;; Simplest test, no methods, no constructor
-(def call-base-simple
-    (anon-cls TestBaseNoConstructorNoMethods []))
-
-(test (instance? TestBaseNoConstructorNoMethods call-base-simple))
+(test "AnonClass - Instance Test"
+   (let [call-base-simple (anon-cls TestBaseNoConstructorNoMethods [])]
+      (is (instance? TestBaseNoConstructorNoMethods call-base-simple))))
 
 ;; CArgs: 0, Closure: True
-(defn call-base-one-method-closure [a]
-    (anon-cls TestBaseAbstractNoConstructorOneMethod []
-        (getString [this] a)))
-(test= "NoArgConstructorClosureCompile"
-  "foo" (.getString (call-base-one-method-closure "foo")))
-(let [a "ev"]
-  (test= "NoArgConstructorClosureEval"
-     "ev" (.getString (anon-cls TestBaseAbstractNoConstructorOneMethod []
-                        (getString [this] a)))))
-
+(test "AnonClass - Closure"
+    (each-form
+        (let [a "ev"
+              c (anon-cls TestBaseAbstractNoConstructorOneMethod [] (getString [this] a))]
+          (is (= "ev" (.getString c))))))
 
 ;; CArgs: 0, Closure: False
- 
-(defn make-call-base-one-method []
-    (anon-cls TestBaseAbstractNoConstructorOneMethod []
-        (getString [this] "foobar")))
-(test "AnonClsIsACorrectType"
-  (instance? TestBaseAbstractNoConstructorOneMethod (make-call-base-one-method)))        
-(def one-method-inst (make-call-base-one-method))        
-(test= ["AnonClass" "Compile" "OneMethod"]
-   "foobar" (.getString one-method-inst))
 
-
-(defn getAbsStr [^TestBaseAbstractNoConstructorOneMethod base]
-    (.getString base))
-(def call-base-one-method
-    (anon-cls TestBaseAbstractNoConstructorOneMethod []
-        (getString [this] "foobar")))
-(test= "foobar" (.getString call-base-one-method))
-(test= "foobar" (getAbsStr call-base-one-method))   
+(test "AnonClass - Normal"
+  (each-form 
+     (is (= "foobar" (.getString (anon-cls TestBaseAbstractNoConstructorOneMethod [] (getString [this] "foobar")))))))
 
 ;; Check constructor args get set
-(def call-base-one-arg (anon-cls TestBaseOneConstructorNoMethods ["anArg"]))
-(test (instance? TestBaseOneConstructorNoMethods call-base-one-arg))              
-(test= "anArg" (.getArg call-base-one-arg))
-
+(test "AnonClass - Single Arg Constructor"
+  (each-form 
+     (= "anArg" (anon-cls TestBaseOneConstructorNoMethods ["anArg"]))))
 
 ;; Constructor + closure args
-(defn one-cons-one-method [s]
-     (anon-cls TestBaseOneConstructorOneMethod ["anArg"]
-               (getAnotherArg [this] s)))
-(test= "anArg" (.getArg (one-cons-one-method "foo")))
-(test= "foo" (.getAnotherArg (one-cons-one-method "foo")))
+(test "AnonClass - Overriding Methods"
+  (each-form
+     (let [s "foo"
+           c (anon-cls TestBaseOneConstructorOneMethod ["anArg"]
+               (getAnotherArg [this] s))]
+        (is (= "anArg" (.getArg c)))
+        (is (= "foo" (.getAnotherArg c))))))
 
 ;; + ambiguous constructor type
-(defn one-cons-one-method-ambi [c s]
-     (anon-cls TestBaseOneConstructorOneMethod [c]
-               (getAnotherArg [this] s)))
-(test= "another" (.getArg (one-cons-one-method-ambi "another" "foo")))
-(test= "foo" (.getAnotherArg (one-cons-one-method-ambi "another" "foo")))
+(test "AnonClass - Constructor Any Type"
+   (let [f (fn [c s] (anon-cls TestBaseOneConstructorOneMethod [c]
+                       (getAnotherArg [this] s)))
+         c (f "another" "foo")]
+       (is (= "another" (.getArg c)))
+       (is (= "foo" (.getAnotherArg c)))))
 
 ;; Constructor (varargs)
-(defn no-vargarg [] (anon-cls TestBaseOneVarargsConstructor [12]))
-(test= 0 (-> (no-vargarg) .getArr (alength)))
-
-(defn one-vargarg [] (anon-cls TestBaseOneVarargsConstructor [12 "anArg"]))
-(test= 12 (.getStart (one-vargarg)))
-(test= "anArg" (-> (one-vargarg) .getArr (aget 0)))
-
-(defn two-vargarg [] (anon-cls TestBaseOneVarargsConstructor [12 "anArg" "anotherArg"]))
-(test= 12 (.getStart (two-vargarg)))
-(test= "anArg" (-> (two-vargarg) .getArr (aget 0)))
-(test= "anotherArg" (-> (two-vargarg) .getArr (aget 1)))
+(test "AnonClass - Varargs"
+   (let [f #(anon-cls TestBaseOneVarargsConstructor [12])] 
+     (is (= 0 (-> (f) .getArr (alength)))))
+   (let [f #(anon-cls TestBaseOneVarargsConstructor [12 "anArg"])] 
+     (is (= "anArg" (-> (f) .getArr (aget 0)))))
+   (let [f #(anon-cls TestBaseOneVarargsConstructor [12 "anArg" "anotherArg"])] 
+     (is (= "anArg" (-> (f) .getArr (aget 0))))
+     (is (= "anotherArg" (-> (f) .getArr (aget 1))))))
 
 ;; Constructor (varargs) + closure args
-(defn no-vargarg-one-method [a]
-      (anon-cls TestBaseOneVarargsConstructorOneMethod [12]
-                (getAbs [this] a)))
-(test= 0 (-> (no-vargarg-one-method "a") .getArr (alength)))
-(test= "a" (-> (no-vargarg-one-method "a") .getAbs))
+(test "AnonClass - Varargs + closure args"
+   (let [no-vargarg-one-method (fn [a] (anon-cls TestBaseOneVarargsConstructorOneMethod [12] (getAbs [this] a)))]
+     (is (= 0 (-> (no-vargarg-one-method "a") .getArr alength)))
+     (is (= "a" (-> (no-vargarg-one-method "a") .getAbs)))))
 
-(defn one-vargarg-one-method [a]
-      (anon-cls TestBaseOneVarargsConstructorOneMethod [12 "arg"]
-                (getAbs [this] a)))
-(test= "arg" (-> (one-vargarg-one-method "a") .getArr (aget 0)))
-(test= "a" (-> (one-vargarg-one-method "a") .getAbs))
+(test "Anonclass - Varargs - one method"
+   (let [one-vargarg-one-method (fn [a] (anon-cls TestBaseOneVarargsConstructorOneMethod [12 "arg"] (getAbs [this] a)))]
+     (is (= "arg" (-> (one-vargarg-one-method "a") .getArr (aget 0))))   
+     (is (= "a" (-> (one-vargarg-one-method "a") .getAbs)))))
 
 
-(defn two-vargarg-one-method [a]
-      (anon-cls TestBaseOneVarargsConstructorOneMethod [12 "arg" "two"]
-                (getAbs [this] a)))
-(test= "arg" (-> (two-vargarg-one-method "a") .getArr (aget 0)))
-(test= "two" (-> (two-vargarg-one-method "a") .getArr (aget 1)))
-(test= "a" (-> (two-vargarg-one-method "a") .getAbs))
+(test "Anonclass - Varargs - one method more constructor args"
+   (let [one-vargarg-one-method (fn [a] (anon-cls TestBaseOneVarargsConstructorOneMethod [12 "arg" "two"] (getAbs [this] a)))]
+     (is (= "arg" (-> (one-vargarg-one-method "a") .getArr (aget 0))))   
+     (is (= "two" (-> (one-vargarg-one-method "a") .getArr (aget 1))))   
+     (is (= "a" (-> (one-vargarg-one-method "a") .getAbs)))))
 
 ;; Untyped
-(defn untyped-vargarg-one-method [f s t]
-      (anon-cls TestBaseOneVarargsConstructorOneMethod [f s t]
-                (getAbs [this] "abs")))
+(test "AnonClass - Untyped Constructor"
+    (let [untyped-vargarg-one-method (fn [f s t] (anon-cls TestBaseOneVarargsConstructorOneMethod [f s t] (getAbs [this] "abs")))
+          ambi (untyped-vargarg-one-method 12 "44" "55")]
+       (is (= 12 (.getStart ambi)))
+       (is (= "44" (-> ambi .getArr (aget 0))))
+       (is (= "55" (-> ambi .getArr (aget 1))))))
 
-(def ambi (untyped-vargarg-one-method 12 "44" "55"))
+(test "AnonClass - Ambiguous constructor"
+   (expect-fail "AnonClass target constructor must be statically unambiguous" UnlinkableMethodException
+     (fn [arg]
+       (anon-cls TestBaseTwoConstructorOneMethod [arg]
+         (getArg [this] "arg")))))
 
-(test= 12 (.getStart ambi))
-(test= "44" (-> ambi .getArr (aget 0)))
-(test= "55" (-> ambi .getArr (aget 1)))
-
-(testFail "CompileFail" UnlinkableMethodException
-  (fn [arg]
-    (anon-cls TestBaseTwoConstructorOneMethod [arg]
-      (getArg [this] "arg"))))
-
-(defn two-cons [^String arg]
-  (anon-cls TestBaseTwoConstructorOneMethod [arg]))
-
-(test= "one" (-> "one" two-cons .getArg))
-
-(defn two-cons-int [^int arg]
-  (anon-cls TestBaseTwoConstructorOneMethod [arg]))
-
-(test= "1" (-> 1 two-cons-int .getArg))
+(test "AnonClass - Multiple Constructors"
+   (let [f (fn [^String arg] (anon-cls TestBaseTwoConstructorOneMethod [arg]))]
+     (is (= "one" (-> "one" f .getArg)))
+   (let [f (fn [^int arg] (anon-cls TestBaseTwoConstructorOneMethod [arg]))]
+     (is (= "1" (-> 1 f .getArg))))))
 
 ;; abstract parent
-(let [f (anon-cls AbstractChild [] (doThing [this] "abcd"))]
+(test "AnonClass - abstract parent type")
+  (let [f (anon-cls AbstractChild [] (doThing [this] "abcd"))]
      (is (= "abcd" (.doThing f))))
 
 ;; defaults
-(let [a (atom)
+(test "AnonClass - Overriding default impls"
+  (let [a (atom)
       it (anon-cls java.util.Iterator (remove [this] (reset! a 55)))]
    (.remove it)
-   (is (= 55 (deref a))))
+   (is (= 55 (deref a)))))

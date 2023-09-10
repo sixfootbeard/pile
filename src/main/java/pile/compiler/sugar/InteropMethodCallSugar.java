@@ -24,6 +24,8 @@ import pile.compiler.CompilerState;
 import pile.core.Namespace;
 import pile.core.Symbol;
 import pile.core.binding.NativeDynamicBinding;
+import pile.core.exception.PileCompileException;
+import pile.core.parse.LexicalEnvironment;
 
 public class InteropMethodCallSugar implements SExprDesugarer<PersistentList<Object>> {
 
@@ -37,11 +39,14 @@ public class InteropMethodCallSugar implements SExprDesugarer<PersistentList<Obj
     public Optional<PersistentList<Object>> desugar(PersistentList<Object> result, CompilerState cs, Namespace ns) {
 
         Object first = first(result);
-        
+                
         if (first instanceof Symbol firstSym) {
             String dotName = firstSym.getName();
             if (dotName.length() > 1) {
                 if (dotName.startsWith(".")) {
+                    if (result.count() == 1) {
+                        throw new PileCompileException("Bad interop form, no base", LexicalEnvironment.extract(result));
+                    }
                     // (.add foo bar baz)
                     // (. foo (add bar baz))
                     String methodName = dotName.substring(1);
