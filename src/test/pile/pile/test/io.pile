@@ -28,4 +28,12 @@
    (is (= "" (read-all file "utf8")))
    (with [w (writer file "utf8")]
       (write w "abcd"))
-   (is (= "abcd" (read-all file "utf8"))))
+   (is (= "abcd" (read-all file "utf8")))
+   (let [rdr (reader file "utf8")
+         content (read rdr)]
+     (is (= "abcd" content))
+     (is (= nil (read rdr))))
+   (let [w (writer file "utf8")]
+     (write w "efgh")
+     (flush w)
+     (= "abcdefgh" (read-all file "utf8"))))

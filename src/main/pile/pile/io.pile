@@ -15,10 +15,10 @@
 (ns pile.core.io)
 
 (import (java.lang Appendable)
-        (java.nio ByteBuffer)
+        (java.nio ByteBuffer CharBuffer)
         (java.nio.charset Charset)
         (java.nio.channels Channel Channels Pipe ReadableByteChannel WritableByteChannel FileChannel)
-        (java.io InputStream OutputStream File FileInputStream FileOutputStream)
+        (java.io InputStream OutputStream File FileInputStream FileOutputStream Flushable)
         (java.nio.file Files Path Paths))
 
 (defgeneric charset "Return a java.nio.charset.Charset" [cs])
@@ -59,11 +59,6 @@
    ([prefix suffix] (Files/createTempDirectory prefix suffix))
    ([p prefix suffix] (Files/createTempDirectory p prefix suffix)))
 
-;; TODO Fix
-#_(defn walk
-   "Walks the given directory structure, calling the provided function on each file path"
-   ([p f] (Files/walkFileTree p (FileOnlyWalk. f))))
-
 (defn file-stream [d] (Files/walkFileTree d))
 
 (defgeneric copy "Append all bytes from the source to dest" [source dest])
@@ -75,6 +70,22 @@
    (with [is (-> source path .toFile FileInputStream.)]
       (copy is (path dest))))
 
+(def reader-buffer-size 512)
+
+(defn reader [target cs]
+   (Files/newBufferedReader (path target) (charset cs)))
+
+(defn read 
+   "Read some characters from the reader. Returns nil if at EOF."
+   ([reader]
+     (let [cb (CharBuffer/allocate reader-buffer-size)]
+       (read reader cb)))
+   ([reader ^CharBuffer cb]
+     (if (= -1 (.read reader cb))
+         nil
+         (do (.flip cb)
+             (.toString cb)))))
+
 (defn writer [target cs]
    (Files/newBufferedWriter (path target) (charset cs)))
 
@@ -83,3 +94,5 @@
 
 (defn write-bytes [^OutputStream os ^bytes b]
    (.write os b))
+
+(defn flush [^Flushable f] (.flush f))
