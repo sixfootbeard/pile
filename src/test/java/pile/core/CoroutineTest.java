@@ -10,6 +10,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import pile.core.Coroutine.CoroutineSync;
+import pile.core.exception.PileExecutionException;
 import pile.nativebase.NativeCore;
 
 public class CoroutineTest {
@@ -27,6 +28,17 @@ public class CoroutineTest {
         assertEquals(0, calledCount.get());
         assertEquals(1, resume(c));
         assertEquals(null, resume(c));
+    }
+    
+    @Test
+    public void testThrows() throws InterruptedException {
+        var c = newCoroutine(() -> { throw new RuntimeException();});
+        try {
+            resume(c);
+            fail("Should throw");
+        } catch (PileExecutionException e) {
+            assertEquals(RuntimeException.class, e.getCause().getClass());
+        }        
     }
 
     @Test
@@ -68,6 +80,21 @@ public class CoroutineTest {
             @Override
             public Object invoke(Object... args) throws Throwable {
                 NativeCore.yield(calledCount.incrementAndGet());
+                return null;
+            }
+        });
+        c.run();
+        return c;
+    }
+    
+    public Coroutine newCoroutine(Runnable r) {
+        this.sync = new CoroutineSync();
+        this.calledCount = new AtomicInteger();
+
+        Coroutine c = new Coroutine(sync, new PCall() {
+            @Override
+            public Object invoke(Object... args) throws Throwable {
+                r.run();
                 return null;
             }
         });

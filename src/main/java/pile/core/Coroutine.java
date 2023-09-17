@@ -179,13 +179,13 @@ public class Coroutine {
                     resumedValue = null;
                     return local;
                 }
+                
+                if (exception != null) {
+                    throw new PileExecutionException("Error while executing coroutine", exception);
+                }
 
                 if (isDone) {
                     return null;
-                }
-
-                if (exception != null) {
-                    throw new PileExecutionException("Error while executing coroutine", exception);
                 }
                 // shouldn't happen
                 throw new PileInternalException("Error handling coroutine values.");
