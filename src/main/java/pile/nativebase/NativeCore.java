@@ -1853,6 +1853,17 @@ public class NativeCore {
     }
     
     // Coroutine
+    
+    @PileDoc("""
+            Creates a new coroutine calling the provided function which may yield values.
+            The coroutine does not start running until execution is resumed the first time.
+            """)
+    public static Coroutine coroutine(PCall fn) {
+        var c = new Coroutine(new CoroutineSync(), fn);
+        c.run();
+        return c;
+    }
+    
     @PileDoc("""
              Yields a value within a coroutine and waits for the next resume. Must only be called while executing a coroutine, 
              otherwise an IllegalStateException is thrown.
@@ -1865,16 +1876,13 @@ public class NativeCore {
         sync.putValueAndSleep(o);
     }
     
-    @PileDoc("Resumes execution of a coroutine, blocking until the coroutine yields a value and returns that value or nil if the coroutine is complete.")
+    @PileDoc("""
+            Resumes execution of a coroutine. This call blocks until the coroutine yields a value, terminates, or throws an exception. 
+            This method returns either the yielded value, nil if the coroutine completed, or throws a PileExecutionException wrapping
+            the exception thrown in the coroutine.
+            """)
     public static Object resume(Coroutine c) throws InterruptedException {
         return c.resume();
-    }
-    
-    @PileDoc("Creates a new coroutine calling the provided function.")
-    public static Coroutine coroutine(PCall fn) {
-        var c = new Coroutine(new CoroutineSync(), fn);
-        c.run();
-        return c;
     }
     
 }

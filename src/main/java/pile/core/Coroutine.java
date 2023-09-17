@@ -20,6 +20,10 @@ public class Coroutine {
         this.sync = sync;
     }
 
+    /**
+     * Starts the corountine on a virtual thread. Initially it will be parked until
+     * the first call to {@link #resume()}.
+     */
     public void run() {
         Thread.startVirtualThread(() -> {
             SYNC_LOCAL.set(sync);
@@ -27,8 +31,7 @@ public class Coroutine {
                 sync.awaitResume();
                 fn.invoke();
             } catch (Throwable e) {
-                e.printStackTrace();
-                // TODO Better exceptions
+                sync.putException(e);
             } finally {
                 sync.signalEnd();
             }
@@ -46,6 +49,17 @@ public class Coroutine {
         return sync.resume();
     }
 
+    /**
+     * 
+     * Waiter thread: Calls {@link #resume()} until nil is returned.<br>
+     * <br>
+     * 
+     * Coroutine thread: Initially calls {@link #awaitResume()}. Then calls
+     * {@link #putValueAndSleep(Object)}/{@link #putException(Throwable)} any number
+     * of times. Eventually calls {@link #signalEnd()} when corountine is complete.
+     * 
+     *
+     */
     public static final class CoroutineSync {
 
         private final ReentrantLock lock;
@@ -55,6 +69,7 @@ public class Coroutine {
         private Throwable exception;
         private Object resumedValue;
         private boolean isDone = false;
+        
         /**
          * Seems redundant but there's a race condition. If the first resume beats the
          * virtual thread calling #awaitResume the first time then the virt thread will
@@ -94,9 +109,10 @@ public class Coroutine {
                 lock.unlock();
             }
         }
-        
+
         /**
          * Put exception and set that coroutine is done.
+         * 
          * @param t
          */
         public void putException(Throwable t) {
@@ -120,15 +136,19 @@ public class Coroutine {
             }
         }
 
+        /**
+         * Waiter thread method to retrieve values. May block until coroutine has
+         * produced a value.
+         * 
+         * @return The next object that the coroutine yielded, or nil if the coroutine
+         *         has no values left and has exited.
+         * @throws InterruptedException   If interrupted while waiting.
+         * @throws PileExecutionException If the coroutine threw an uncaught exception.
+         */
         public Object resume() throws InterruptedException {
             lock.lock();
             try {
-                this.shouldResume.signal();
-                hasWaiter = true;
-                this.awaitingValue.await();
-                // TODO maybe call in finally?
-                hasWaiter = false;
-                // Could be a variety of states now
+                // Could be a variety of states at the end
 
                 // resumedValue nonNull, isDone = true
                 // coroutine thread put last value and exited
@@ -139,14 +159,35 @@ public class Coroutine {
                 // resumedValue null, exception nonNull, isDone = true
                 // exception thrown
 
+                if (isDone) {
+                    if (resumedValue != null) {
+                        var local = resumedValue;
+                        resumedValue = null;
+                        return local;
+                    }
+                    if (exception != null) {
+                        throw new PileExecutionException("Error while executing coroutine", exception);
+                    }
+                    return null;
+                }
+                this.shouldResume.signal();
+                hasWaiter = true;
+                try {
+                    this.awaitingValue.await();
+                } finally {
+                    hasWaiter = false;
+                }
+
                 if (resumedValue != null) {
                     var local = resumedValue;
                     resumedValue = null;
                     return local;
                 }
+
                 if (isDone) {
                     return null;
                 }
+
                 if (exception != null) {
                     throw new PileExecutionException("Error while executing coroutine", exception);
                 }
