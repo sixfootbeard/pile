@@ -8,9 +8,11 @@ import java.util.concurrent.locks.ReentrantLock;
 import pile.core.exception.PileExecutionException;
 import pile.core.exception.PileInternalException;
 
+import jdk.incubator.concurrent.ScopedValue;
+
 public class Coroutine {
 
-    public static final ThreadLocal<CoroutineSync> SYNC_LOCAL = new ThreadLocal<>();
+    public static final ScopedValue<CoroutineSync> SYNC_LOCAL = ScopedValue.newInstance();
 
     private final PCall fn;
     private final CoroutineSync sync;
@@ -26,15 +28,17 @@ public class Coroutine {
      */
     public void run() {
         Thread.startVirtualThread(() -> {
-            SYNC_LOCAL.set(sync);
-            try {
-                sync.awaitResume();
-                fn.invoke();
-            } catch (Throwable e) {
-                sync.putException(e);
-            } finally {
-                sync.signalEnd();
-            }
+            ScopedValue.where(SYNC_LOCAL, sync)
+                .run(() -> {
+                    try {
+                        sync.awaitResume();
+                        fn.invoke();
+                    } catch (Throwable e) {
+                        sync.putException(e);
+                    } finally {
+                        sync.signalEnd();
+                    }
+                });
         });
     }
 
@@ -90,7 +94,7 @@ public class Coroutine {
                 if (isDone) {
                     throw new IllegalStateException("Cannot await a completed couroutine");
                 }
-                if (!hasWaiter) {
+                if (! hasWaiter) {
                     this.shouldResume.await();
                 }
             } finally {
@@ -148,7 +152,18 @@ public class Coroutine {
         public Object resume() throws InterruptedException {
             lock.lock();
             try {
+                this.shouldResume.signal();
+                hasWaiter = true;
+                try {
+                    this.awaitingValue.await();
+                } finally {
+                    hasWaiter = false;
+                }
+
                 // Could be a variety of states at the end
+
+                // resumedValue nonNull, isDone = false
+                // coroutine thread put a value
 
                 // resumedValue nonNull, isDone = true
                 // coroutine thread put last value and exited
@@ -158,25 +173,6 @@ public class Coroutine {
 
                 // resumedValue null, exception nonNull, isDone = true
                 // exception thrown
-
-                if (isDone) {
-                    if (resumedValue != null) {
-                        var local = resumedValue;
-                        resumedValue = null;
-                        return local;
-                    }
-                    if (exception != null) {
-                        throw new PileExecutionException("Error while executing coroutine", exception);
-                    }
-                    return null;
-                }
-                this.shouldResume.signal();
-                hasWaiter = true;
-                try {
-                    this.awaitingValue.await();
-                } finally {
-                    hasWaiter = false;
-                }
 
                 if (resumedValue != null) {
                     var local = resumedValue;

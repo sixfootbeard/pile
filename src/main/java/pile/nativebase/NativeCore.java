@@ -37,6 +37,7 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
@@ -1869,8 +1870,10 @@ public class NativeCore {
              otherwise an IllegalStateException is thrown.
              """)
     public static void yield(Object o) throws InterruptedException {
-        CoroutineSync sync = Coroutine.SYNC_LOCAL.get();
-        if (sync == null) {
+        CoroutineSync sync;
+        try {
+            sync = Coroutine.SYNC_LOCAL.get();
+        } catch (NoSuchElementException e) {
             throw new IllegalStateException("Cannot yield; not in a coroutine.");
         }
         sync.putValueAndSleep(o);
