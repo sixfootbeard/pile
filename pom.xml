@@ -6,7 +6,7 @@
     <packaging>jar</packaging>
 
     <properties>
-        <asm.version>9.4</asm.version>
+        <asm.version>9.5</asm.version>
         <java.version>20</java.version>
         <project.inceptionYear>2022</project.inceptionYear>
         <project.organization.name>John Hinchberger</project.organization.name>
@@ -36,7 +36,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>30.1.1-jre</version>
+            <version>32.1.2-jre</version>
             <scope>test</scope>
         </dependency>
         <dependency>
