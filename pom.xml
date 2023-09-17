@@ -88,6 +88,8 @@
                                 <argument>-Dpile.aot=write</argument>
                                 <argument>-Dpile.aot.dir=${project.build.outputDirectory}</argument>
                                 <argument>--enable-preview</argument>
+                                <argument>--add-modules</argument>
+                                <argument>jdk.incubator.concurrent</argument>
                                 <argument>-classpath</argument>
                                 <classpath />
                                 <argument>pile.core.compiler.aot.AOTMain</argument>
@@ -122,6 +124,8 @@
                                 <argument>-Djava.library.path=target/lib</argument>
                                 <argument>-Dpile.aot=read</argument>
                                 <argument>--enable-preview</argument>
+                                <argument>--add-modules</argument>
+                                <argument>jdk.incubator.concurrent</argument>
                                 <argument>-cp</argument>
                                 <classpath />
                                 <argument>pile.core.compiler.aot.AOTMain</argument>
@@ -225,6 +229,8 @@
                     <release>${java.version}</release>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
+                        <arg>--add-modules</arg>
+                        <arg>jdk.incubator.concurrent</arg>
                     </compilerArgs>
                     <parameters>true</parameters>
                 </configuration>
@@ -234,7 +240,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M6</version>
                 <configuration>
-                    <argLine>--enable-preview</argLine>
+                    <argLine>--enable-preview --add-modules jdk.incubator.concurrent</argLine>
                 </configuration>
             </plugin>
             <plugin>
