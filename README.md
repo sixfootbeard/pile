@@ -29,6 +29,7 @@ NB. This project is still being developed and should currently only be used for 
 - [Static Typing (Optional)](#static-typing-optional)
 - Lazy Sequences
 - [Async/Await](#async-await)
+- [Coroutines](#coroutines)
 - [Java Interop](#java-interop)
 - [Streams](#streams)
 - [Functional Interface Integration](#functional-interface-integration)
@@ -472,6 +473,30 @@ Waiting for the completion of one of multiple results is accomplished by using t
 ```
 
 This await process is atomic and only one operation will succeed. 
+
+## Coroutines
+
+A coroutine can be created calling a particular function.  
+
+```clojure
+(defn call [] (prn "start!") (yield 1) (prn "middle") (yield 2) (prn "end"))
+*0: #'pile.repl/call
+pile.repl> (def c (coroutine call))
+*1: #'pile.repl/c
+pile.repl> (resume c)
+start!
+*2: 1
+pile.repl> (resume c)
+middle
+*3: 2
+pile.repl> (resume c)
+end
+;; Coroutine completed with no more values, so it returned nil after printing 'end'
+pile.repl> (resume c)
+pile.repl>
+```
+
+The function being called will initially be suspended but can be resumed and will execute until it yields a value, an exception is thrown or it naturally completes execution of the function.
 
 ## Destructuring
 
