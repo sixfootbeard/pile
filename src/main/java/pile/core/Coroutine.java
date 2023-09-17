@@ -5,7 +5,8 @@ import static java.util.Objects.*;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
-import pile.nativebase.NativeCore;
+import pile.core.exception.PileExecutionException;
+import pile.core.exception.PileInternalException;
 
 public class Coroutine {
 
@@ -51,13 +52,14 @@ public class Coroutine {
         private final Condition shouldResume;
         private final Condition awaitingValue;
 
+        private Throwable exception;
         private Object resumedValue;
         private boolean isDone = false;
         /**
          * Seems redundant but there's a race condition. If the first resume beats the
          * virtual thread calling #awaitResume the first time then the virt thread will
          * miss the signal on shouldResume and will block forever. The first call should
-         * only block if there's no waiters. 
+         * only block if there's no waiters.
          */
         private boolean hasWaiter = false;
 
@@ -73,7 +75,7 @@ public class Coroutine {
                 if (isDone) {
                     throw new IllegalStateException("Cannot await a completed couroutine");
                 }
-                if (! hasWaiter) {
+                if (!hasWaiter) {
                     this.shouldResume.await();
                 }
             } finally {
@@ -88,6 +90,21 @@ public class Coroutine {
                 this.resumedValue = val;
                 this.awaitingValue.signal();
                 this.shouldResume.await();
+            } finally {
+                lock.unlock();
+            }
+        }
+        
+        /**
+         * Put exception and set that coroutine is done.
+         * @param t
+         */
+        public void putException(Throwable t) {
+            lock.lock();
+            try {
+                isDone = true;
+                this.exception = t;
+                this.awaitingValue.signal();
             } finally {
                 lock.unlock();
             }
@@ -111,13 +128,30 @@ public class Coroutine {
                 this.awaitingValue.await();
                 // TODO maybe call in finally?
                 hasWaiter = false;
-                if (isDone) {
-                    return null;
-                } else {
+                // Could be a variety of states now
+
+                // resumedValue nonNull, isDone = true
+                // coroutine thread put last value and exited
+
+                // resumedValue null, isDone = true
+                // coroutine exited with no more values
+
+                // resumedValue null, exception nonNull, isDone = true
+                // exception thrown
+
+                if (resumedValue != null) {
                     var local = resumedValue;
                     resumedValue = null;
                     return local;
                 }
+                if (isDone) {
+                    return null;
+                }
+                if (exception != null) {
+                    throw new PileExecutionException("Error while executing coroutine", exception);
+                }
+                // shouldn't happen
+                throw new PileInternalException("Error handling coroutine values.");
             } finally {
                 lock.unlock();
             }

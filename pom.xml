@@ -157,6 +157,8 @@
                                 <argument>-XX:+UseZGC</argument>
                                 <argument>-classpath</argument>
                                 <classpath />
+                                <argument>--add-modules</argument>
+                                <argument>jdk.incubator.concurrent</argument>
                                 <argument>pile.repl.ReplMain</argument>
                             </arguments>
                             <!-- Will buffer too much unless this is on -->
