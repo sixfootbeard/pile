@@ -272,10 +272,11 @@ All interop calls support calling vararg functions seamlessly:
 ;; Interop calls
 (String/format "This %s or that %s" 1 "one") 
 ;; Interop + mixed type/arity/varargs
-(Paths/get "a")
-(Paths/get "a" "b")
+(import java.nio.file.Path)
+(Path/of "a")
+(Path/of "a" "b")
 (def file (new java.io.File "file.txt"))
-(Paths/get (-> file .toURI))
+(Path/of (-> file .toURI))
 ```
 
 ## Functional Interface Integration
