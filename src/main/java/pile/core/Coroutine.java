@@ -73,7 +73,7 @@ public class Coroutine {
         private Throwable exception;
         private Object resumedValue;
         private boolean isDone = false;
-        
+
         /**
          * Seems redundant but there's a race condition. If the first resume beats the
          * virtual thread calling #awaitResume the first time then the virt thread will
@@ -94,7 +94,7 @@ public class Coroutine {
                 if (isDone) {
                     throw new IllegalStateException("Cannot await a completed couroutine");
                 }
-                if (! hasWaiter) {
+                if (!hasWaiter) {
                     this.shouldResume.await();
                 }
             } finally {
@@ -152,6 +152,11 @@ public class Coroutine {
         public Object resume() throws InterruptedException {
             lock.lock();
             try {
+                if (isDone) {
+                    // Don't want to unconditionally await
+                    return null;
+                }
+
                 this.shouldResume.signal();
                 hasWaiter = true;
                 try {
@@ -179,7 +184,7 @@ public class Coroutine {
                     resumedValue = null;
                     return local;
                 }
-                
+
                 if (exception != null) {
                     throw new PileExecutionException("Error while executing coroutine", exception);
                 }
