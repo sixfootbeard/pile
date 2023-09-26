@@ -16,17 +16,21 @@
     (:refer pile.test pile.test.util))
 
 ;; Vector
-(is (= :a ([:b :a] 1)))
+(test "Vector Literal"
+  (is (= :a ([:b :a] 1))))
+
 
 ;; Keyword
 ;; Map Kw Base
-(is (= :a (:b {:b :a})))
-(is (= :c (:z {:b :a} :c)))
-(is (= nil (:z {:b :a})))
+(test "Keyword function"
+  (is (= :a (:b {:b :a})))
+  (is (= :c (:z {:b :a} :c)))
+  (is (= nil (:z {:b :a}))))
 
 ;; Bad Kw Base
-(is (= :c (:z [:b :a] :c)))
-(is (= nil (:z [:b :a]))) 
+(test "Keyword function - bad base"
+   (is (= :c (:z [:b :a] :c)))
+   (is (= nil (:z [:b :a])))) 
 
 
 
