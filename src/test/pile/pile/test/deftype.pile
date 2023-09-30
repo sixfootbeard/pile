@@ -25,58 +25,59 @@
     
 (def ti (new TwoIntf))    
     
-(test= "Overloaded methodname - string"
-    "a" (. ti foo "a"))
-(test= "Overloaded methodname - int"
-    "12" (. ti foo 12))    
+(test "Overloaded method"
+  (let [ti (new TwoIntf)]
+    (is (= "a" (. ti foo "a")))
+    (is (= "12" (. ti foo 12)))))
 
 ;; Primitive returns
 (deftype ImplPrimReturn []
     PrimitiveReturn
     (makeInt [this foo] 55))
-    
-(def ipr (new ImplPrimReturn))    
-(test= "Primitive integer return"
-    (to-int 55) (. ipr makeInt "ignored"))
+
+(test "Primitive integer return"
+  (let [ipr (new ImplPrimReturn)]
+    (is (= 55 (. ipr makeInt "ignored")))))
 
 ;; Primitive return - let
 (deftype ImplLetPrimReturn []
     PrimitiveReturn
     (makeInt [this foo]
         (let* [a 44] a)))               
-        
-(def ilpr (new ImplLetPrimReturn))    
-(test= ["PrimitiveReturn" "Let" "Int"]
-    (to-int 44) (. ilpr makeInt "ignored"))
+
+(test "Primitive integer return - let"
+  (let [iplr (new ImplLetPrimReturn)]
+    (is (= 44 (. iplr makeInt "ignored")))))
 
 ;; Primitive arguments (type hints)
 (deftype ImplPrimArg []
     PrimitiveArg
     (addsTwo [this arg] (+ arg 2)))
     
-(def ipa (new ImplPrimArg))    
-(test= ["PrimitiveArg" "Int"]
-    (to-int 52) (. ipa addsTwo 50))
+(test "Primitive method argument"
+  (let [ipa (new ImplPrimArg)]
+    (is (= (to-int 52) (. ipa addsTwo 50)))))
     
 ;; void returns    
 (import java.util.ArrayList)    
 (deftype ImplVoidArg []
     VoidReturn
-    (addString [this base arg] (. base add arg)))    
-(def void-fn (new ImplVoidArg))
-(def expected (new ArrayList))
-(. expected add "foo")
-(def to-add (new ArrayList))
-(. void-fn addString to-add "foo")   
-(test= ["VoidArg" "Base"]
-    expected to-add)  
+    (addString [this base arg] (. base add arg)))
+(test "Void Returns"
+  (let [void-fn (new ImplVoidArg)
+        expected (new ArrayList)
+        to-add (new ArrayList)]
+     (. expected add "foo")
+     (. void-fn addString to-add "foo")
+     (is (= expected to-add))))
 
 ;; varargs 
 (deftype VarIntf []
     VariadicInterface
     (call [this num & strs] (apply str num strs)))
-    
-(def vi (new VarIntf))
-(test= ["Variadic" "Interface" "Interop"]
-    "123abc" (. vi call 123 "a" "b" "c"))
+
+(test "Variadics"    
+  (let [vi (new VarIntf)]
+    (is (= "123abc" (. vi call 123 "a" "b" "c")))))
+
 

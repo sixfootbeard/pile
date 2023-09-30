@@ -25,25 +25,27 @@
 (defprotocol Dateable
   (to-date [this]))
 
-(is (empty? (extenders Dateable)))
-(is (not (satisfies? Dateable Integer)))
+(test "Protocol - default state"
+      (is (empty? (extenders Dateable)))
+      (is (not (satisfies? Dateable Integer))))
 				   
 (extend java.lang.Number
   Dateable
   (to-date [this] (new Date (. this longValue))))	
 
-(is (= [Number] (extenders Dateable)))
-(is (satisfies? Dateable 12))
-
-(is (= (new Date 12L) (to-date 12L)))
+(test "Single extension"
+      (is (= [Number] (extenders Dateable)))
+      (is (satisfies? Dateable 12))
+      (is (= (new Date 12L) (to-date 12L))))
 
 (deftype StringDate [s]
   Dateable
   (to-date [this] (to-date (Integer/valueOf s))))
 
-(let [sd (new StringDate "12")]
-  (is (satisfies? Dateable sd))
-  (is (= (new Date 12L) (to-date sd))))
+(test "Two extensions"
+  (let [sd (new StringDate "12")]
+    (is (satisfies? Dateable sd))
+    (is (= (new Date 12L) (to-date sd)))))
 
 ;; varargs
 (defprotocol StrAll
@@ -52,14 +54,16 @@
 (extend String
    StrAll
    (make-str [this & xs] (apply str this xs)))
-   
-(is (= "abcd" (make-str "a" "b" "c" "d")))
+
+(test "Varargs"   
+  (is (= "abcd" (make-str "a" "b" "c" "d"))))
 
 (extend-protocol StrAll
    Integer                 
    (make-str [this & xs] (apply str (+ this 12) xs)))
 
-(is (= "22bcd" (make-str 10 "b" "c" "d")))
+(test "Varargs - Primitives"
+  (is (= "22bcd" (make-str 10 "b" "c" "d"))))
 
 ;; defaults
 (defprotocol Extra
@@ -70,16 +74,18 @@
     Extra
     (make [this arg] (str "make-" arg)))
 
-(is (= "make-something" (make (new ExtraInstance) "something")))
-(is (= "make-something-extra" (make-extra (new ExtraInstance) "something")))
+(test "Defaule method impls"
+  (is (= "make-something" (make (new ExtraInstance) "something")))
+  (is (= "make-something-extra" (make-extra (new ExtraInstance) "something"))))
 
 ;; defaults + extends
 (extend Integer
   Extra
   (make [this arg] (str "integer!-" this)))
 
-(is (= "integer!-12" (make 12 "something")))
-(is (= "integer!-12-extra" (make-extra 12 "something")))
+(test "Default method extensions"
+  (is (= "integer!-12" (make 12 "something")))
+  (is (= "integer!-12-extra" (make-extra 12 "something"))))
 
 ;; prefs
 (defprotocol TestPref (pick [this]))
@@ -94,11 +100,10 @@
          MarkerOne
          MarkerTwo)
 
-(is (= "one" (pick (new Both))))
-
-(prefer-protocol TestPref MarkerTwo MarkerOne)
-
-(is (= "two" (pick (new Both))))
+(test "Preferences"
+  (is (= "one" (pick (new Both))))
+  (prefer-protocol TestPref MarkerTwo MarkerOne)
+  (is (= "two" (pick (new Both)))))
 
 ;; Narrow
 
@@ -111,5 +116,6 @@
         String
         (pick-str [this] "string"))
 
-(is (= "string" (pick-str "astr")))
-(is (= "cs" (pick-str (java.nio.CharBuffer/allocate 8))))
+(test "Multiple candidates - narrow"
+  (is (= "string" (pick-str "astr")))
+  (is (= "cs" (pick-str (java.nio.CharBuffer/allocate 8)))))
