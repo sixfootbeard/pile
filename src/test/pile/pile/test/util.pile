@@ -36,6 +36,9 @@
               (*notifier* :test-success ~msg))
           (catch Throwable t (*notifier* :test-failure ~msg t)))))
 
+(defmacro anon-test [& expr]
+  (apply test ~(gen-test-name) ~@expr))
+
 (defmacro is 
      ([syntax msg]
        `(if (do ~syntax)
