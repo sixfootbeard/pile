@@ -18,19 +18,22 @@
 (import (java.util List ArrayList))
 
 ;; Instances/Primitives
-(is (= Long (class (Number::longValue 12))))
-(is (= Short (class (Number::shortValue 12))))
+(test "Primitives"
+  (is (= Long (class (Number::longValue 12))))
+  (is (= Short (class (Number::shortValue 12)))))
 
 ;; Static/Varargs
-(is (= "abcd" (String::format "%sb%sd" "a" "c")))
-(is (= "abcd" (apply String::format "%sb%sd" ["a" "c"])))
+(test "Varargs"
+  (is (= "abcd" (String::format "%sb%sd" "a" "c")))
+  (is (= "abcd" (apply String::format "%sb%sd" ["a" "c"])))
+  (let [p (partial String::format "%sb%sd")]
+     (is (= "abcd" (p "a" "c")))))
 
-(let [p (partial String::format "%sb%sd")]
-     (is (= "abcd" (p "a" "c"))))
 
-(is (= [0 1 2 3 4 5] (apply List::of (range 6))))
-
+(test "Apply"
+  (is (= [0 1 2 3 4 5] (apply List::of (range 6)))))
 
 ;; Constructors
-(is (= [1 2 3] (ArrayList::new [1 2 3])))
+(test "Constructor"
+  (is (= [1 2 3] (ArrayList::new [1 2 3]))))
 

@@ -21,7 +21,8 @@
      f))
 
 
-(let [file (test-file)]
+(test "File APIs"
+  (let [file (test-file)]
    (is (exists? file))
    (is (file? file))
    (is (not (directory? file)))
@@ -36,4 +37,4 @@
    (let [w (writer file "utf8")]
      (write w "efgh")
      (flush w)
-     (= "abcdefgh" (read-all file "utf8"))))
+     (= "abcdefgh" (read-all file "utf8")))))

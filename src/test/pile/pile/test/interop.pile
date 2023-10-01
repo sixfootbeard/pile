@@ -18,20 +18,15 @@
 (import (pile.util PlainSuper PlainSub CallSuperSub))
 
 ;; Method type selection
-(def tbase (new CallSuperSub))
-
-(defn call-ss [^CallSuperSub base arg]
-    (. base callOne arg))
-(is (= "super" (call-ss tbase (new PlainSuper))))
-(is (= "sub" (call-ss tbase (new PlainSub)))
-   "Interop method call with Any-typed arg should dynamically choose method to call.")
-    
-(defn call-ss-typed [^CallSuperSub base ^PlainSuper arg]
-    (. base callOne arg))
-(is (= "super" (call-ss-typed tbase (new PlainSuper))))
-(is (= "super" (call-ss-typed tbase (new PlainSub)))
-    "Interop method call with explicit types should always choose that method")
-
+(test "Method Type Selection"
+  (let [tbase (new CallSuperSub)
+        call-ss (fn [^CallSuperSub base arg] (. base callOne arg))]
+    (is (= "super" (call-ss tbase (new PlainSuper))))
+    (is (= "sub" (call-ss tbase (new PlainSub))) "Interop method call with Any-typed arg should dynamically choose method to call."))
+  (let [tbase (new CallSuperSub)
+        call-ss-typed (fn [^CallSuperSub base ^PlainSuper arg] (. base callOne arg))]
+    (is (= "super" (call-ss-typed tbase (new PlainSuper))))
+    (is (= "super" (call-ss-typed tbase (new PlainSub))) "Interop method call with explicit types should always choose that method")))
 
 (import (pile.util VariadicConstructor VariadicMethod))
 
@@ -41,116 +36,83 @@
 (import (pile.util StringConstructor))
 (import (pile.nativebase.method PileInvocationException))
 
-(test= "Simple constructor eval failed"
-       "abcd" (.getS (new StringConstructor "abcd")))
+(test "Constructor - Simple argument"
+   (is (= "abcd" (.getS (new StringConstructor "abcd")))))
 
-(test= "Null argument constructor eval failed"
-       nil (.getS (new StringConstructor nil)))
+(test "Constructor - Null argument"
+   (is (= nil (.getS (new StringConstructor nil)))))
 
-(testFail "Constructor called with the wrong type"
-          PileInvocationException
-          (new StringConstructor 12))
+(test "Constructor - Types"
+   (expect-fail "Call to constructor should throw when the wrong types are presented"
+                PileInvocationException
+                (new StringConstructor 12)))
 
 
-;; Variadics
-;; Eval
-(def vcev (new VariadicConstructor 15 "foos" "bars"))
-(test= "Evaluating variadic constructor failed with 2 args"
-    ["foos" "bars"] (. vcev getBars))
-
-(def vcev-one (new VariadicConstructor 15 "foos"))
-(test= "Evaluating variadic constructor failed with 1 arg"
-    ["foos"] (. vcev-one getBars))
-
-(def vcev-empty (new VariadicConstructor 15))
-(test= "Evaluating variadic constructor failed with no args"
-    [] (. vcev-empty getBars))
-
-;; Compile    
-(defn call-vcev [] (new VariadicConstructor 15 "baz" "bat"))
-(test= "Calling compiled variadic constructor failed with 2 args"
-    ["baz" "bat"] (. (call-vcev) getBars))
-
-(defn call-vcev-one [] (new VariadicConstructor 15 "baz"))
-(test= "Calling compiled variadic constructor failed with 1 arg"
-    ["baz"] (. (call-vcev-one) getBars))
-
-(defn call-vcev-empty [] (new VariadicConstructor 15))    
-(test= "Calling compiled variadic constructor failed with no args"
-    [] (. (call-vcev-empty) getBars))
+(test "Constructor - Variadics"
+  (each-form
+    (let [c (new VariadicConstructor 15 "foos" "bars")]
+      (is (= ["foos" "bars"] (. c getBars))))
+    (let [c (new VariadicConstructor 15 "foos")]
+      (is (= ["foos"] (. c getBars))))
+    (let [c (new VariadicConstructor 15)]
+      (is (= [] (. c getBars))))))
     
-    
-;; Methods
-;; Eval Instance Variadics
-(def var-class (new VariadicMethod))
-(test= ["Method" "Eval" "Variadic" "Instance"]
-    ["foo" "bar"] (. var-class capture 12 "foo" "bar"))
-    
-;; Variadics    
-(defn var-class-meth [] 
-    (. var-class capture 12 "baz" "bat"))
-(test= ["Method" "Compile" "Variadic"]
-    ["baz" "bat"] (var-class-meth))
-(defn typed-var-class-meth [^VariadicMethod base] 
-    (. base capture 12 "baz" "bat"))
-(test= ["Method" "Compile" "Variadic" "Typed"]
-    ["baz" "bat"] (typed-var-class-meth var-class))
-    
-(test= ["Method" "Eval" "Variadic" "Static"]
-    ["foo" "bar"] (. VariadicMethod staticCapture 12 "foo" "bar"))    
-(defn var-static-meth []
-    (. VariadicMethod staticCapture 12 "foo" "bar"))
-(test= ["Method" "Compile" "Variadic" "Static"]
-    ["foo" "bar"] (var-static-meth))      
+(test "Method - Variadic"
+  (let [var-class (new VariadicMethod)]
+    (each-form 
+      (is (= ["foo" "bar"] (. var-class capture 12 "foo" "bar"))))
+    (let [f (fn [^VariadicMethod base] (. base capture 12 "baz" "bat"))]
+      (each-form 
+        (is (= ["baz" "bat"] (f var-class)))))))
 
-;; proxy
-
-(def p (proxy [pile.core.Value] {"getValue" (fn [] "fooz")})) 
-(test= ["Proxy" "Call"]
-    "fooz" (. p getValue))
-    
-
+(test "Proxy - call"
+  (let [p (proxy [pile.core.Value] {"getValue" (fn [] "fooz")})]
+    (is (= "fooz" (. p getValue)))))
 
 ;; adapt ~# 
 (import java.util.ArrayList)
-(def input (new ArrayList))
-(.add input 1)
-(.replaceAll input ~#inc)
-(test= 2 (.get input 0))
+(test "Adapt Syntax - Symbol"
+  (each-form
+    (let [input (new ArrayList)]
+      (.add input 1)
+      (.replaceAll input ~#inc)
+      (is (= 2 (.get input 0))))))
 
-(defn inc-all [^ArrayList l] (.replaceAll l ~#inc))
-(inc-all input)
-(test= 3 (.get input 0))
+(test "Adapt Syntax - Sexpr"
+  (each-form
+    (let [input (new ArrayList)]
+      (.add input 1)
+      (.replaceAll input ~#(str "item " %0))      
+      (is (= "item 1" (.get input 0))))))
 
-(.replaceAll input ~#(str "item " %0))
-(test= "item 3" (.get input 0))
+(test "Adapt Syntax - propagated type"
+  (let [input (new ArrayList)
+        f (fn [^ArrayList l] (.replaceAll l ~#(str %0 "!")))]
+    (.add input 1)
+    (f input)
+    (is (= "1!" (.get input 0)))))
 
-(defn replace-test [^ArrayList l] (.replaceAll l ~#(str %0 "!")))
-(replace-test input)
-(test= "item 3!" (.get input 0))
-
-(defn replace-test-cl [^ArrayList l a] (.replaceAll l ~#(str %0 a)))
-(replace-test-cl input "one")
-
-(test= "item 3!one" (.get input 0))
+(test "Adapt Syntax - sexpr closure"
+  (let [input (new ArrayList)
+        f (fn [^ArrayList l a] (.replaceAll l ~#(str %0 a)))]
+    (.add input 1)
+    (f input "one")
+    (is (= "1one" (.get input 0)))))
 
 (import (pile.util VarArgFunctional AcceptsVarArgFunctional))
 
 ;; adapt ~# - varargs
-(let [base (new AcceptsVarArgFunctional)]
-     (is (= "12abc" (.call base ~#str 12 "a" "b" "c")))
-     (is (= "12abc" (.call base ~#(apply str %0 %1) 12 "a" "b" "c"))))
-
-(let [base (new AcceptsVarArgFunctional)
-      symfn (fn [^AcceptsVarArgFunctional base] (.call base ~#str 12 "a" "b" "c"))
-      anonfn (fn [^AcceptsVarArgFunctional base] (.call base ~#(apply str %0 %1) 12 "a" "b" "c"))]
-     (is (= "12abc" (symfn base)))
-     (is (= "12abc" (anonfn base))))
+(test "Adapt Syntax - varargs"
+  (each-form
+    (let [base (new AcceptsVarArgFunctional)]
+      (is (= "12abc" (.call base ~#str 12 "a" "b" "c")))
+      (is (= "12abc" (.call base ~#(apply str %0 %1) 12 "a" "b" "c"))))))
 
 ;; Generics
 
 (import (pile.util PublicGeneric))
 
 (test "Generic supertype"
-      (let [v (PublicGeneric.)]
-           (.add v "12")))
+   (let [v (PublicGeneric.)]
+        (.add v "12")))
+
