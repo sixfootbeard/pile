@@ -22,6 +22,6 @@ import pile.core.TestNamespace;
 
 @RunWith(NativeTestRunner.class)
 @TestNamespace("pile.test.firstclassfunction")
-public class FirstClassFunctionTest {
+public class NativeFirstClassFunctionTest {
 
 }

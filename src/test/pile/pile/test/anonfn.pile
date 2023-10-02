@@ -15,22 +15,20 @@
 (ns pile.test.anonfn
     (:refer pile.test pile.test.util))
            
-(test= ["AnonFn" "Eval"]
-    "ab" (#(str %0 %1) "a" "b"))
+(test "Two Argument"
+  (each-form 
+    (is (= "ab" (#(str %0 %1) "a" "b")))))
+
+(test "Nested Arguments"
+   (let [nested-add (fn [a] (#(+ 1 (+ 3 %)) a))]
+     (is (= 6 (nested-add 2)))))    
     
-(defn foo [a b] (#(str %0 %1) a b))
+(test "Map Argument"
+  (is (= {:a :b} (#(let [m {:a %}] m) :b))))
+
+(test "Set Argument"
+  (is (= #{:b} (#(let* [m #{%}] m) :b))))
     
-(test= ["AnonFn" "Compile"]
-    "ab" (foo "a" "b"))
-    
-(defn nested-add [a] (#(+ 1 (+ 3 %)) a))
-    
-(test= ["AnonFn" "Compile" "Nested"]
-    6 (nested-add 2))            
-    
-(test= ["AnonFn" "Map"]
-    {:a :b} (#(let [m {:a %}] m) :b))    
-(test= ["AnonFn" "Set"]
-    #{:b} (#(let* [m #{%}] m) :b))
-(test= ["AnonFn" "Vec"]
-    [:a :b] (#(let* [m [:a %]] m) :b))   
+(test "Vector Argument"
+  (is [:a :b] (#(let* [m [:a %]] m) :b)))
+   

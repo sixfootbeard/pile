@@ -19,6 +19,6 @@
     (try 
         (throw (new RuntimeException "ex"))
         (catch Exception e (str a b))))
-        
-(test= ["TryCatch" "Compile"]
-    "foobar" (ex "foo" "bar"))
+
+(test "Try/Catch Compile"
+  (is (= "foobar" (ex "foo" "bar"))))

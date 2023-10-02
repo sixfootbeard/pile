@@ -15,106 +15,85 @@
 (ns pile.test.stdlib
     (:refer pile.test pile.test.util))
 
-;; Reference checks
-(let* [a (new String "a")
-       as (new String "a")]
+(test "same?"
+  (let* [a (new String "a")
+         as (new String "a")]
     (is (same? a a))
     (is (not (same? a as)))
-    (is (same? nil nil)))
+    (is (same? nil nil))))
            
-;; Instance checks
-(is (string? "str"))
-(is (not (string? 12)))
-(is (not (string? nil)))
+(test "string?"
+  (is (string? "str"))
+  (is (not (string? 12)))
+  (is (not (string? nil))))
 
-;; seq
-#_(is (= (seq [[:a :b] [:c :d]]) (seq {:a :b :c :d})))
+(test "int?"
+  (is (int? 1) "Wrong default numeric literal type") 
+  (is (not (int? "str")))
+  (is (not (int? nil))))
 
-;; Numbers
-(is (int? 1) "Wrong default numeric literal type") 
-(is (not (int? "str")))
-(is (not (int? nil)))
+(test "long?"
+  (is (not (long? "str")))
+  (is (long? (to-long 12)))
+  (is (not (long? nil))))
 
-(is (not (long? "str")))
-(is (long? (to-long 12)))
-(is (not (long? nil)))    
+(test "conj - list"
+  (is (list :a) (conj (list) :a))   
+  (is (list :a :b) (conj (list :b) :a))     
+  (is (list :a :b) (conj (list) :b :a))     
+  (is (list :a) (conj nil :a)))
 
-;; conj
-(is (list :a) (conj (list) :a))   
-(is (list :a :b) (conj (list :b) :a))     
-(is (list :a :b) (conj (list) :b :a))     
-(is (list :a) (conj nil :a))
+(test "conj - map"
+  (is (= {:a :b}
+         (conj {} [:a :b])))
+  (is (= {:a :b :c :d}
+         (conj {:a :b} [:c :d])))    
+  (is (= {:a :b :c :d :e :f}
+         (conj {:a :b :c :d} [:e :f]))))
 
-;; Conj map
-(is (= {:a :b}
-       (conj {} [:a :b])))
-(is (= {:a :b :c :d}
-       (conj {:a :b} [:c :d])))    
-(is (= {:a :b :c :d :e :f}
-       (conj {:a :b :c :d} [:e :f])))
-
-;; get
-
-;; Map
-(is (= :a (get {:b :a} :b)))
-(is (= nil (get {:b :a} :z)))
-(is (= :c (get {:b :a} :z :c)))
+(test "get - map base"
+  (is (= :a (get {:b :a} :b)))
+  (is (= nil (get {:b :a} :z)))
+  (is (= :c (get {:b :a} :z :c))))
     
-;; Vec
-(is (= :a (get [:b :a] 1)))    
-(is (= :c (get [:b :a] :z :c))) 
-(is (= nil (get [:b :a] :z)))    
+(test "get - vector base"
+  (is (= :a (get [:b :a] 1)))    
+  (is (= :c (get [:b :a] :z :c))) 
+  (is (= nil (get [:b :a] :z))))
 
-;; Bad Base
-(is (= nil (get 1 :b)))
-(is (= :z (get 1 :b :z)))
+(test "get - base base"
+  (is (= nil (get 1 :b)))
+  (is (= :z (get 1 :b :z))))
 
 ;; keyword
-(is (= :c (keyword "c")))
-(is (= :a/c (keyword "a" "c")))
+(test "keyword"
+  (is (= :c (keyword "c")))
+  (is (= :a/c (keyword "a" "c"))))
        
-;; KW Compiled
-(defn simple-base [] (:a {:a :b}))
-(defn simple-base-default [] (:a {:a :b} :z))
-(defn simple-base-default-used [] (:a {:b :c} :z))
-(defn bad-base [] (:a "bad"))
-(defn bad-base-default [] (:a "bad" :z))
-(defn dynamic-base [a] (:a a))
-(defn dynamic-base-default [a] (:a a :z))
-(defn dynamic-cs [k a] (k a))
-(defn dynamic-cs-default [k a] (k a :z))
+(test "keyword - linking"
+  (each-form (is (= :b (:a {:a :b}))))
+  (each-form (is (= :b (:a {:a :b} :z))))
+  (each-form (is (= :z (:a {:b :c} :z))))
+  (each-form (is (= nil (:a "bad"))))
+  (each-form (is (= :z (:a "bad" :z))))
 
-(test= "KeywordCompiled" 
-    :b (simple-base))
-(test= "KeywordCompiledDefault" 
-    :b (simple-base-default))
-(test= "KeywordCompiledDefaultUsed" 
-    :z (simple-base-default-used))
-(test= "KeywordCompiledBadBase" 
-    nil (bad-base))
-(test= "KeywordCompiledBadBaseDefault" 
-    :z (bad-base-default))
-(test= "KeywordCompiledDynamicBase" 
-    :b (dynamic-base {:a :b}))
-(test= "KeywordCompiledDynamicBaseNotFound" 
-    nil (dynamic-base {:b :c}))
-(test= "KeywordCompiledDynamicBaseDefaultFound" 
-    :b (dynamic-base-default {:a :b}))
-(test= "KeywordCompiledDynamicBaseDefaultNotFound" 
-    :z (dynamic-base-default {:b :c}))
-(test= "KeywordCompiledDynamicBaseBad" 
-    nil (dynamic-base "foo"))
-(test= "KeywordCompiledDynamicBaseBadDefaultFound" 
-    :z (dynamic-base-default "foo"))
-(test= "KeywordCompiledDynamicCs" 
-    :b (dynamic-cs :a {:a :b}))
-(test= "KeywordCompiledDynamicCsMissing" 
-    nil (dynamic-cs :a {:b :c}))    
-(test= "KeywordCompiledDynamicCsDefault" 
-    :b (dynamic-cs-default :a {:a :b}))    
-(test= "KeywordCompiledDynamicCsDefaultMissing" 
-    :z (dynamic-cs-default :a {:b :c}))
+  (let [f (fn [a] (:a a))]
+     (each-form (is (= :b (f {:a :b}))))
+     (each-form (is (= nil (f {:b :c}))))
+     (each-form (is (= nil (f "foo")))))
+  (let [f (fn [a] (:a a :z))]
+     (each-form (is (= :b (f {:a :b}))))
+     (each-form (is (= :z (f {:b :c}))))
+     (each-form (is (= :z (f "foo")))))
 
+  (let [f (fn [k a] (k a))]
+     (each-form (is (= :b (f :a {:a :b}))))
+     (each-form (is (= nil (f :a {:b :c}))))
+     (each-form (is (= nil (f :a "foo")))))
+  (let [f (fn [k a] (k a :z))]
+     (each-form (is (= :b (f :a {:a :b}))))
+     (each-form (is (= :z (f :a {:b :c}))))
+     (each-form (is (= :z (f :a "foo"))))))
 
 ;; Apply
 ;; ========
@@ -125,144 +104,116 @@
 ;; - Symbol type: Namespace-resolved/opaque
 ;; - Stack/Arg size difference: eg. whether the target method has the same, more or less args
 
-;; Eval, Native, JavaVargArgs, NRS, _
-(is (= [1 2 3] (apply vector 1 2 [3])))
-
-;; Eval, Native, JavaVargArgs, Opaque, _
-(let [tfn vector]
-     (is (= [1 2 3] (apply tfn 1 2 [3]))))
-
-;; Compile, Native, JavaVargArgs, NRS, _
-(defn applyCompiled [a] (apply vector 1 2 [a]))
-(is (= [1 2 3] (applyCompiled 3)) "Compile apply targeting native/java varargs/nrs failed.")
-
-;; Compile, Native, JavaVargArgs, Opaque, _
-(defn applyCompiledOpaque [tfn a] (apply tfn 1 [a]))
-(is (= [1 2] (applyCompiledOpaque vector 2)) "Compile apply targeting native/java varargs/opaque failed.")
-(is (= "12" (applyCompiledOpaque str 2)) "Compile apply targeting native/java varargs/opaque failed.")
-
-;; Compile, Native, Plain, Opaque, _
-(is (= 5 (applyCompiledOpaque + 4)))
-
-;; Eval, Native, Plain, NRS, _
-(is (= :a (apply keyword ["a"])))
-(is (= :a/b (apply keyword "a" ["b"])))
-(is (= :a/b (apply keyword ["a" "b"])))
-
-;; Eval, Native, Plain, Opaque, _
-(let [tfn keyword]
+(test "apply - native methods"
+  ;; _, Native, JavaVargArgs, NRS, _
+  (each-form (is (= [1 2 3] (apply vector 1 2 [3]))))
+  (let [tfn vector]
+     (is (= [1 2 3] (apply tfn 1 2 [3])) "apply - eval/native/java-varargs/opaque."))
+  (let [f (fn [func a] (apply func 1 2 [a]))]
+     (is (= [1 2 3] (f vector 3)) "apply - compile/native/java-varargs/opaque.")
+     (is (= "123" (f str 3)) "apply - compile/native/plain/opaque."))
+  ;; Eval, Native, Plain, NRS, _
+  (is (= :a (apply keyword ["a"])))
+  (is (= :a/b (apply keyword "a" ["b"])))
+  (is (= :a/b (apply keyword ["a" "b"])))
+  (is (= :a/b (apply keyword "a" "b" [])))
+  ;; Eval, Native, Plain, Opaque, _
+  (let [tfn keyword]
      (is (= :a (apply tfn ["a"]))))
-
-;; Compile, Native, Plain, NRS, _
-(defn apply-keyword [t] (apply keyword t))
-(is (= :a (apply-keyword ["a"])))
-(is (= :a/b (apply-keyword ["a" "b"])))
-
-;; Eval, Compiled, PileVarArgs, NRS, _
-(defn tconj [a & b] (conj b a))
-(is (= '(1 2 3) (apply tconj [1 2 3])))
-(is (= '(1 2 3) (apply tconj 1 [2 3])))
-(is (= '(1 2 3) (apply tconj 1 2 [3])))
-(is (= '(1 2 3) (apply tconj 1 2 3 [])))
-
-;; Compiled, Compiled, PileVarArgs, NRS, _
-(defn call-conj-one [] (apply tconj [1 2 3]))       
-(defn call-conj-two [] (apply tconj 1 [2 3]))       
-(defn call-conj-three [] (apply tconj 1 2 [3]))
-(defn call-conj-four [] (apply tconj 1 2 3 []))
-
-(is (= '(1 2 3) (call-conj-one)))
-(is (= '(1 2 3) (call-conj-two)))
-(is (= '(1 2 3) (call-conj-three)))
-(is (= '(1 2 3) (call-conj-four)))
+  ;; Compile, Native, Plain, NRS, _
+  (let [apply-keyword (fn [t] (apply keyword t))]
+    (is (= :a (apply-keyword ["a"])))
+    (is (= :a/b (apply-keyword ["a" "b"])))))
 
 
 
-;; end apply
+(test "apply - compiled methods"
+  ;; Eval, Compiled, PileVarArgs, NRS, _
+  (defn tconj [a & b] (conj b a))
+  (is (= '(1 2 3) (apply tconj [1 2 3])))
+  (is (= '(1 2 3) (apply tconj 1 [2 3])))
+  (is (= '(1 2 3) (apply tconj 1 2 [3])))
+  (is (= '(1 2 3) (apply tconj 1 2 3 [])))
 
-(defn ^:final return-vec [a b c d] [a b c d])
-(defn af [] (apply return-vec 1 [2 3 4]))
+  ;; Compiled, Compiled, PileVarArgs, NRS, _
+  (defn call-conj-one [] (apply tconj [1 2 3]))       
+  (defn call-conj-two [] (apply tconj 1 [2 3]))       
+  (defn call-conj-three [] (apply tconj 1 2 [3]))
+  (defn call-conj-four [] (apply tconj 1 2 3 []))
+
+  (is (= '(1 2 3) (call-conj-one)))
+  (is (= '(1 2 3) (call-conj-two)))
+  (is (= '(1 2 3) (call-conj-three)))
+  (is (= '(1 2 3) (call-conj-four)))
+  
+  ;; TODO More apply tests
+)
+
 
 ;; while           
 (import java.util.concurrent.atomic.AtomicInteger)
-(def aint (new AtomicInteger))
-(while (< (. aint incrementAndGet) 10))
-(test= ["While" "NoBody"]
-    10 (. aint get))
-    
-(def bint (new AtomicInteger))
-(def cint (new AtomicInteger (to-int 10)))
-(while (< (. bint incrementAndGet) 10) (. cint incrementAndGet))
-(test= ["While" "Body"]
-    19 (. cint get))  
-    
-(defn while-comp [limit]
-    (let* [idx (new AtomicInteger)]
-        (do 
-            (while (< (. idx get) limit)))
-            (. idx get)))    
+(test "while"
+  (let [aint (new AtomicInteger)]
+    (while (< (. aint incrementAndGet) 10))
+    (is (= 10 (. aint get)))))
+(test "while - body"
+  (let [bint (new AtomicInteger)
+        cint (new AtomicInteger (to-int 10))]
+    (while (< (. bint incrementAndGet) 10) (. cint incrementAndGet))
+    (is (= 19 (. cint get)))))
 
-#_(test= ["While" "No-body" "Compile"]
-    10 (while-comp 10))  
-
-(def vrange [0 1 2 3 4 5])
-(test= ["Subvector"]
-    [1 2] (subvec vrange 1 3)) 
-(test= ["Subvector" "Ref"]
-    [3] (subvec (subvec vrange 3 5) 0 1))    
-(test= ["Subvector" "Empty"]
-    [] (subvec vrange 1 1))     
-(testFail ["Subvector" "BadIndex"]
-    IllegalArgumentException
-    (subvec vrange 3 1)) 
-
+(test "subvec"
+  (let [vrange [0 1 2 3 4 5]]
+    (is (= [1 2] (subvec vrange 1 3)))
+    (is (= [3] (subvec (subvec vrange 3 5) 0 1)))
+    (is (= [] (subvec vrange 1 1)))
+    (expect-fail "subvec bad index should fail"
+                 IllegalArgumentException
+                 (subvec vrange 3 1))))    
+ 
 (defn prepend [c] #(str c %))
 
 ;; Comp
-(is (= "ab" ((prepend "a") "b")))
+(test "comp"
+  (is (= "ab" ((prepend "a") "b")))
+  (let [part (comp (prepend "b") (prepend "a"))]
+    (each-form (is (= "bax" (part "x"))))
+    (let [part-c (comp (prepend "c") part)]
+        (each-form (is (= "cbax" (part-c "x")))))))
 
-(def part (comp (prepend "b") (prepend "a")))
-(test= "bax" (part "x"))
-(defn call-part [a] (part a))
-(test= "bay" (call-part "y"))
+(test "Destructuring - sequential"
+  (let [fn-desc (fn [[[a] b] c] [a b c])
+        loop-desc (fn [c] (loop [[a b] c] [a b]))]
+       (is (= [1 2 3] (fn-desc [[1] 2] 3)))
+       (is (= [1 2] (loop-desc [1 2])))
+       (is (= [1 2 3] (let [[[a b] c] [[1 2] 3]]
+                         [a b c])))))
 
-(def part-c (comp (prepend "c") part))
-(test= "cbax" (part-c "x"))
-(defn call-part-c [a] (part-c a))
-(test= "cbay" (call-part-c "y"))
-
-;; Destructure (sequential)
-(let [fn-desc (fn [[[a] b] c] [a b c])
-      loop-desc (fn [c] (loop [[a b] c] [a b]))]
-     (is (= [1 2 3] (fn-desc [[1] 2] 3)))
-     (is (= [1 2] (loop-desc [1 2])))
-     (is (= [1 2 3] (let [[[a b] c] [[1 2] 3]]
-                       [a b c]))))
-
-;; destructure (assoc)
-(let [two-args (fn [{a :a b :b}] [a b])
-      two-default (fn [{a :a b :b :or {a "amiss" b "bmiss"}}] [a b])
-      two-keys (fn [{:keys [a b]}] [a b])
-      as-fn (fn [{a :a b :b :as full}] full)]
-       (is (= [1 2] (two-args {:a 1 :b 2})))
-       (is (= [1 nil] (two-args {:a 1})))
-       (is (= [nil 2] (two-args {:b 2})))
-       (is (= [nil nil] (two-args {})))
+(test "Destructuring - associative"
+  (let [two-args (fn [{a :a b :b}] [a b])
+        two-default (fn [{a :a b :b :or {a "amiss" b "bmiss"}}] [a b])
+        two-keys (fn [{:keys [a b]}] [a b])
+        as-fn (fn [{a :a b :b :as full}] full)]
+         (is (= [1 2] (two-args {:a 1 :b 2})))
+         (is (= [1 nil] (two-args {:a 1})))
+         (is (= [nil 2] (two-args {:b 2})))
+         (is (= [nil nil] (two-args {})))
        
-       (is (= [1 2] (two-default {:a 1 :b 2})))
-       (is (= [1 "bmiss"] (two-default {:a 1})))
-       (is (= ["amiss" 2] (two-default {:b 2})))
-       (is (= ["amiss" "bmiss"] (two-default {})))
+         (is (= [1 2] (two-default {:a 1 :b 2})))
+         (is (= [1 "bmiss"] (two-default {:a 1})))
+         (is (= ["amiss" 2] (two-default {:b 2})))
+         (is (= ["amiss" "bmiss"] (two-default {})))
 
-       (is (= [1 2] (two-keys {:a 1 :b 2})))
-       (is (= [1 nil] (two-keys {:a 1})))
-       (is (= [nil 2] (two-keys {:b 2})))
-       (is (= [nil nil] (two-keys {})))
+         (is (= [1 2] (two-keys {:a 1 :b 2})))
+         (is (= [1 nil] (two-keys {:a 1})))
+         (is (= [nil 2] (two-keys {:b 2})))
+         (is (= [nil nil] (two-keys {})))
 
-       (is (= {:a 1 :b 2} (as-fn {:a 1 :b 2}))))
+         (is (= {:a 1 :b 2} (as-fn {:a 1 :b 2})))))
 
 ;; case
-(let [case-fn (fn [a]
+(test "case - compile"
+  (let [case-fn (fn [a]
                   (case a
                         1 "one"
                         5L "five"
@@ -272,11 +223,12 @@
      (is (= "vec-one-two" (case-fn [1 2])))
      (is (= "five" (case-fn 5L)))
      (is (= "five" (case-fn 5)))
-     (is (= :default (case-fn :no-match))))
+     (is (= :default (case-fn :no-match)))))
 
-(is (= :a (case :b :b :a)))
-(is (= :a (case :b :b :a :default)))
-(is (= :default (case :z :b :a :default)))
+(test "case - eval"
+  (is (= :a (case :b :b :a)))
+  (is (= :a (case :b :b :a :default)))
+  (is (= :default (case :z :b :a :default))))
 
 ;; cond
 (defn tcomp [a]
@@ -284,134 +236,137 @@
             (> a 0) :gt
             :else :eq))
 
-(is (= :eq (tcomp 0)))
-(is (= :lt (tcomp -1)))
-(is (= :gt (tcomp 1)))
+(test "cond"
+  (is (= :eq (tcomp 0)))
+  (is (= :lt (tcomp -1)))
+  (is (= :gt (tcomp 1))))
 
 ;; condp
 (defn tcondp [a]
       (condp > a 1000 "Biggest" 100 "Bigger" 0 "Small"))
 
-(testFail "condp exception" IllegalArgumentException (tcondp -1))
-(is (= (tcondp 1) "Small"))
-(is (= (tcondp 101) "Bigger"))
-(is (= (tcondp 1001) "Biggest"))
-;; TODO Throws
-
-
-
+(test "condp"
+  (is (= (tcondp 1) "Small"))
+  (is (= (tcondp 101) "Bigger"))
+  (is (= (tcondp 1001) "Biggest"))
+  (expect-fail "condp exception" IllegalArgumentException (tcondp -1)))
 
 ;; Tracking changes in references in other namespaces
 (ns pile.test.a)
 (def tracked 1)
 (ns pile.test.stdlib)
 (refer pile.test.a)
-(is (= 1 tracked))
+(anon-test (is (= 1 tracked)))
 (in-ns pile.test.a)
 (def tracked 5)
 (in-ns pile.test.stdlib)
-(is (= 5 tracked))
+(test "tracking changed references" (is (= 5 tracked)))
 
 ;; Ensure defs of already resolved syms don't conflict
 (ns pile.test.b)
 (def tracked 5)
 (ns pile.test.stdlib)
 (refer pile.test.b)
-(is (= 5 tracked))
+(anon-test (is (= 5 tracked)))
 (defn trfn [] tracked)
-(is (= 5 (trfn)))
+(anon-test (is (= 5 (trfn))))
 (def tracked 11)
-(is (= 11 tracked))
+(test "Symbol tracking - overwrite" (is (= 11 tracked)))
 ;; compiled function refers to pile.test.b/tracked, *not* pile.test.stdlib/tracked
-(is (= 5 (trfn)))
+(test "Symbol tracking - previous reference" (is (= 5 (trfn))))
 
 (test "Should be able def methods matching refer'd methods"
       (defn get [] "get"))
 
-(is (= true (any? #(> % 10) [0 11 4])))
-(is (= true (any? #(> % 10) [11 4 0])))
-(is (= true (any? #(> % 10) [0 4 11])))
+(test "any?"
+  (is (= true (any? #(> % 10) [0 11 4])))
+  (is (= true (any? #(> % 10) [11 4 0])))
+  (is (= true (any? #(> % 10) [0 4 11])))
 
-(is (= false (any? #(> % 10) [0 4])))
-(is (= false (any? #(> % 10) [4 0])))
+  (is (= false (any? #(> % 10) [0 4])))
+  (is (= false (any? #(> % 10) [4 0])))
 
-(is (= false (any? #(> % 10) [])))
+  (is (= false (any? #(> % 10) []))))
 
-(is (= true (all? #(> % 10) [11 12 13])))
-(is (= true (all? #(> % 10) [13])))
+(test "all?"
+  (is (= true (all? #(> % 10) [11 12 13])))
+  (is (= true (all? #(> % 10) [13])))
 
-(is (= false (all? #(> % 10) [5 13])))
-(is (= false (all? #(> % 10) [13 5])))
+  (is (= false (all? #(> % 10) [5 13])))
+  (is (= false (all? #(> % 10) [13 5])))
 
-(is (= true (all? #(> % 10) [])))
+  (is (= true (all? #(> % 10) []))))
 
-(is (= nil (seq (enumerate []))))
-(is (= (seq [[0 1]]) (seq (enumerate [1]))))
-(is (= (seq [[0 "a"] [1 "b"]]) (seq (enumerate ["a" "b"]))))
+(test "enumerate"
+  (is (= nil (seq (enumerate []))))
+  (is (= (seq [[0 1]]) (seq (enumerate [1]))))
+  (is (= (seq [[0 "a"] [1 "b"]]) (seq (enumerate ["a" "b"])))))
 
-;; str, indirectly to prevent optimization
-(let [no-arg (fn [f] (f))
-      one-arg (fn [f] (f "a"))
-      two-arg (fn [f] (f "b" "c"))]
-   (is (= "" (no-arg str)))
-   (is (= "a" (one-arg str)))
-   (is (= "bc" (two-arg str))))
+(test "str - opaque"
+  (let [no-arg (fn [f] (f))
+        one-arg (fn [f] (f "a"))
+        two-arg (fn [f] (f "b" "c"))]
+    (is (= "" (no-arg str)))
+    (is (= "a" (one-arg str)))
+    (is (= "bc" (two-arg str)))))
 
-;; java-method
-(testFail "java-method cannot support both static/dynamic"
-          IllegalArgumentException
-          (java-method java.lang.Integer "toString"))
+(test "java-method - static/dynamic"
+  (expect-fail "java-method cannot support both static/dynamic"
+               IllegalArgumentException
+               (java-method java.lang.Integer "toString")))
 
-(testFail "java-method should fail for a missing method"
-          IllegalArgumentException
-          (java-method java.lang.Integer "fooBar"))
+(test "java-method - missing target"
+  (expect-fail "java-method should fail for a missing method"
+               IllegalArgumentException
+               (java-method java.lang.Integer "fooBar")))
 
-(test "java-method execution static"
-      (let [f (java-method java.lang.Integer "valueOf")]
-         (= 44 (f "44"))))
+(test "java-method - execution"
+  (let [f (java-method java.lang.Integer "valueOf")]
+     (is (= 44 (f "44"))))
+  (let [f (java-method java.lang.Integer "compareTo")]
+     (is (= -1 (f 44 55)))))
 
-(test "java-method execution instance"
-      (let [f (java-method java.lang.Integer "compareTo")]
-         (= -1 (f 44 55))))
+(test "range"
+  (is (= [0 1 2] (->> (range 3) (into []))))
+  (is (= [2 1 0] (->> (range 3) (reverse) (into []))))
+  (is (= [2 1] (->> (range 3) (drop 1) (reverse) (into []))))
+  (is (= [] (->> (range 3) (drop 3) (reverse) (into []))))
 
-;; 
-(is (= [0 1 2] (->> (range 3) (into []))))
-(is (= [2 1 0] (->> (range 3) (reverse) (into []))))
-(is (= [2 1] (->> (range 3) (drop 1) (reverse) (into []))))
-(is (= [] (->> (range 3) (drop 3) (reverse) (into []))))
+  (is (= [0 1 2] (stream (range 3) (into []))))
+  (is (= [2 1 0] (stream (->> (range 3) (reverse)) (into []))))
+  (is (= [2 1] (stream (->> (range 3) (drop 1) (reverse)) (into []))))
+  (is (= [] (stream (->> (range 3) (drop 3) (reverse)) (into [])))))
 
+(test "Array methods"
+  (let [int-arr (array int 5)
+        cloned (aclone int-arr)]
+    (is (= 1 (alength cloned)))
+    (is (= 5 (aget cloned 0)))
 
-(is (= [0 1 2] (stream (range 3) (into []))))
-(is (= [2 1 0] (stream (->> (range 3) (reverse)) (into []))))
-(is (= [2 1] (stream (->> (range 3) (drop 1) (reverse)) (into []))))
-(is (= [] (stream (->> (range 3) (drop 3) (reverse)) (into []))))
+    (aset cloned 0 10)
+    (is (= 10 (aget cloned 0)))
+    (is (= 5 (aget int-arr 0))))
 
-;; === arrays
-(let [int-arr (array int 5)
-      cloned (aclone int-arr)]
-   (is (= 1 (alength cloned)))
-   (is (= 5 (aget cloned 0)))
-   (aset cloned 0 10)
-   (is (= 10 (aget cloned 0)))
-   (is (= 5 (aget int-arr 0))))
+    (is (= 5 (alength (make-array int 5))))
+    (is (= 1 (alength (array int 1))))
+    (is (= 55 (aget (array int 55) 0))))
 
-(both= 5 (alength (make-array int 5)))
-(both= 1 (alength (array int 1)))
-(both= 55 (aget (array int 55) 0))
+(test "array - relinking type"
+  (let [array-two (fn [type f s] (array type f s))]
+     (let [str-arr (array-two String "a" "b")]
+       (is (= 2 (alength str-arr)))
+       (is (= "a" (aget str-arr 0)))
+       (is (= "b" (aget str-arr 1))))
+     (let [prim-arr (array-two int 1 2)]
+       (is (= 2 (alength prim-arr)))
+       (is (= 1 (aget prim-arr 0)))
+       (is (= 2 (aget prim-arr 1))))))
 
-;; relinking
-(let [array-two (fn [type f s] (array type f s))]
-   (let [str-arr (array-two String "a" "b")]
-     (is (= 2 (alength str-arr)))
-     (is (= "a" (aget str-arr 0)))
-     (is (= "b" (aget str-arr 1))))
-   (let [prim-arr (array-two int 1 2)]
-     (is (= 2 (alength prim-arr)))
-     (is (= 1 (aget prim-arr 0)))
-     (is (= 2 (aget prim-arr 1)))))
 
 ;; (doto)
-(let [hm (doto (new java.util.HashMap) (.put 1 2) (.put 3 4))]
+(test "doto"
+  (let [hm (doto (new java.util.HashMap) (.put 1 2) (.put 3 4))]
      (is (= 2 (.size hm)))
      (is (= 2 (.get hm 1)))
-     (is (= 4 (.get hm 3))))
+     (is (= 4 (.get hm 3)))))
+

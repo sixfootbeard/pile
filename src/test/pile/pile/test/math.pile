@@ -16,13 +16,14 @@
     (:refer pile.test pile.test.util))
 
 (defn eq-exact [l r]
-   (and (= (class l) (class r))
-        (= l r)))
+   (anon-test 
+      (is (and (= (class l) (class r))
+               (= l r)))))
 
 (defmacro teq [l r]
    `(do 
-       (is (eq-exact ~l ~r))
-       (is ((fn [] (eq-exact ~l ~r))))))
+       (eq-exact ~l ~r)
+       ((fn [] (eq-exact ~l ~r)))))
 
 ;; 5.1.2 tests
 ;; byte
@@ -61,10 +62,10 @@
 
 
 ;; promotes to int
-(is (eq-exact -1 (negate (to-byte 1))))
+(eq-exact -1 (negate (to-byte 1)))
 ;; promotes to int
-(is (eq-exact -1 (negate (to-short 1))))
-(is (eq-exact -1 (negate 1)))
-(is (eq-exact -1L (negate 1L)))
-(is (eq-exact -1b (negate 1b)))
-(is (eq-exact -1N (negate 1N)))
+(eq-exact -1 (negate (to-short 1)))
+(eq-exact -1 (negate 1))
+(eq-exact -1L (negate 1L))
+(eq-exact -1b (negate 1b))
+(eq-exact -1N (negate 1N))

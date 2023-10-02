@@ -28,30 +28,21 @@
 
 (def pile-map {:a :b})
 
-(test= ["Equals" "Map"] 
-    pile-map java-map)
-(test= ["Equals" "Map" "Reverse"] 
-    java-map pile-map)
+(test "Equals Java Map"
+  (is (= pile-map java-map))
+  (is (= java-map pile-map)))
 
-(test= ["Equals" "MapKey"] 
+(test "Equals Map"
     (hash-map java-map 12)
     (hash-map pile-map 12))
     
-(test= ["Equals" "PileBase" "MapKey" "Get" "LhsJava" "RhsJava"]
-    12 (get (hash-map java-map 12) java-map))
-(test= ["Equals" "PileBase" "MapKey" "Get" "LhsJava" "RhsPile"]
-    12 (get (hash-map java-map 12) pile-map))
-(test= ["Equals" "PileBase" "MapKey" "Get" "LhsPile" "RhsJava"]
-    12 (get (hash-map pile-map 12) java-map))
-(test= ["Equals" "PileBase" "MapKey" "Get" "LhsPile" "RhsPile"]
-    12 (get (hash-map pile-map 12) pile-map))    
-    
-(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsJava" "RhsJava"]
-    12 (get (jmap java-map 12) java-map))
-(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsJava" "RhsPile"]
-    12 (get (jmap java-map 12) pile-map))
-(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsPile" "RhsJava"]
-    12 (get (jmap pile-map 12) java-map))
-(test= ["Equals" "JavaBase" "MapKey" "Get" "LhsPile" "RhsPile"]
-    12 (get (jmap pile-map 12) pile-map))   
+(test "Equals Map Key"
+  (is (= 12 (get (hash-map java-map 12) java-map)))
+  (is (= 12 (get (hash-map java-map 12) pile-map)))
+  (is (= 12 (get (hash-map pile-map 12) java-map)))
+  (is (= 12 (get (hash-map pile-map 12) pile-map)))
+  (is (= 12 (get (jmap java-map 12) java-map)))
+  (is (= 12 (get (jmap java-map 12) pile-map)))
+  (is (= 12 (get (jmap pile-map 12) java-map)))
+  (is (= 12 (get (jmap pile-map 12) pile-map))))
 

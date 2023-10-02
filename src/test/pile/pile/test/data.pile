@@ -17,12 +17,16 @@
 
 (import (pile.util Triplet RootRec SimpleRec))
 
-(is (= {:one "two"} (record-map (new SimpleRec "two"))))
-(is (= {:first "f" :level 12 :parts ["x" "y"]} (record-map (new Triplet "f" 12 ["x" "y"]))))
-(let [t (new Triplet "f" 12 ["x" "y"])
-      root (new RootRec t "rest")
-      root-map {:t {:first "f" :level 12 :parts ["x" "y"]} :other "rest"}]
-  (is (= root-map (record-map root)))
-  (is (= root (to-record root-map RootRec))))
+(test "record-map"
+  (is (= {:one "two"} (record-map (new SimpleRec "two")))))
+(test "record-map triplet"
+ (is (= {:first "f" :level 12 :parts ["x" "y"]} (record-map (new Triplet "f" 12 ["x" "y"])))))
+(test "to-record"
+  (let [t (new Triplet "f" 12 ["x" "y"])
+        root (new RootRec t "rest")
+        root-map {:t {:first "f" :level 12 :parts ["x" "y"]} :other "rest"}]
+     (is (= root-map (record-map root)))
+     (is (= root (to-record root-map RootRec)))))
+
 
 

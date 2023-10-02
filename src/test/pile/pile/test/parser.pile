@@ -18,35 +18,35 @@
 (test "Triple Quoted - empty"
    (let [s """
            """]
-     (= 0 (count s))))
+     (is (= 0 (count s)))))
 
 (test "Triple Quoted - empty multiple lines"
    (let [s """
            
            """]
-     (= "\n" s)))
+     (is (= "\n" s))))
 
 (test "Triple Quoted - more empty multiple lines"
    (let [s """
            
            
            """]
-     (= "\n\n" s)))
+     (is (= "\n\n" s))))
 
 (test "Triple Quoted - single line"
       (let [s """
               foo
               """]
-     (= "foo" s)))
+     (is (= "foo" s))))
 
 (test "Triple Quoted - single line less than start"
       (let [s """
          foo
               """]
-     (= "foo" s)))
+     (is (= "foo" s))))
 
 (test "Triple Quoted - single line more than start"
       (let [s """
                    foo
               """]
-     (= "foo" s)))
+     (is (= "foo" s))))

@@ -15,36 +15,34 @@
 (ns pile.test.macro
     (:refer pile.test pile.test.util))
 
+(defmacro qt [] '(+ a b))
+
+(test "Quote"
+  (is (= (list (sym "+") (sym "a") (sym "b")) (macroexpand '(qt)))))
         
 (defmacro mplus [a b] '(+ ~a ~b))
 (defmacro mplus-sym [a b] `(+ ~a ~b))
 
-(test= "Quote Form" 
-    '(+ 2 3) (macroexpand '(mplus 2 3)))
+(test "Unquote" 
+  (is (= (list (sym "+") 2 3) (macroexpand '(mplus 2 3)))))
     
-(test= "Syntax Quote Form" 
-    '(pile.core/+ 2 3) (macroexpand `(mplus-sym 2 3)))
+(test "Unquote - Syntax" 
+  (is (= (list (sym "pile.core" "+") 2 3) (macroexpand `(mplus-sym 2 3)))))
 
 (defmacro plus [a b] '(+ ~a ~b))    
 (defmacro unsplice-add [a] '(plus ~@a))    
 (def comp-double-add (fn* [a] (unsplice-add [a a])))
     
-(test= "Eval Plus"
-    '(+ 2 3) (macroexpand '(unsplice-add [2 3])))
-(test= "Compile Plus"
-    6 (comp-double-add 3))    
+(test "Unquote splice - quote - nested"
+  (is (= (list (sym "+") 2 3) (macroexpand '(unsplice-add [2 3])))))
+(test "Unquote splice - quote - call"
+  (is (= 6 (comp-double-add 3))))    
     
 (defmacro syn-plus [a b] `(+ ~a ~b))
 (defmacro syn-unsplice-add [a] `(syn-plus ~@a))
 (def syn-double-add (fn* [a] (syn-unsplice-add [a a])))
 
-(test= "Eval Plus Syntax"
-    '(pile.core/+ 2 3) (macroexpand '(syn-unsplice-add [2 3])))
-(test= "Compile Plus Syntax"
-    6 (syn-double-add 3))       
-    
-;;(defmacro scons [] `(fn* [^String s] (new String s)))
-;;(def exp (scons))
-
-;;(test= "Macro Types"
-;;   "foobar" (exp "foobar"))
+(test "Unquote splice - Syntax quote - nested"
+    (is (= (list (sym "pile.core" "+") 2 3) (macroexpand '(syn-unsplice-add [2 3])))))
+(test "Unquote splice - Syntax quote - call"
+    (is (= 6 (syn-double-add 3))))       

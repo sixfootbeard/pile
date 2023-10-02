@@ -123,7 +123,8 @@ public class SymbolForm implements Form {
         ScopeLookupResult slr = cs.getScope().lookupSymbolScope(toEval);
 
         if (slr == null) {
-            throw new PileCompileException("Cannot find referenced symbol '" + toEval, LexicalEnvironment.extract(toEval));
+            throw new PileCompileException("Cannot find referenced symbol '" + toEval + "'",
+                    LexicalEnvironment.extract(toEval));
         }
 
         switch (slr.scope()) {
