@@ -80,4 +80,32 @@
   (let [vi (new VarIntf)]
     (is (= "123abc" (. vi call 123 "a" "b" "c")))))
 
+;; todo
+(import (java.util Iterator NoSuchElementException))
+
+(deftype Piterator []
+    Iterator
+    (hasNext [this] false)
+    (next [this] (throw (new NoSuchElementException))))
+(def pit (new Piterator))
+
+(test "Iterator method"
+  (let [pit (new Piterator)]
+    (is (= false (. pit hasNext)))
+    (expect-fail "next on empty iterator" NoSuchElementException
+      (. pit next))))
+    
+(import java.util.ArrayList)    
+
+(deftype DelegateIterator [it]
+    Iterator
+    (hasNext [this] (. it hasNext))
+    (next [this] (. it next)))
+(test "Iterator delegate"
+  (let [delegate (new ArrayList)]
+    (. delegate (add "foof"))    
+    (let [it (.iterator delegate)]
+      (is (= true (.hasNext it)))
+      (is (= "foof" (.next it))))))
+
 

@@ -21,11 +21,11 @@
 
 (def inst (Instant/ofEpochMilli raw-ms))
 
-
-(is (= inst (temporal raw-ms)))
-(is (= inst (temporal (Date. raw-ms))))
-(is (= inst (temporal inst)))
-(is (= inst (temporal (java.time.Clock/fixed inst (zone "UTC")))))
-(let [c (java.util.Calendar/getInstance)]
-     (.setTimeInMillis c raw-ms)
-     (is (= inst (temporal c))))
+(test "temporal"
+  (is (= inst (temporal raw-ms)))
+  (is (= inst (temporal (Date. raw-ms))))
+  (is (= inst (temporal inst)))
+  (is (= inst (temporal (java.time.Clock/fixed inst (zone "UTC")))))
+  (let [c (java.util.Calendar/getInstance)]
+       (.setTimeInMillis c raw-ms)
+       (is (= inst (temporal c)))))
