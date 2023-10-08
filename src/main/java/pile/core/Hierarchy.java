@@ -77,7 +77,7 @@ public class Hierarchy {
         if (childClass.equals(Class.class) && parentClass.equals(Class.class)) {
             return classIsAChild((Class) child, (Class) parent);
         }
-        throw new IllegalArgumentException("Bad relationship type.");
+        return false;
     }
     
     public PersistentSet<Object> descendants(Object tag) {

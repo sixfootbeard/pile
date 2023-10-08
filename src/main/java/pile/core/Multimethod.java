@@ -33,6 +33,7 @@ import java.util.function.UnaryOperator;
 
 import pile.collection.PersistentHashMap;
 import pile.collection.PersistentMap;
+import pile.collection.PersistentVector;
 import pile.compiler.form.SymbolForm;
 import pile.compiler.form.VarForm;
 import pile.core.exception.PileCompileException;
@@ -134,21 +135,56 @@ public class Multimethod implements PileMethod {
         PileMethod toRun = lookupTargetFunction(hierarchy, keys, key);
         return toRun.invoke(args);
     }
-
-    public static PileMethod lookupTargetFunction(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
+    
+    private static Optional<PileMethod> lookupTargetFunctionOpt(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
         PileMethod toRun = keys.get(key);
         if (toRun == null) {
-            for (var entry : keys.entrySet()) {
-                if (hierarchy.isAChild(key, entry.getKey())) {
-                    return entry.getValue();
+            if (key instanceof PersistentVector pv) {
+                toRun = matchVector(hierarchy, keys, pv);
+            } else {
+                if (toRun == null) {
+                    toRun = matchSubtypes(hierarchy, keys, key);
+                }
+                if (toRun == null) {
+                    toRun = keys.get(DEFAULT_KEYWORD);
                 }
             }
-            toRun = keys.get(DEFAULT_KEYWORD);
         }
-        if (toRun == null) {
-            throw new IllegalArgumentException("No method to run for key: " + key);
+        return Optional.ofNullable(toRun);
+    }
+
+    private static PileMethod lookupTargetFunction(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
+        return lookupTargetFunctionOpt(hierarchy, keys, key)
+                .orElseThrow(() -> new IllegalArgumentException("No method to run for key: " + key));
+    }
+
+    private static PileMethod matchVector(Hierarchy hierarchy, Map<Object, PileMethod> keys, PersistentVector pv) {
+        int size = pv.size();
+        outer:
+        for (var entry : keys.entrySet()) {
+            var candidate = entry.getKey();
+            if (candidate instanceof PersistentVector candpv && size == candpv.size()) {
+                for (int i = 0; i < size; ++i) {
+                    var candelem = candpv.get(i);
+                    var pvelem = pv.get(i);
+                    if (! hierarchy.isAChild(pvelem, candelem)) {
+                        continue outer;
+                    }                    
+                }
+                return entry.getValue();
+            }
         }
-        return toRun;
+        return null;
+    }
+
+    private static PileMethod matchSubtypes(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
+        
+        for (var entry : keys.entrySet()) {
+            if (hierarchy.isAChild(key, entry.getKey())) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
     
     /**
@@ -159,9 +195,7 @@ public class Multimethod implements PileMethod {
      * the keying function always returns the same key we have a fast path to the
      * right handle. Both the keying function and target handle will be directly
      * linked.
-     * <li>Polymorphic - TODO
-     * <li>Unoptimized - Simply calls the keying function and lookup functions using
-     * the method handle combinators.
+     * <li>Unoptimized - Same as cold
      * 
      *
      */
@@ -189,20 +223,11 @@ public class Multimethod implements PileMethod {
 
             Pair<SwitchPoint, PersistentMap<Object, PileMethod>> pair = mm.keysRef.get();
             
-            PileMethod targetFunction = lookupTargetFunction(mm.hierarchyVar.deref(), pair.right(), key);
+            Optional<PileMethod> targetFunction = lookupTargetFunctionOpt(mm.hierarchyVar.deref(), pair.right(), key);
             
-            final MethodHandle multiMethodTarget;
-            if (targetFunction == null) {
-                // TODO Print key but what about infinite seqs?
-                multiMethodTarget = getExceptionHandle(type(), PileCompileException.class,
-                        PileCompileException::new, "No matching keys for multimethod");
-            } else {
-                var toCall = targetFunction;
-
-                // (a, b, c)
-                CallSite cs = toCall.link(CallSiteType.PLAIN, type(), 0, flags);
-                multiMethodTarget = cs.dynamicInvoker();
-            }
+            final MethodHandle multiMethodTarget = targetFunction.map(pm -> pm.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker())
+                                                                 .orElseGet(() -> getExceptionHandle(type(), IllegalArgumentException.class,
+                                                                         IllegalArgumentException::new, "No matching keys for multimethod and no default method set."));
 
             // (Object, a, b, c) // key slot
             MethodHandle multiMethodTargetKeySlot = dropArguments(multiMethodTarget, 0, Object.class);
@@ -226,44 +251,8 @@ public class Multimethod implements PileMethod {
 
         @Override
         protected MethodHandle makeUnopt(Object[] args, MethodType methodType) throws Throwable {
-            Pair<SwitchPoint,PersistentMap<Object,PileMethod>> local = mm.keysRef.get();
-            PersistentMap<Object, PileMethod> methods = local.right();
-            
-            Var<Hierarchy> hierarchyVar = mm.hierarchyVar;
-            MethodHandle resolvedValue = SymbolForm.bootstrap(lookup(), hierarchyVar.getName(), methodType(Object.class),
-                    hierarchyVar.getNamespace().getName()).dynamicInvoker().asType(methodType(Hierarchy.class));
-            
-            // PileMethod.class (Hierarchy.class, Map.class, Object.class)
-            MethodHandle lookupTarget = lookup().findStatic(Multimethod.class, "lookupTargetFunction",
-                    methodType(PileMethod.class, Hierarchy.class, Map.class, Object.class));
-            // PileMethod.class  (Map.class, Object.class)
-            MethodHandle boundVar = collectArguments(lookupTarget, 0, resolvedValue);
-            // PileMethod.class, (Object.class)
-            MethodHandle boundMethods = insertArguments(boundVar, 0, methods);
-            
-            // Object(PileMethod, Object[])
-            MethodHandle invoke = lookup().findVirtual(PileMethod.class, "invoke", methodType(Object.class, Object[].class));
-            // Object (Object, Object[])
-            MethodHandle keyed = collectArguments(invoke, 0, boundMethods);
-            
-            var keyFn = mm.keyFn;
-            // Object (a, b, c)
-            MethodHandle keyHandle = keyFn.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker();
-            
-            // Object (a, b, c, Object[])
-            MethodHandle appliedKeyFn = collectArguments(keyed, 0, keyHandle);
-            
-            // Object (a, b, c, Object, Object, Object)
-            MethodHandle collected = appliedKeyFn.asCollector(type().parameterCount(), Object[].class, type().parameterCount());
-            
-            // Object (a, b, c, a, b, c)
-            MethodHandle typedCollected = collected.asType(type().appendParameterTypes(type().parameterList()));
-            
-            MethodHandle duped = MethodHandleHelpers.duplicateParameters(typedCollected, type());
-            
-            SwitchPoint sp = local.left();
-
-            return sp.guardWithTest(duped, relink);
+            // TODO Not sure if there's anything more to do here.
+            return makeUnopt(args, methodType);
         }
     }
     
