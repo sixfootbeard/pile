@@ -24,7 +24,9 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.SwitchPoint;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
@@ -135,8 +137,12 @@ public class Multimethod implements PileMethod {
 
     public static PileMethod lookupTargetFunction(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
         PileMethod toRun = keys.get(key);
-        // TODO Add hierarchies
         if (toRun == null) {
+            for (var entry : keys.entrySet()) {
+                if (hierarchy.isAChild(key, entry.getKey())) {
+                    return entry.getValue();
+                }
+            }
             toRun = keys.get(DEFAULT_KEYWORD);
         }
         if (toRun == null) {
