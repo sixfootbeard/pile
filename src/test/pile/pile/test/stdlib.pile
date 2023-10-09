@@ -370,3 +370,26 @@
      (is (= 2 (.get hm 1)))
      (is (= 4 (.get hm 3)))))
 
+(test "threading macros"
+  (is (= String (-> "a" .getClass)))
+  (is (= String (-> "a" (.getClass))))
+  (is (= String (-> "a" (. getClass))))
+  
+  (let [state (AtomicInteger.)
+        _ (-> (.incrementAndGet state) inc)]
+    (is (= 1 (.get state))) "Thread-first should evaluate expression only once")
+
+  (is (= String (->> "a" .getClass)))
+  (is (= String (->> "a" (.getClass))))
+  (is (= true (->> 4 (contains? #{4}))))
+  
+  (let [state (AtomicInteger.)
+        _ (->> (.incrementAndGet state) inc)]
+    (is (= 1 (.get state))) "Thread-last should evaluate expression only once")
+
+  (is (= nil (some-> nil class)))
+  (is (= String (some-> "a" class)))
+
+  (let [state (AtomicInteger.)
+        _ (some-> (.incrementAndGet state) inc)]
+    (is (= 1 (.get state))) "Thread-some should evaluate expression only once"))

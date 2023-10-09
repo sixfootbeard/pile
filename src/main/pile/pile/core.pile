@@ -57,7 +57,7 @@
    (apply threader (fn* [base form] `(~@form ~base)) base rem))
 
 (defmacro some-> [base & rem]
-   (apply threader (fn* [base form] `(if (some? ~base) (do ~@form) nil)) base rem))
+   (apply threader (fn* [base form] `(let [e# ~base] (if (some? e#) (-> e# ~form) nil))) base rem))
 
 (defmacro ensure
 	[& args]
