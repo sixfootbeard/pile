@@ -46,3 +46,8 @@
     (is (= (list (sym "pile.core" "+") 2 3) (macroexpand '(syn-unsplice-add [2 3])))))
 (test "Unquote splice - Syntax quote - call"
     (is (= 6 (syn-double-add 3))))       
+
+(test "Argument evaluation - lazy"
+   (defmacro inner [a] a)
+   (defmacro outer [a] (is (= '(inner 1) a)))
+   (outer (inner 1)))
