@@ -22,7 +22,7 @@
                            end (System/nanoTime)]
                  (- end start)))
            call# (fn [n#] (loop [i 0
-                                      times []]
+                                 times []]
                             (if (>= i n#)
                                times
                                (let [time# (f#)]
@@ -30,6 +30,29 @@
          ;; warmup
          (call# 20)
          (call# ~n)))
+
+(defmacro bench-fn-raw [n input-fn bench-fn]
+    `(let [f# (fn [i] (let [start (System/nanoTime)
+                            _ (~bench-fn i)
+                            end (System/nanoTime)]
+                 (- end start)))
+           call# (fn [n#] (loop [i 0
+                                 times []]
+                            (if (>= i n#)
+                               times
+                               (let [input-val (~input-fn i)
+                                     time# (f# input-val)]
+                                   (recur (inc i) (conj times time#))))))]
+         ;; warmup
+         (call# 20)
+         (call# ~n)))
+
+
+(defmacro bench-fn [n input-fn bench-fn]
+    `(let [times# (bench-fn-raw ~n ~input-fn ~bench-fn)
+           total# (stream times# (reduce +' 0))
+           count# (count times#)]
+        (prn "Average time " (/' total# count#) "ns")))
 
 (defmacro bench [n & body]
     `(let [times# (bench-raw ~n ~@body)
