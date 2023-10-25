@@ -81,6 +81,7 @@ public abstract class InlineCacheCallSite extends AbstractRelinkingCallSite {
         var current = getStage();
         if (++count >= getMaxStageCount(current)) {
             current = current.next();
+            count = 0;
         }
         
         var next = current;

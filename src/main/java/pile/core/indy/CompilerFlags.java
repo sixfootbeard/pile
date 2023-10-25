@@ -30,7 +30,7 @@ import pile.util.ConstantDynamicBootstrap;
 public record CompilerFlags(int monomorphicMissThreshold, int polymorphicChainThreshold, int megamorphicSizeThreshold) implements ConstForm<ConstantDynamic> {
 
 	public CompilerFlags() {
-		this(5, 3, 5);
+		this(5, 6, 10);
 	}
 	
 	public ConstantDynamic toCondy() {

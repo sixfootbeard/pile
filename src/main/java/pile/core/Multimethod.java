@@ -23,6 +23,7 @@ import java.lang.invoke.CallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.SwitchPoint;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -65,9 +66,9 @@ public class Multimethod implements PileMethod {
         this.keysRef = new AtomicReference<>(new Pair<>(new SwitchPoint(), PersistentMap.empty()));
         this.ns = ns;
         this.name = name;
-        this.hierarchyVar = hierarchyVar;        
+        this.hierarchyVar = hierarchyVar;
     }
-    
+
     @Override
     public boolean acceptsArity(int arity) {
         return keyFn.acceptsArity(arity);
@@ -89,8 +90,8 @@ public class Multimethod implements PileMethod {
     public void removeKey(Object key) {
         update(copy -> copy.dissoc(key));
     }
-    
-    public PersistentMap<Object,PileMethod> getMethods() {
+
+    public PersistentMap<Object, PileMethod> getMethods() {
         return keysRef.get().right();
     }
 
@@ -99,7 +100,7 @@ public class Multimethod implements PileMethod {
         var keys = keysRef.get().right();
         return innerCall(keyFn, hierarchyVar.deref(), keys, args);
     }
-    
+
     @Override
     public Object applyInvoke(Object... args) throws Throwable {
         var keys = keysRef.get().right();
@@ -123,20 +124,23 @@ public class Multimethod implements PileMethod {
             }
         }
     }
-    
-    private static Object innerApplyCall(PileMethod keyFn, Hierarchy hierarchy, Map<Object, PileMethod> keys, Object... args) throws Throwable {
+
+    private static Object innerApplyCall(PileMethod keyFn, Hierarchy hierarchy, Map<Object, PileMethod> keys,
+            Object... args) throws Throwable {
         Object key = keyFn.applyInvoke(args);
         PileMethod toRun = lookupTargetFunction(hierarchy, keys, key);
         return toRun.applyInvoke(args);
     }
 
-    private static Object innerCall(PileMethod keyFn, Hierarchy hierarchy, Map<Object, PileMethod> keys, Object... args) throws Throwable {
+    private static Object innerCall(PileMethod keyFn, Hierarchy hierarchy, Map<Object, PileMethod> keys, Object... args)
+            throws Throwable {
         Object key = keyFn.invoke(args);
         PileMethod toRun = lookupTargetFunction(hierarchy, keys, key);
         return toRun.invoke(args);
     }
-    
-    private static Optional<PileMethod> lookupTargetFunctionOpt(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
+
+    private static Optional<PileMethod> lookupTargetFunctionOpt(Hierarchy hierarchy, Map<Object, PileMethod> keys,
+            Object key) {
         PileMethod toRun = keys.get(key);
         if (toRun == null) {
             if (key instanceof PersistentVector pv) {
@@ -160,16 +164,15 @@ public class Multimethod implements PileMethod {
 
     private static PileMethod matchVector(Hierarchy hierarchy, Map<Object, PileMethod> keys, PersistentVector pv) {
         int size = pv.size();
-        outer:
-        for (var entry : keys.entrySet()) {
+        outer: for (var entry : keys.entrySet()) {
             var candidate = entry.getKey();
             if (candidate instanceof PersistentVector candpv && size == candpv.size()) {
                 for (int i = 0; i < size; ++i) {
                     var candelem = candpv.get(i);
                     var pvelem = pv.get(i);
-                    if (! hierarchy.isAChild(pvelem, candelem)) {
+                    if (!hierarchy.isAChild(pvelem, candelem)) {
                         continue outer;
-                    }                    
+                    }
                 }
                 return entry.getValue();
             }
@@ -178,7 +181,7 @@ public class Multimethod implements PileMethod {
     }
 
     private static PileMethod matchSubtypes(Hierarchy hierarchy, Map<Object, PileMethod> keys, Object key) {
-        
+
         for (var entry : keys.entrySet()) {
             if (hierarchy.isAChild(key, entry.getKey())) {
                 return entry.getValue();
@@ -186,7 +189,7 @@ public class Multimethod implements PileMethod {
         }
         return null;
     }
-    
+
     /**
      * Call site for multimethods.
      * <ol>
@@ -200,8 +203,10 @@ public class Multimethod implements PileMethod {
      *
      */
     private static class MultimethodCallsite extends InlineCacheCallSite {
-    
+
         private final Multimethod mm;
+        private Object[] kvs;
+        private int nextSlot = 0;
 
         public MultimethodCallsite(Multimethod mm, MethodType type, CompilerFlags flags) {
             super(type, 10, flags);
@@ -218,43 +223,103 @@ public class Multimethod implements PileMethod {
         @Override
         protected MethodHandle makeMono(Object[] args, MethodType methodType) throws Throwable {
             var relinkKeySlot = dropArguments(relink, 0, Object.class);
-        
+
             Object key = mm.keyFn.invoke(args);
 
             Pair<SwitchPoint, PersistentMap<Object, PileMethod>> pair = mm.keysRef.get();
-            
+
             Optional<PileMethod> targetFunction = lookupTargetFunctionOpt(mm.hierarchyVar.deref(), pair.right(), key);
-            
-            final MethodHandle multiMethodTarget = targetFunction.map(pm -> pm.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker())
-                                                                 .orElseGet(() -> getExceptionHandle(type(), IllegalArgumentException.class,
-                                                                         IllegalArgumentException::new, "No matching keys for multimethod and no default method set."));
+
+            final MethodHandle multiMethodTarget = targetFunction
+                    .map(pm -> pm.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker())
+                    .orElseGet(() -> getExceptionHandle(type(), IllegalArgumentException.class,
+                            IllegalArgumentException::new,
+                            "No matching keys for multimethod and no default method set."));
 
             // (Object, a, b, c) // key slot
             MethodHandle multiMethodTargetKeySlot = dropArguments(multiMethodTarget, 0, Object.class);
 
-            JavaGuardBuilder guardBuilder = new JavaGuardBuilder(multiMethodTargetKeySlot, relinkKeySlot, type().insertParameterTypes(0, Object.class));
+            JavaGuardBuilder guardBuilder = new JavaGuardBuilder(multiMethodTargetKeySlot, relinkKeySlot,
+                    type().insertParameterTypes(0, Object.class));
             if (key != null) {
                 guardBuilder.guardNotNull(0);
             }
             guardBuilder.guardEquals(0, key);
             // (Object, a, b, c)
             MethodHandle guarded = guardBuilder.getHandle();
-            
+
             MethodHandle keyHandle = mm.keyFn.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker();
-            
-            MethodHandle folded = foldArguments(guarded, keyHandle);
-            
+            MethodHandle folded = foldArguments(guarded, keyHandle.asType(guarded.type().dropParameterTypes(0, 1)));
+
             SwitchPoint sp = pair.left();
 
             return sp.guardWithTest(folded, relink);
         }
 
+        protected MethodHandle makePoly(Object[] args, MethodType methodType) throws Throwable {
+            if (kvs == null) {
+                kvs = new Object[flags.polymorphicChainThreshold() * 2];
+            }
+            int nextSlot = getNextSlot();
+            if (nextSlot == -1) {
+                return null;
+            } else {
+                Object key = mm.keyFn.invoke(args);
+                Pair<SwitchPoint, PersistentMap<Object, PileMethod>> pair = mm.keysRef.get();
+                Optional<PileMethod> targetFunction = lookupTargetFunctionOpt(mm.hierarchyVar.deref(), pair.right(),
+                        key);
+                final MethodHandle multiMethodTarget = targetFunction
+                        .map(pm -> pm.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker())
+                        .orElseGet(() -> getExceptionHandle(type(), IllegalArgumentException.class,
+                                IllegalArgumentException::new,
+                                "No matching keys for multimethod and no default method set."));
+                kvs[nextSlot] = key;
+                kvs[nextSlot + 1] = multiMethodTarget;
+
+                var next = dropArguments(relink, 0, Object.class);
+                for (int idx = nextSlot; idx >= 0; idx -= 2) {
+                    var polyKey = kvs[idx];
+                    MethodHandle polyTarget = (MethodHandle) kvs[idx + 1];
+
+                    MethodHandle multiMethodTargetKeySlot = dropArguments(polyTarget, 0, Object.class);
+
+                    JavaGuardBuilder guardBuilder = new JavaGuardBuilder(multiMethodTargetKeySlot, next,
+                            type().insertParameterTypes(0, Object.class));
+                    if (polyKey != null) {
+                        guardBuilder.guardNotNull(0);
+                    }
+                    guardBuilder.guardEquals(0, polyKey);
+                    next = guardBuilder.getHandle();
+
+                }
+
+                MethodHandle keyHandle = mm.keyFn.link(CallSiteType.PLAIN, type(), 0, flags).dynamicInvoker();
+                MethodHandle folded = foldArguments(next, keyHandle.asType(next.type().dropParameterTypes(0, 1)));
+
+                SwitchPoint sp = pair.left();
+
+                var out = sp.guardWithTest(folded, relink);
+
+                nextSlot += 2;
+                if (nextSlot == kvs.length) {
+                    this.nextSlot = -1;
+                } else {
+                    this.nextSlot = nextSlot;
+                }
+
+                return out;
+            }
+        }
+
         @Override
         protected MethodHandle makeUnopt(Object[] args, MethodType methodType) throws Throwable {
             // TODO Not sure if there's anything more to do here.
-            return makeUnopt(args, methodType);
+            return makeCold(args, methodType);
+        }
+
+        private int getNextSlot() {
+            return nextSlot;
         }
     }
-    
 
 }
