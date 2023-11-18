@@ -15,6 +15,7 @@
  */
 package pile.nativebase;
 
+import java.math.BigDecimal;
 import java.math.BigInteger;
 
 public class NativeMath {
@@ -65,6 +66,26 @@ public class NativeMath {
 		// FIXME truncation
 		return n.longValue();
 	}
+	
+	public static BigInteger to_bigint(Number n) {
+	    if (n instanceof BigInteger bi) {
+	        return bi;
+	    } else {
+	        return BigInteger.valueOf(n.longValue());
+	    }
+	}
+	
+	public static BigDecimal to_bigdec(Number n) {
+        if (n instanceof BigDecimal bd) {
+            return bd;
+        } else if (n instanceof BigInteger bi) {
+            return new BigDecimal(bi);
+        } else if (n instanceof Long l) {
+            return BigDecimal.valueOf(l);
+        } else {
+            return BigDecimal.valueOf(n.doubleValue());
+        }
+    }
 	
 	public static int mod(int left, int right) {
 	    return Math.floorMod(left, right);
