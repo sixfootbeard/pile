@@ -16,6 +16,7 @@
 package pile.core.parse;
 
 import static pile.compiler.Helpers.*;
+import static pile.nativebase.NativeCore.*;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -208,6 +209,10 @@ public class PileParser {
 				    } else if (metaForm.tag() == TypeTag.SYMBOL) {
 				        meta = meta.updateMeta(
 				                (PersistentMap old) -> old.assoc(ParserConstants.ANNO_TYPE_KEY, metaForm.result()));
+				    } else if (metaForm.tag() == TypeTag.MAP) {
+				        PersistentMap result = (PersistentMap) metaForm.result();
+				        // TODO Figure out what order makes sense here.
+				        meta = meta.updateMeta((PersistentMap old) -> merge(old, result));
 				    } else {
 				        throw lex.makeError("Unexpected enrichment type: " + meta); 
 				    }				    

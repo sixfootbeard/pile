@@ -464,9 +464,33 @@ public class NativeCore {
         };        
     }
 
+    @PileDoc("Merges the rhs map into the lhs as if calling assoc on all the items of the rhs map.")
     public static <K, V> PersistentMap<K, V> merge(PersistentMap<K, V> lhs, PersistentMap<K, V> rhs) {
         for (var entry : rhs.entrySet()) {
             lhs = lhs.assoc(entry.getKey(), entry.getValue());
+        }
+        return lhs;
+    }
+    
+    @PileDoc("""
+            Merges the rhs map into the lhs. Calls the provided function on conflict with (lhs_value, rhs_value)
+            
+              (def a {:a 1 :b 3})
+              (def b {:b 4 :z 12})
+              (merge-with a b +)
+              ;; {:a 1 :b 7 :z 12}
+            """)
+    public static PersistentMap<Object, Object> merge_with(PersistentMap<Object, Object> lhs,
+            PersistentMap<Object, Object> rhs, PCall f) throws Throwable {
+        for (var entry : rhs.entrySet()) {
+            final Object outVal;
+            Object key = entry.getKey();
+            if (lhs.containsKey(key)) {
+                outVal = f.invoke(lhs.get(key), entry.getValue());
+            } else {
+                outVal = entry.getValue();
+            }
+            lhs = lhs.assoc(entry.getKey(), outVal);
         }
         return lhs;
     }

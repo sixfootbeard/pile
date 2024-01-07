@@ -70,6 +70,7 @@ import pile.core.binding.BindingType;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.binding.NativeDynamicBinding;
 import pile.core.exception.PileException;
+import pile.core.exception.PileExecutionException;
 import pile.core.exception.PileInternalException;
 import pile.core.exception.PileSyntaxErrorException;
 import pile.core.indy.CallSiteType;
@@ -151,7 +152,12 @@ public class SExpr implements Form {
     @Override
     public Object evaluateForm(CompilerState cs) throws Throwable {
 
-        Object expanded = macroExpand(cs, ns, form);
+        Object expanded;
+        try {
+            expanded = macroExpand(cs, ns, form);
+        } catch (Exception e) {
+            throw new PileExecutionException("Error while expanding macro", LexicalEnvironment.extract(form), e);
+        }
         if (expanded == null) {
             // RETHINK this null escape
             return null;

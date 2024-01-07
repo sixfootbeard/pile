@@ -216,7 +216,7 @@ public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
 
     public static final PersistentMap EMPTY = new EmptyMap<>();
 
-    public static <K, V> Map<K, V> from(Map<K, V> map) {
+    public static <K, V> PersistentMap<K, V> from(Map<K, V> map) {
         PersistentMap<K, V> out = PersistentMap.EMPTY;
         for (var entry : map.entrySet()) {
             out = out.assoc(entry.getKey(), entry.getValue());
