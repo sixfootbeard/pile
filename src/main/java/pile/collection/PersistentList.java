@@ -41,14 +41,14 @@ public class PersistentList<T> implements PObj<PersistentList<T>>, Conjable<T>, 
 	private final PersistentMap meta;
 
 	private PersistentList(PersistentMap meta, PersistentList other) {
-		Objects.requireNonNull(meta, "Metadata may not be null");
+//		Objects.requireNonNull(meta, "Metadata may not be null");
 		this.meta = meta;
 		this.head = other.head;
 		this.size = other.size;
 	}
 
 	private PersistentList(PersistentMap meta, ISeq newHead, int size) {
-		Objects.requireNonNull(meta, "Metadata may not be null");
+//		Objects.requireNonNull(meta, "Metadata may not be null");
 		this.meta = meta;
 		this.head = newHead;
 		this.size = size;

@@ -17,10 +17,10 @@ package pile.core.hierarchy;
 
 import java.util.function.Function;
 
-import pile.collection.PersistentHashMap;
 import pile.collection.PersistentMap;
 import pile.core.Metadata;
 
+@SuppressWarnings("rawtypes")
 public abstract class AbstractMetadataObject<T extends Metadata> implements Metadata {
 
     private final PersistentMap meta;
@@ -36,7 +36,7 @@ public abstract class AbstractMetadataObject<T extends Metadata> implements Meta
 
     @Override
     public abstract T withMeta(PersistentMap newMeta);
-    
+
     @Override
     public T updateMeta(Function<PersistentMap, PersistentMap> update) {
         return withMeta(update.apply(meta));

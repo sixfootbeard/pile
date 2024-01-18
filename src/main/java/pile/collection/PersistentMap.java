@@ -29,7 +29,6 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiPredicate;
-import java.util.function.Function;
 import java.util.function.ToIntFunction;
 
 import org.objectweb.asm.ConstantDynamic;
@@ -41,6 +40,7 @@ import pile.core.ISeq;
 import pile.core.PCall;
 import pile.nativebase.NativeCore;
 
+@SuppressWarnings("rawtypes")
 public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
         implements PersistentCollection<Entry<K, V>>, Associative<K, V>, Conjable, FMap<PersistentMap> {
         
@@ -68,11 +68,6 @@ public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
 
     @Override
     public abstract PersistentMap<K, V> withMeta(PersistentMap newMeta);
-
-    @Override
-    public PersistentMap<K, V> updateMeta(Function<PersistentMap, PersistentMap> update) {
-        return this.updateMeta(update);
-    }
 
     @Override
     public abstract PersistentMap<K, V> assoc(K key, V val);
