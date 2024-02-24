@@ -38,7 +38,7 @@ public interface PCall {
      */
     default Object applyInvoke(Object... args) throws Throwable {
         List list = Arrays.asList(args);
-        ISeq last = seq(list.get(list.size() - 1)); 
+        ISeq last = seq(list.getLast()); 
         list = new ArrayList<>(list.subList(0, list.size() - 1));
         ISeq.iter(last).forEach(list::add);
         return invoke(list.toArray());

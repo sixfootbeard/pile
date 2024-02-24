@@ -178,7 +178,7 @@ public class ParameterParser {
         }
 
         public ParameterList popLast() {
-            MethodParameter lastArg = args.get(args.size() - 1);
+            MethodParameter lastArg = args.getLast();
             List<MethodParameter> newArgs = args.subList(0, args.size() - 1);
             Map<String, Integer> newIndexes = new HashMap<>(indexes);
             newIndexes.remove(lastArg.name());

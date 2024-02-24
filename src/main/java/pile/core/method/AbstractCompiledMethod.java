@@ -288,11 +288,11 @@ public abstract class AbstractCompiledMethod implements PileMethod {
     }
 
     private void pop(List<Object> argList) {
-        argList.remove(argList.size() - 1);
+        argList.removeLast();
     }
 
     private Object last(List<Object> args) {
-        return args.get(args.size() - 1);
+        return args.getLast();
     }
 
     private boolean matchesVarArgs(int argSize) {
