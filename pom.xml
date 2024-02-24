@@ -7,7 +7,7 @@
 
     <properties>
         <asm.version>9.5</asm.version>
-        <java.version>20</java.version>
+        <java.version>21</java.version>
         <project.inceptionYear>2022</project.inceptionYear>
         <project.organization.name>John Hinchberger</project.organization.name>
         <project.projectName>Pile Language</project.projectName>
@@ -88,8 +88,6 @@
                                 <argument>-Dpile.aot=write</argument>
                                 <argument>-Dpile.aot.dir=${project.build.outputDirectory}</argument>
                                 <argument>--enable-preview</argument>
-                                <argument>--add-modules</argument>
-                                <argument>jdk.incubator.concurrent</argument>
                                 <argument>-classpath</argument>
                                 <classpath />
                                 <argument>pile.core.compiler.aot.AOTMain</argument>
@@ -124,8 +122,6 @@
                                 <argument>-Djava.library.path=target/lib</argument>
                                 <argument>-Dpile.aot=read</argument>
                                 <argument>--enable-preview</argument>
-                                <argument>--add-modules</argument>
-                                <argument>jdk.incubator.concurrent</argument>
                                 <argument>-cp</argument>
                                 <classpath />
                                 <argument>pile.core.compiler.aot.AOTMain</argument>
@@ -161,8 +157,6 @@
                                 <argument>-XX:+UseZGC</argument>
                                 <argument>-classpath</argument>
                                 <classpath />
-                                <argument>--add-modules</argument>
-                                <argument>jdk.incubator.concurrent</argument>
                                 <argument>pile.repl.ReplMain</argument>
                             </arguments>
                             <!-- Will buffer too much unless this is on -->
@@ -229,8 +223,6 @@
                     <release>${java.version}</release>
                     <compilerArgs>
                         <arg>--enable-preview</arg>
-                        <arg>--add-modules</arg>
-                        <arg>jdk.incubator.concurrent</arg>
                     </compilerArgs>
                     <parameters>true</parameters>
                 </configuration>
@@ -240,7 +232,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M6</version>
                 <configuration>
-                    <argLine>--enable-preview --add-modules jdk.incubator.concurrent</argLine>
+                    <argLine>--enable-preview</argLine>
                 </configuration>
             </plugin>
             <plugin>

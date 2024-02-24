@@ -35,5 +35,4 @@ module pile.lang {
 	
 	// Testing only...
 	requires jdk.unsupported;
-    requires jdk.incubator.concurrent;
 }

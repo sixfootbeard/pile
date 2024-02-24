@@ -8,8 +8,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import pile.core.exception.PileExecutionException;
 import pile.core.exception.PileInternalException;
 
-import jdk.incubator.concurrent.ScopedValue;
-
 public class Coroutine {
 
     public static final ScopedValue<CoroutineSync> SYNC_LOCAL = ScopedValue.newInstance();
