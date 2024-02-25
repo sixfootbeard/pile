@@ -43,7 +43,8 @@ public class NativeDynamicBinding<T> extends ThreadLocalBinding<T> {
     //@formatter:off
     public static NativeDynamicBinding<Namespace> NAMESPACE = new NativeDynamicBinding<>("*ns*"); 
     public static NativeDynamicBinding<InputStream> STANDARD_IN = new NativeDynamicBinding<>("*in*", System.in); 
-    public static NativeDynamicBinding<PrintStream> STANDARD_OUT = new NativeDynamicBinding<>("*out*", System.out); 
+    public static NativeDynamicBinding<PrintStream> STANDARD_OUT = new NativeDynamicBinding<>("*out*", System.out);
+    public static NativeDynamicBinding<PrintStream> STANDARD_ERR = new NativeDynamicBinding<>("*err*", System.err);
     public static NativeDynamicBinding<CompilerFlags> COMPLILER_FLAGS = new NativeDynamicBinding<>("*compiler-flags*", new CompilerFlags());
     public static NativeDynamicBinding<PersistentList<Symbol>> CURRENT_FN_SYM = new NativeDynamicBinding<>("*compiling-sym*", PersistentList.EMPTY); 
     // Only emit boxed numbers for literals
@@ -56,8 +57,8 @@ public class NativeDynamicBinding<T> extends ThreadLocalBinding<T> {
     //@formatter:on
 
     public static NativeDynamicBinding[] values() {
-        return new NativeDynamicBinding[] { NAMESPACE, STANDARD_IN, STANDARD_OUT, COMPLILER_FLAGS, BOXED_NUMBERS,
-                DEFER_ERRORS, COMPILE_FILENAME, ROOT_LOG_LEVEL};
+        return new NativeDynamicBinding[] { NAMESPACE, STANDARD_IN, STANDARD_OUT, STANDARD_ERR, COMPLILER_FLAGS,
+                BOXED_NUMBERS, DEFER_ERRORS, COMPILE_FILENAME, ROOT_LOG_LEVEL };
     }
 
     public NativeDynamicBinding(String name) {

@@ -21,8 +21,10 @@ import static org.objectweb.asm.Opcodes.*;
 import static org.objectweb.asm.Type.*;
 import static org.objectweb.asm.Type.getMethodType;
 import static pile.compiler.Helpers.*;
+import static pile.nativebase.NativeCore.*;
 
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,6 +43,7 @@ import org.objectweb.asm.commons.Method;
 
 import pile.compiler.AbstractClassCompiler;
 import pile.core.CoreConstants;
+import pile.core.binding.NativeDynamicBinding;
 import pile.core.runtime.generated_classes.LookupHolder;
 
 /**
@@ -142,7 +145,7 @@ public class AOTHandler {
         String dir = packageName.replace('.', '/');
         Path path = Paths.get(deref, dir, clazz + ".class");        
         
-        System.out.println(String.format("Writing AOT class '%s' to %s", clazz, path));
+        prn(String.format("Writing AOT class '%s' to %s", clazz, path));
         try {
             Files.createDirectories(path.getParent());
             Files.write(path, classArray);

@@ -15,6 +15,8 @@
  */
 package pile.core.log;
 
+import static pile.nativebase.NativeCore.*;
+
 import pile.core.binding.NativeDynamicBinding;
 
 public class DefaultLogger implements Logger {
@@ -30,7 +32,7 @@ public class DefaultLogger implements Logger {
         if (isEnabled(level)) {
             String filled = String.format(msg, parts);
             String withClass = String.format("[%s] %s: %s", clazz.getName(), level.name(), filled);
-            System.out.println(withClass);
+            prn(withClass);
         }
     }
 

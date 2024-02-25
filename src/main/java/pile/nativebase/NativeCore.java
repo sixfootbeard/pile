@@ -20,6 +20,7 @@ import static java.util.Objects.*;
 import static pile.compiler.Helpers.*;
 import static pile.util.CollectionUtils.*;
 
+import java.io.PrintStream;
 import java.io.Reader;
 import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
@@ -1028,10 +1029,11 @@ public class NativeCore {
 //	}
 //	
     public static void prn(Object... s) {
+        PrintStream out = NativeDynamicBinding.STANDARD_OUT.deref();
         for (Object o : s) {
-            System.out.print(o);
+            out.print(o);
         }
-        System.out.println();
+        out.println();
     }
 
 //	public static void prnlnall(Object... s) {

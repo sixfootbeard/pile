@@ -33,8 +33,7 @@ public class Pile {
         if (value instanceof PCall pcall) {
             return pcall;
         } else {
-            System.out.println(ns + "/" + fname + " is not callable");
-            throw new IllegalArgumentException();
+            throw new IllegalArgumentException(ns + "/" + fname + " is not callable");
         }
     }
 

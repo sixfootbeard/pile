@@ -18,6 +18,7 @@ package pile.compiler.form;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
+import java.io.PrintStream;
 import java.lang.invoke.SwitchPoint;
 import java.util.List;
 
@@ -155,15 +156,14 @@ public class DefForm implements Form {
         } 
     }
     
-    private void writeAOT(Namespace ns, String name, Object maybeHcm) throws Exception {
-        if (maybeHcm instanceof AbstractCompiledMethod hcm) {
+    private void writeAOT(Namespace ns, String name, Object maybeHcm) throws Exception {    
+        if (maybeHcm instanceof AbstractCompiledMethod hcm) {        
             Class<?> base = hcm.getBacking();
             if (base != null) {
-                System.out.println("Writing aot map entry: " + ns.getName() + "/" + name + "=" + base);
+                prn("Writing aot map entry: " + ns.getName() + "/" + name + "=" + base);
                 AOTHandler.writeAotFunction(ns.getName(), name, base);
             }   
-        }
-        
+        }        
     }
     
     public static String DOCUMENTATION = """

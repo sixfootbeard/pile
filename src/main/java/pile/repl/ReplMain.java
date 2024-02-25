@@ -51,9 +51,9 @@ public class ReplMain {
 
         Namespace replns = RuntimeRoot.defineOrGet("pile.repl");
         NativeDynamicBinding.NAMESPACE.set(replns);
-        
-        PrintStream out = System.out;
-        PrintStream err = System.err;
+
+        PrintStream out = NativeDynamicBinding.STANDARD_OUT.deref();
+        PrintStream err = NativeDynamicBinding.STANDARD_ERR.deref();
         
         out.println("Pile "+ VERSION);
         out.println(" Help: (help 'function-name)");
@@ -63,6 +63,9 @@ public class ReplMain {
 
         int captureCount = 0;
         while (! shouldExit()) {
+            out = NativeDynamicBinding.STANDARD_OUT.deref();
+            err = NativeDynamicBinding.STANDARD_ERR.deref();
+
             String prefix = NativeDynamicBinding.NAMESPACE.getValue() + "> "; 
 
             out.print(prefix);
