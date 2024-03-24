@@ -52,6 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Gatherer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -602,58 +603,17 @@ public class NativeCore {
     } 
     
     public static Stream<Object> stream_partition(Stream<Object> s, int n) {
-    
-        Spliterator<Object> source = s.spliterator();
-        final long size;
-        final int chars;
-        if (source.hasCharacteristics(Spliterator.SIZED)) {
-            size = source.estimateSize();
-            chars = Spliterator.NONNULL | Spliterator.SIZED;
-        } else {
-            size = -1;
-            chars = Spliterator.NONNULL;
-        }
-        
-    
-        var split = new Spliterator<Object>() {
-            
-            @Override
-            public boolean tryAdvance(Consumer<? super Object> action) {
-
-                PersistentVector out = PersistentVector.EMPTY;
-                LocalConsumer local = new LocalConsumer();
-                for (int i = 0; i < n; ++i) {
-                    if (source.tryAdvance(local)) {
-                        out = out.conj(local.getLocal());
-                    } else {
-                        return false;
-                    }                    
-                }
-                action.accept(out);
-                return true;
+        return s.gather(Gatherer.ofSequential(() -> new ArrayList<>(), (list, item, down) -> {
+            if (list.size() < n) {
+                list.add(item);
+            } else {
+                down.push(list);
+                list = new ArrayList<>();
             }
-
-            @Override
-            public Spliterator<Object> trySplit() {
-                // TODO I guess we could, when not ORDERED, just create some splits. Kind of a silly partition...
-                return null;
-            }
-
-            @Override
-            public long estimateSize() {
-                return size;
-            }
-
-            @Override
-            public int characteristics() {
-                return chars;
-            }
-        };
-        
-        return StreamSupport.stream(split, s.isParallel())
-                            .onClose(s::close);
+            return true;
+        }));
     }
-    
+
     @PileDoc("Looks up the provided key in an associative structure or provided index in a list structure.")
     @Precedence(1)
     public static Object get(List a, Object key) {
