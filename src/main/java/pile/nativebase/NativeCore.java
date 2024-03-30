@@ -546,7 +546,8 @@ public class NativeCore {
             case ISeq is -> is;
             case Map m -> seq(m);
             case Seqable s -> s.seq();
-            case Object[] arr -> ISeq.seqSized(arr, 0, arr.length, (a, i) -> a[i]);
+            case Object arr when arr.getClass().isArray() -> ISeq.seqSized(arr, 0, count(arr),
+                    (Object t, Integer idx) -> get(t, idx));
             case CharSequence cs -> seq(cs);
             case Map.Entry entry -> seq(entry);
             case Iterable it -> seq(it);
@@ -639,16 +640,24 @@ public class NativeCore {
     }
 
     @Precedence(LAST)
-    public static Object get(Object base, Object key) throws Throwable {
+    public static Object get(Object base, Object key) {
         return switch (base) {
             case null -> null;
             case Map map -> get(map, key);
             case List l -> get(l, key);
             case Set set -> get(set, key);
             case String s -> get(s, key);
-            case Object[] arr -> ARRAY_GET.invoke(arr, key);            
+            case Object arr when arr.getClass().isArray() -> arrayGet(arr, key);
             default -> null;
         };
+    }
+
+    private static Object arrayGet(Object base, Object key) {
+        try {
+            return ARRAY_GET.invoke(base, key);
+        } catch (Throwable e) {
+            throw new RuntimeException("Couldn't get array element");
+        }
     }
 
     @Precedence(1)
@@ -1300,9 +1309,20 @@ public class NativeCore {
     
     @Precedence(4)
     public static int count(Object o) {
-        // TODO Rest of the cases
-        var s = seq(o);
-        return count(s);
+        return switch (o) {
+            case Object obj when obj.getClass().isArray() -> countArray(o);
+            // TODO Rest of the cases
+            default -> count(seq(o));
+        };
+
+    }
+
+    private static int countArray(Object o) {
+        try {
+            return (int) arrayLength(o.getClass()).invoke(o);
+        } catch (Throwable e) {
+            throw new IllegalArgumentException("Shouldn't happen");
+        }
     }
     
     public static PileMethod count() {
