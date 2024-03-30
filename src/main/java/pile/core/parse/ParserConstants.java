@@ -40,6 +40,10 @@ public class ParserConstants {
 	public static final Symbol SYNTAX_QUOTE_SYM = new Symbol(PILE_CORE_NS, "syntax-quote");
 	public static final Symbol UNQUOTE_SYM = new Symbol(PILE_CORE_NS, "unquote");
 	public static final Symbol UNSPLICE_SYM = new Symbol(PILE_CORE_NS, "unquote-splice");
+    
+	public static final Symbol DEREF_SYM = new Symbol(PILE_CORE_NS, "deref");
+    
+    
 
 	private ParserConstants() {
 		// private

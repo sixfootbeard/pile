@@ -38,6 +38,7 @@ import pile.core.Keyword;
 import pile.core.Metadata;
 import pile.core.Symbol;
 
+@SuppressWarnings("rawtypes")
 public class PileParser {
 
 	private static final Symbol ANON_FN_SYM = new Symbol("anon-fn");
@@ -97,12 +98,9 @@ public class PileParser {
 				() -> new TransformerReader(
 						new MultiFormReader(TypeTag.MAP, TOP_READER, new ExactStringReader("}", null)),
 						PileParser::toSet)
-//				() -> new MultiFormReader(TypeTag.SET, TOP_READER, new ExactStringReader("}", null))
 				);
 		DISPATCH_MAP.put('"', () -> {
 			return (env, pr) -> {
-				// Discard
-//	            pr.read(); env.incRead();
 	            LexicalEnvironment lex = env.snapshot();
 	            
 	            StringBuilder sb = new StringBuilder();
@@ -122,9 +120,8 @@ public class PileParser {
 		);
 		DISPATCH_MAP.put('_', () -> {
 			return (env, pr) -> {
-				var ignored = unwrap(TOP_READER.parse(env, pr));
-				return Optional.of(new ParserResult(null, null));
-				
+				var _ = unwrap(TOP_READER.parse(env, pr));
+				return Optional.of(new ParserResult(null, null));				
 			};
 
 		});
@@ -141,7 +138,7 @@ public class PileParser {
 		DATA_DISPATCH_MAP.put('{', (Supplier<? extends Reader>) () -> new MultiFormReader(TypeTag.SET, TOP_DATA_READER, new ExactStringReader("}", null)));
 		DATA_DISPATCH_MAP.put('_', (Supplier<? extends Reader>) () -> {
 			return (env, pr) -> {
-				var ignored = unwrap(TOP_DATA_READER.parse(env, pr));
+				var _ = unwrap(TOP_DATA_READER.parse(env, pr));
 				return Optional.of(new ParserResult(null, null));
 			};
 		});
@@ -150,10 +147,9 @@ public class PileParser {
 
 	private static final Map<Character, Supplier<? extends Reader>> TOP_EXPR_MAP = new HashMap<>();
 	private static final Map<Character, Supplier<? extends Reader>> TOP_DATA_EXPR_MAP = new HashMap<>();
-
-    private static final Symbol DOT_SYM = new Symbol(".");
 	
-	private static final ParserResult toAnon(ParserResult pr) {
+
+    private static final ParserResult toAnon(ParserResult pr) {
 		PersistentList result = (PersistentList) pr.result();
 		PersistentList newVal = PersistentList.createArr(result, ANON_FN_SYM);
 		return pr.withResult(newVal);
@@ -264,11 +260,14 @@ public class PileParser {
 				}
 			};
 		});
+		TOP_EXPR_MAP.put('@', () -> {
+            return (env, pr) -> {
+                var nextForm = TOP_READER.parse(env, pr);
+                PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.DEREF_SYM);
+                return Optional.of(new ParserResult(arr, TypeTag.SEXP));
+            };
+        });
 
-//		NumberReader numberReader = new NumberReader();
-		Reader trueReader = replace(true, new ExactStringReader("true", TypeTag.TRUE));
-		Reader falseReader = replace(false, new ExactStringReader("false", TypeTag.FALSE));
-		Reader nilReader = replace(null, new ExactStringReader("nil", TypeTag.NIL));
 		Reader symbolReader = new SymbolReader();
 
 		CharTokenDispatchReader dispatch = new CharTokenDispatchReader(TOP_EXPR_MAP);
