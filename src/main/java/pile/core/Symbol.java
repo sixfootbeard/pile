@@ -134,17 +134,8 @@ public class Symbol extends PersistentMetadataObject<Symbol> implements Metadata
      * @return
      */
     public Symbol maybeResolve(Namespace ns) {
-        if (namespace != null) {
-            return this;
-        }
-        Binding maybeNs = Namespace.getIn(ns, name);
-        final String nsStr;
-        if (maybeNs != null) {
-            nsStr = maybeNs.namespace();
-        } else {
-            nsStr = NativeDynamicBinding.NAMESPACE.deref().getName();
-        }
-        return this.withNamespace(nsStr);
+        Var var = ns.getVar(this);
+        return var.asSymbol();
     }
 
     @Override
