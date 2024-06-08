@@ -9,7 +9,7 @@ Pile is a programming language in the LISP family that runs on the JVM. It dupli
 
 You will need the following software installed:
 
-- Java 20
+- Java 22
 - Git
 - Maven
 
@@ -432,6 +432,7 @@ public Function<Stream, Object> terminalFunction(...)
 Since the implementation uses actual streams they interoperate with Java produced streams easily.
 
 Intermediate Operators: map, filter, reduce, mapcat, take, take-while, drop, drop-while, interpose, enumerate
+
 Terminal Operators: any?, all?, into, foreach, sorted, joining
 
 * Error Handling
