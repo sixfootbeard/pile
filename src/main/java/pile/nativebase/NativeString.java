@@ -33,25 +33,30 @@ public class NativeString {
     public static NativeDynamicBinding<PersistentList<StringBuilder>> BUILDER = new NativeDynamicBinding<>("pile.string",
             "*builder*", true, null);
             
+    @PileDoc("Creates and pushes a new thread local string builder. It is implicitly referenced by (append \"string\") and will be popped by calling (build).")
     public static void new_builder() {
         StringBuilder sb = new StringBuilder();
         PersistentList<StringBuilder> newList = (PersistentList<StringBuilder>) conj(BUILDER.getValue(), sb);
         BUILDER.set(newList);
     }       
             
+    @PileDoc("Appends to the implicit string builder. Throws NPE if no local string builder exists")
     public static void append(Object o) {
         StringBuilder head = BUILDER.getValue().head();
         append(head, o);
     }
     
+    @PileDoc("Appends to the provided string builder.")
     public static void append(StringBuilder sb, Object o) {
         sb.append(NativeCore.str(o));
     }
     
+    @PileDoc("Returns the string built by the stringbuilder")
     public static String build(StringBuilder sb) {
         return sb.toString();
     }
     
+    @PileDoc("Pops the current stringbuilder and returns the value it was building")
     public static String build() {
         PersistentList<StringBuilder> pl = BUILDER.getValue();
         StringBuilder head = pl.head();
@@ -59,11 +64,13 @@ public class NativeString {
         return build(head);
     }
 
+    @PileDoc("Returns the number of code points in the unicode string")
     public static int length(CharSequence cs) {
         String s = cs.toString();
         return s.codePointCount(0, s.length());
     }
     
+    @PileDoc("Returns the substring starting from the provided code point, optionally up to the provided code point.")
     @Precedence(0)
     public static String substr(CharSequence cs, int from) {
         var s = cs.toString();
@@ -79,11 +86,13 @@ public class NativeString {
         return s.substring(idx, end);                
     }
     
+    @PileDoc("Returns the true if the provided string is blank. Throws NPE if the provided string is null.")
     @RenamedMethod("blank?")
     public static boolean isBlank(CharSequence cs) {
         return cs.toString().isBlank();
     }
     
+    @PileDoc("Returns the true if the first string contains the second string.")
     @RenamedMethod("includes?")
     public static boolean doesInclude(CharSequence cs, CharSequence subseq) {
         return cs.toString().contains(subseq);
