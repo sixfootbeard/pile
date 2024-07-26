@@ -584,7 +584,7 @@ public class StandardLibraryLoader {
         PersistentMap meta = PersistentMap.EMPTY;
         meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
         meta = meta.assoc(PileMethodLinker.MACRO_KEY, method.isAnnotationPresent(NativeMacro.class));
-        meta = meta.assoc(ParserConstants.FILENAME_KEY, method.getClass().toString());
+        meta = meta.assoc(ParserConstants.FILENAME_KEY, method.getDeclaringClass().toString());
         meta = meta.assoc(Keyword.of(PILE_CORE_NS, "native-source"), true);
 
         if (doc != null) {

@@ -482,6 +482,12 @@ public class NativeArrays {
         return Array.newInstance(c, size);
     }
     
+    @PileDoc("""
+            Creates a typed array from the provided class and elements.
+            
+            ;; (array class-sym elem0 elem1 ... elemN)
+            (array int 0 1 2)
+            """)
     @IndirectMethod
     public static LinkableMethod array() {
         return new LinkableMethod() {

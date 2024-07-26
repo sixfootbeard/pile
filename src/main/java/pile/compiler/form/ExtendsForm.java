@@ -109,7 +109,7 @@ public class ExtendsForm extends AbstractListForm {
                     // this
                     Symbol thisForm = (Symbol) first(args);
                     // ^Type this
-                    Symbol classSym = new Symbol(extendsClass.getName());
+                    Symbol classSym = expectSymbol(extendsRaw); 
                     Symbol thisType = (Symbol) thisForm
                             .updateMeta(meta -> meta.assoc(ParserConstants.ANNO_TYPE_KEY, classSym));
 

@@ -369,6 +369,11 @@
                              (java.util.Spliterators/spliteratorUnknownSize 0)
                              (java.util.stream.StreamSupport/stream false))))
 
+;; TODO Fix all these boxed
+(extend* ints ToStream (to-stream [this] (-> this java.util.Arrays/stream .boxed)))
+(extend* longs ToStream (to-stream [this] (-> this java.util.Arrays/stream .boxed)))
+(extend* doubles ToStream (to-stream [this] (-> this java.util.Arrays/stream .boxed)))
+
 ;; Seqs can support both, prefer streamable
 (prefer-protocol ToStream pile.core.Streamable java.lang.Iterable)
                              
