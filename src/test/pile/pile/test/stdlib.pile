@@ -393,3 +393,8 @@
   (let [state (AtomicInteger.)
         _ (some-> (.incrementAndGet state) inc)]
     (is (= 1 (.get state))) "Thread-some should evaluate expression only once"))
+
+(test "partition-at"
+  (is (= [[0 1] [2 3]] (stream (range 4) (partition-at #(= 0 (mod % 2))) (into []))))
+  (is (= [[0] [1 2] [3]] (stream (range 4) (partition-at #(= 1 (mod % 2))) (into [])))))
+

@@ -49,6 +49,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -609,9 +610,43 @@ public class NativeCore {
                 list.add(item);
             } else {
                 down.push(list);
-                list = new ArrayList<>();
+                list.clear();
             }
             return true;
+        }));
+    }
+    
+    public static Stream<Object> stream_partition_at(Stream<Object> s, PCall fn) {
+        AtomicReference<Optional<Object>> last = new AtomicReference<>(null);
+        return s.gather(Gatherer.ofSequential(() -> new ArrayList<>(), (list, item, down) -> {
+            if (last.get() != null) {
+                list.add(last.get().orElse(null));
+                last.set(null);
+            }
+            boolean result;
+            try {
+                result = (boolean) fn.invoke(item);
+            } catch (Throwable e) {
+                throw new RuntimeException(e); // TODO 
+            }
+            if (result) {
+                last.set(Optional.ofNullable(item));
+                if (! list.isEmpty()) {
+                    down.push(PersistentVector.fromList(list));
+                }
+                list.clear();
+            } else {
+                list.add(item);
+            }
+            
+            return true;
+        },(list, down) -> {
+            if (last.get() != null) {
+                list.add(last.get().orElse(null));
+            }
+            if (! list.isEmpty()) {
+                down.push(PersistentVector.fromList(list));
+            }
         }));
     }
 

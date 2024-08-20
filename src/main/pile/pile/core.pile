@@ -761,19 +761,18 @@
       ([s] (apply seq-map s))
       ([k v & parts] (->> parts (partition 2) (into {k v}))))
 
-;; pile.repl> (partition-at #(= % 3) (seq [1 2 3 4 5]))
-;; ((1 2) (3 4 5))
 (defn partition-at
-   "Lazily partition a sequence at the point before the test returns true"
-   [test col]
-   (lazy-seq
-     (loop* [i 1
-             state (next col)]        
-        (if state
-           (if (test (first state))
-              (cons (take i col) (partition-at test (nthnext col i)))
-              (recur (inc i) (next state)))
-            (list col)))))
+   "Partition a sequence at the point before the test returns true"
+   ([test] (fn [^Stream s] (stream-partition-at s test)))
+   ([test col]
+     (lazy-seq
+       (loop* [i 1
+               state (next col)]        
+          (if state
+             (if (test (first state))
+                (cons (take i col) (partition-at test (nthnext col i)))
+                (recur (inc i) (next state)))
+              (list col))))))
 
 (defmacro for [binds & body]
           (let [pairs (->> binds seq (partition 2))
