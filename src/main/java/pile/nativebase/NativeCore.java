@@ -747,33 +747,24 @@ public class NativeCore {
 
     @Precedence(LAST)
     public static Object get(Object base, Object key, Object ifNone) throws Throwable {
-        if (base == null) {
-            return ifNone;
-        }
-        if (base instanceof Map map) {
-            return get(map, key, ifNone);
-        } else if (base instanceof List list) {
-            return get(list, key, ifNone);
-        } else if (base instanceof Set set) {
-            return get(set, key, ifNone);
-        } else if (base instanceof String s) {
-            return get(s, key, ifNone);
-        } else if (base.getClass().isArray()) {
-            return ARRAY_GET.invoke(base, key, ifNone);
-        } else {
-            return ifNone;
-           
-        }
+        return switch (base) {
+            case null -> ifNone;
+            case Map map -> get(map, key, ifNone);
+            case List list -> get(list, key, ifNone);
+            case Set set -> get(set, key, ifNone);
+            case String s -> get(s, key, ifNone);
+            case Object o when base.getClass().isArray() -> ARRAY_GET.invoke(base, key, ifNone);
+            default -> ifNone;
+        };
     }
 
     private static int getIndex(Object key) {
-        if (key instanceof Long index) {
-            return index.intValue();
-        }
-        if (key instanceof Integer index) {
-            return index;
-        }
-        return -1;
+        return switch (key) {
+            case null -> -1;
+            case Long idx -> idx.intValue();
+            case Integer idx -> idx;
+            default -> -1;
+        };
     }
     
     @Precedence(0)
@@ -1024,14 +1015,6 @@ public class NativeCore {
     }
     // ~~ Printing
 
-//	public static void prn(Object s) {
-//	    System.out.print(Objects.toString(s));
-//	}
-//	
-//	public static void prnln(Object s) {
-//		System.out.println(s.toString());
-//	}
-//	
     public static void prn(Object... s) {
         PrintStream out = NativeDynamicBinding.STANDARD_OUT.deref();
         for (Object o : s) {
@@ -1039,13 +1022,6 @@ public class NativeCore {
         }
         out.println();
     }
-
-//	public static void prnlnall(Object... s) {
-//		for (Object o : s) {
-//			System.out.print(o);
-//		}
-//		System.out.println();
-//	}
 
     /**
      * Concatenates string parts.

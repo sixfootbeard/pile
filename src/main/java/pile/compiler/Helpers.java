@@ -135,10 +135,11 @@ public class Helpers {
     }
 
     public static boolean ifCheck(Object o) {
-        if (o instanceof Boolean bool) {
-            return bool;
-        }
-        return o != null;
+        return switch (o) {
+            case null -> false;
+            case Boolean bool -> bool;
+            default -> true;
+        };
     }
 
     static final MethodHandle CALL_PCALL;
@@ -218,14 +219,12 @@ public class Helpers {
     }
 
     public static PersistentList toList(Object o) {
-        if (o instanceof PersistentList pl) {
-            return pl;
-        }
-        if (o instanceof ISeq seq) {
-            return PersistentList.fromSeq(seq);
-        } else {
-            throw error("Bad list type");
-        }
+        return switch (o) {
+            case null -> throw error("Cannot convert null to list");
+            case PersistentList pl -> pl;
+            case ISeq seq -> PersistentList.fromSeq(seq);
+            default -> throw error("Bad list type");
+        };        
     }
 
     public static PersistentVector expectVector(Object list) {
