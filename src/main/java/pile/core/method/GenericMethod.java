@@ -22,6 +22,7 @@ import java.lang.invoke.MethodHandle;
 import java.lang.invoke.SwitchPoint;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.Spliterators;
@@ -40,12 +41,9 @@ import pile.util.Pair;
 
 public class GenericMethod implements PileMethod {
 
-
     private final AtomicReference<GenericMethodRecord> state;
+    private final GenericMethodTargets targets;    
 
-    private final Set<Integer> arities;
-    private final int varArgsArity;
-    
     // arity = 1 only
     private Class<?> ifaceClass;
     private final MethodHandle ifaceMethod;
@@ -54,8 +52,7 @@ public class GenericMethod implements PileMethod {
     public GenericMethod(GenericMethodTargets targets) {
         super();
         this.state = new AtomicReference<>(new GenericMethodRecord(targets.varArgsArity()));
-        this.arities = Set.copyOf(targets.arities());
-        this.varArgsArity = targets.varArgsArity();
+        this.targets = targets;
         this.ifaceMethod = null;
         this.ifaceClass = null;
         this.methodName = null;
@@ -64,8 +61,7 @@ public class GenericMethod implements PileMethod {
     public GenericMethod(Class<?> clazz, String methodName, MethodHandle value) {
         // single 1-arity method w/ interface
         this.state = new AtomicReference<>(new GenericMethodRecord());
-        this.arities = Set.of(1);
-        this.varArgsArity = -1;
+        this.targets = null;
         this.ifaceMethod = value;
         this.ifaceClass = clazz;
         this.methodName = methodName;
@@ -73,23 +69,25 @@ public class GenericMethod implements PileMethod {
 
     @Override
     public boolean acceptsArity(int arity) {
-        return arities.contains(arity);
+        return matchArity(targets.arities(), targets.varArgsArity, targets.varArgsTarget, arity) != null;
     }
     
-    public Class<?> getIfaceClass() {
-        return ifaceClass;
-    }
-    
-    public String getMethodName() {
-        return methodName;
+    @Override
+    public Optional<Class<?>> getReturnType() {
+        if (targets.arities().size() == 1 && targets.varArgsArity() == -1) {
+            return targets.arities().entrySet().iterator().next().getValue().returnType();
+        } else if (targets.arities().size() == 0 && targets.varArgsArity() != -1) {
+            return targets.varArgsTarget.returnType();
+        } else {
+            return Optional.empty();
+        }
     }
 
     @Override
     public Object invoke(Object... args) throws Throwable {
         var local = state.get();
         var argClasses = getArgClasses(args);
-        if (argClasses.size() == 1 && 
-                ifaceClass != null && ifaceClass.isAssignableFrom(argClasses.get(0))) {
+        if (argClasses.size() == 1 && ifaceClass != null && ifaceClass.isAssignableFrom(argClasses.get(0))) {
             return ifaceMethod.invoke(args[0]);
         }
         PersistentList<MethodTarget> methods = local.fns().get(args.length);
@@ -98,23 +96,29 @@ public class GenericMethod implements PileMethod {
             DynamicTypeLookup<MethodTarget> dyn = new DynamicTypeLookup<>(
                     mt -> new TypeVarArg(methodType(Object.class, mt.types()), false));
             MethodTarget target = dyn.findMatchingTarget(argClasses, methods.stream())
-                                    .orElseThrow(() -> new IllegalArgumentException("No matching types"));
+                    .orElseThrow(() -> new IllegalArgumentException("No matching types"));
             return target.method().invoke(args);
         } else {
-            if (varArgsArity == -1) {
+            if (targets.varArgsArity() == -1) {
                 throw new NoSuchMethodError("Cannot call methods with types: " + argClasses);
             } else {
                 PersistentList<MethodTarget> varArgsMethods = local.varArgs();
                 DynamicTypeLookup<MethodTarget> dyn = new DynamicTypeLookup<>(GenericMethod::toVarArgTVA);
                 MethodTarget target = dyn.findMatchingTarget(argClasses, varArgsMethods.stream())
-                                        .orElseThrow(() -> new IllegalArgumentException("No matching types"));
-//                HandleLookup result = new HandleLookup(HandleType.VARARGS, args.length, target.method());
+                        .orElseThrow(() -> new IllegalArgumentException("No matching types"));
                 return target.method().invoke(args);
-            }   
+            }
         }
-        
     }
-    
+
+    public Class<?> getIfaceClass() {
+        return ifaceClass;
+    }
+
+    public String getMethodName() {
+        return methodName;
+    }
+
     private static TypeVarArg toVarArgTVA(MethodTarget type) {
         List<Class<?>> types = new ArrayList<>(type.types());
         types.set(types.size() - 1, Object[].class);
@@ -125,42 +129,46 @@ public class GenericMethod implements PileMethod {
         MethodTarget mt = new MethodTarget(compiledFunction, types);
         for (;;) {
             GenericMethodRecord old = state.get();
-            GenericMethodRecord record = old.withMethod(mt);            
+            GenericMethodRecord record = old.withMethod(mt);
             if (state.compareAndSet(old, record)) {
                 SwitchPoint.invalidateAll(new SwitchPoint[] { old.sp() });
                 break;
             }
-        }        
+        }
     }
-    
+
     public void updateVarArgs(List<Class<?>> types, PileMethod compiledFunction) {
         MethodTarget mt = new MethodTarget(compiledFunction, types);
         for (;;) {
             GenericMethodRecord old = state.get();
-            GenericMethodRecord record = old.withVarArgsMethod(mt);            
+            GenericMethodRecord record = old.withVarArgsMethod(mt);
             if (state.compareAndSet(old, record)) {
                 SwitchPoint.invalidateAll(new SwitchPoint[] { old.sp() });
                 break;
             }
-        }        
+        }
     }
 
-    public record GenericMethodTargets(Set<Integer> arities, int varArgsArity) {}
+    public record GenericMethodTargets(Map<Integer, GenericTarget> arities, int varArgsArity,
+            GenericTarget varArgsTarget) {
+    }
+    
+    public record GenericTarget(Optional<Class<?>> returnType) {}
 
     private record MethodTarget(PileMethod method, List<Class<?>> types) {
     }
 
-    private record GenericMethodRecord(SwitchPoint sp, PersistentMap<Integer, PersistentList<MethodTarget>> fns, int varArgsArity,
-           PersistentList<MethodTarget> varArgs) {
-           
+    private record GenericMethodRecord(SwitchPoint sp, PersistentMap<Integer, PersistentList<MethodTarget>> fns,
+            int varArgsArity, PersistentList<MethodTarget> varArgs) {
+
         public GenericMethodRecord() {
             this(new SwitchPoint(), PersistentMap.EMPTY, -1, PersistentList.EMPTY);
         }
-        
+
         public GenericMethodRecord(int varArgsArity) {
             this(new SwitchPoint(), PersistentMap.EMPTY, varArgsArity, PersistentList.EMPTY);
         }
-           
+
         public GenericMethodRecord withMethod(MethodTarget tgt) {
             int size = tgt.types().size();
             PersistentList<MethodTarget> targets = fns.get(size);
@@ -172,10 +180,10 @@ public class GenericMethod implements PileMethod {
             GenericMethodRecord record = new GenericMethodRecord(new SwitchPoint(), newMap, varArgsArity, varArgs);
             return record;
         }
-        
+
         public GenericMethodRecord withVarArgsMethod(MethodTarget tgt) {
             ensure(varArgsArity != -1, "No varargs method to override");
-            
+
             int size = tgt.types().size();
             ensure(varArgsArity == size, "Wrong size varargs method to override.");
             PersistentList<MethodTarget> targets = varArgs.conj(tgt);

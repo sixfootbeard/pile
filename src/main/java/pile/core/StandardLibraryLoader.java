@@ -460,22 +460,6 @@ public class StandardLibraryLoader {
         return new LibraryMethods(methodNames, indirectMethods);
     }
 
-    private static Class<?> findParentType(Class<?> lhs, Class<?> rhs) {
-        if (lhs.equals(rhs)) {
-            return lhs;
-        }
-
-        boolean lsr = lhs.isAssignableFrom(rhs);
-        boolean rsl = rhs.isAssignableFrom(lhs);
-        if (lsr) {
-            return lhs;
-        } else if (rsl) {
-            return rhs;
-        } else {
-            return Object.class;
-        }
-    }
-    
     private static void define(Namespace ns, Lookup lookup, String name, List<Method> methods)
             throws IllegalAccessException {
 
@@ -539,7 +523,7 @@ public class StandardLibraryLoader {
                 if (parent == null) {
                     parent = mh.type().returnType();
                 } else {
-                    parent = findParentType(parent, mh.type().returnType());
+                    parent = Helpers.findParentType(parent, mh.type().returnType());
                 }
                 if (classSrc == null) {
                     classSrc = method.getDeclaringClass().getName();

@@ -20,6 +20,7 @@ import static pile.nativebase.NativeCore.*;
 
 import java.lang.invoke.MethodHandle;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,6 +51,7 @@ import pile.core.binding.ImmutableBinding;
 import pile.core.exception.PileCompileException;
 import pile.core.method.GenericMethod;
 import pile.core.method.GenericMethod.GenericMethodTargets;
+import pile.core.method.GenericMethod.GenericTarget;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.runtime.generated_classes.LookupHolder;
 
@@ -107,11 +109,14 @@ public class DefGenericForm extends AbstractListForm {
     }
 
     private GenericMethod compileMultipleMethods(CompilerState cs, Impls impls) {
-        Set<Integer> arities = new HashSet<>();
+        Map<Integer, GenericTarget> arities = new HashMap<>(); 
         int varArgsArity = -1;
-
+        GenericTarget varArgsTarget = null;
+        
         for (var impl : impls.implList()) {
-            ParameterParser pp = new ParameterParser(ns, impl.args());
+            PersistentVector args = impl.args();
+            Optional<Class<?>> hint = Helpers.getTypeHint(args, ns);
+            ParameterParser pp = new ParameterParser(ns, args);
             ParameterList pl = pp.parse();
             int size = pl.args().size();
             if (pl.isVarArgs()) {
@@ -119,11 +124,12 @@ public class DefGenericForm extends AbstractListForm {
                     throw new PileCompileException("Cannot have multiple varargs forms", LexicalEnvironment.extract(form));
                 }
                 varArgsArity = size;
+                varArgsTarget = new GenericTarget(hint);
             } else {
-                arities.add(size);
+                arities.put(pl.args().size(), new GenericTarget(hint));
             }
         }
-        GenericMethodTargets gmt = new GenericMethodTargets(arities, varArgsArity);
+        GenericMethodTargets gmt = new GenericMethodTargets(arities, varArgsArity, varArgsTarget);
         return new GenericMethod(gmt);
     }
 
@@ -190,4 +196,17 @@ public class DefGenericForm extends AbstractListForm {
 
     }
 
+    public static final String DOCUMENTATION = """
+            Creates a new generic function. Generic functions are type-based and multiple dispatch.
+
+            They are defined with 'defgeneric', and typed implementations with 'defimpl'. 
+            
+            ;; (defgeneric methodname doc? arg-lists)
+            ;; (defimpl methodname typed-arg-list body)
+            (defgeneric to-string [from])
+            (defimpl to-string [^Integer from] (Integer/toString from))
+            (to-string 12)
+            ;; "12"
+             
+            """;
 }

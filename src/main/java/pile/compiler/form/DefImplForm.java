@@ -105,5 +105,16 @@ public class DefImplForm extends AbstractListForm {
     
     private record ImplRecord(Symbol methodSym, PersistentVector<Object> argsAndTypes, PersistentList<Object> body) {}
 
+    public static final String DOCUMENTATION = """
+            Define an implementation of a generic function.
+            
+            ;; (defgeneric methodname doc? arg-lists)
+            ;; (defimpl methodname typed-arg-list body)
+            (defgeneric to-string [from])
+            (defimpl to-string [^Integer from] (Integer/toString from))
+            (to-string 12)
+            ;; "12"
+             
+            """;
 
 }

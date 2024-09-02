@@ -739,4 +739,37 @@ public class Helpers {
             }
         }
     }
+
+    public static Class<?> findParentType(Class<?> lhs, Class<?> rhs) {
+        return findParentTypeOpt(lhs, rhs).orElse(Object.class);
+    }
+
+    public static Optional<Class<?>> findParentTypeOpt(Class<?> lhs, Class<?> rhs) {
+        if (lhs.equals(rhs)) {
+            return Optional.of(lhs);
+        }
+
+        boolean lsr = lhs.isAssignableFrom(rhs);
+        boolean rsl = rhs.isAssignableFrom(lhs);
+        if (lsr) {
+            return Optional.of(lhs);
+        } else if (rsl) {
+            return Optional.of(rhs);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    public static <T> T matchArity(Map<Integer, T> arities, int varArgsArity, T varArgsImpl, int size) {
+        if (arities.containsKey(size)) {
+            return arities.get(size);
+        }
+
+        if (varArgsArity != -1) {
+            if (varArgsArity < size) {
+                return varArgsImpl;
+            }
+        }
+        return null;
+    }
 }

@@ -55,203 +55,6 @@ import pile.core.parse.ParserConstants;
  */
 public class ParameterParser {
 
-    public record MethodParameter(String name, Class type) {
-
-        public String getCompilableTypeDescriptor() {
-            return Type.getDescriptor(getCompilableClass());
-        }
-
-        public Type getCompilableType() {
-            return Type.getType(getCompilableClass());
-        }
-
-        public Class<?> getCompilableClass() {
-            return toCompilableType(type);
-        }
-
-    };
-
-    public record ParameterList(List<MethodParameter> args, Map<String, Integer> indexes, boolean isVarArgs,
-            boolean isJavaVarArgs) {
-
-        /**
-         * Update the types with the receiver and types from the supplied method.
-         * 
-         * @param method
-         * @return
-         */
-        public ParameterList updateTypesAndReceiver(Method method) {
-            ensure(args.size() == method.getParameterCount() + 1, "Wrong number of args to update");
-            ensure((method.getModifiers() & Modifier.STATIC) == 0, "Must be an instance method");
-
-            List<MethodParameter> newArgs = new ArrayList<>();
-            Iterator<MethodParameter> it = args.iterator();
-            newArgs.add(new MethodParameter(it.next().name(), method.getDeclaringClass()));
-
-            Class<?>[] parameterTypes = method.getParameterTypes();
-            int i = 0;
-            while (it.hasNext()) {
-                MethodParameter argRecord = it.next();
-                newArgs.add(new MethodParameter(argRecord.name(), parameterTypes[i]));
-                ++i;
-            }
-            return new ParameterList(newArgs, indexes, isVarArgs, method.isVarArgs());
-        }
-
-        public ParameterList updateTypes(Method method) {
-            List<MethodParameter> newArgs = new ArrayList<>();
-            Class<?>[] parameterTypes = method.getParameterTypes();
-            int i = 0;
-            for (MethodParameter argRecord : args) {
-                newArgs.add(new MethodParameter(argRecord.name(), parameterTypes[i]));
-                ++i;
-            }
-            return new ParameterList(newArgs, indexes, isVarArgs, method.isVarArgs());
-        }
-
-        public ParameterList appendAll(ParameterList suffix) {
-            List<MethodParameter> newArgs = new ArrayList<>();
-            newArgs.addAll(args);
-            newArgs.addAll(suffix.args);
-
-            Map<String, Integer> newIndexes = new HashMap<>();
-            newIndexes.putAll(indexes);
-            newIndexes.putAll(suffix.indexes);
-
-            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
-        }
-
-        public ParameterList append(MethodParameter suffix) {
-            List<MethodParameter> newArgs = new ArrayList<>();
-            newArgs.addAll(args);
-            newArgs.add(suffix);
-
-            Map<String, Integer> newIndexes = new HashMap<>();
-            newIndexes.putAll(indexes);
-            newIndexes.put(suffix.name, newArgs.size());
-
-            return new ParameterList(newArgs, newIndexes, false, false);
-        }
-
-        public ParameterList withJavaVarArgs() {
-            return withJavaVarArgs(true);
-        }
-
-        public ParameterList withJavaVarArgs(boolean isVarArgs) {
-            return new ParameterList(args, indexes, isVarArgs, isVarArgs);
-        }
-
-        public ParameterList withVarArgs() {
-            return new ParameterList(args, indexes, true, isJavaVarArgs);
-        }
-
-        public MethodType toMethodType(Class<?> returnType) {
-            List<Class<?>> classes = mapL(args(), MethodParameter::getCompilableClass);
-            return methodType(returnType, classes);
-        }
-
-        public ParameterList append(List<MethodParameter> closureArgs) {
-            List<MethodParameter> newArgs = new ArrayList<>(args.size() + closureArgs.size());
-            newArgs.addAll(args);
-            newArgs.addAll(closureArgs);
-
-            Map<String, Integer> newIndexes = new HashMap<>(indexes);
-            int startIdx = args.size();
-            for (var cl : closureArgs) {
-                newIndexes.put(cl.name(), startIdx);
-                ++startIdx;
-            }
-
-            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
-        }
-
-        public MethodParameter lastArg() {
-            return args.get(args.size() - 1);
-        }
-
-        public ParameterList popFirst() {
-            MethodParameter firstArg = args.get(0);
-            List<MethodParameter> newArgs = args.subList(1, args.size());
-            Map<String, Integer> newIndexes = new HashMap<>(indexes);
-            newIndexes.remove(firstArg.name());
-            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
-        }
-
-        public ParameterList popLast() {
-            MethodParameter lastArg = args.getLast();
-            List<MethodParameter> newArgs = args.subList(0, args.size() - 1);
-            Map<String, Integer> newIndexes = new HashMap<>(indexes);
-            newIndexes.remove(lastArg.name());
-            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
-        }
-
-        public ParameterList modifyLastArg(UnaryOperator<MethodParameter> fn) {
-            MethodParameter last = lastArg();
-            MethodParameter newRec = fn.apply(last);
-            return this.popLast().append(newRec);
-        }
-
-        /**
-         * Create a generic compilable version of this method type.
-         * 
-         * @return
-         */
-        public ParameterList genericCompilable() {
-            List<MethodParameter> recs = new ArrayList<>();
-            this.args.forEach(or -> recs.add(new MethodParameter(or.name(), Object.class)));
-
-            ParameterList pr = new ParameterList(recs, indexes, isVarArgs, isJavaVarArgs);
-
-            if (isJavaVarArgs) {
-                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), Object[].class));
-            } else if (isVarArgs) {
-                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), ISeq.class));
-            }
-
-            return pr;
-        }
-
-        /**
-         * Create a generic version of this method type.
-         * 
-         * @return
-         */
-        public ParameterList generic() {
-            List<MethodParameter> recs = new ArrayList<>();
-            this.args.forEach(or -> recs.add(new MethodParameter(or.name(), Any.class)));
-
-            ParameterList pr = new ParameterList(recs, indexes, isVarArgs, isJavaVarArgs);
-
-            if (isJavaVarArgs) {
-                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), Any[].class));
-            } else if (isVarArgs) {
-                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), ISeq.class));
-            }
-
-            return pr;
-        }
-
-        public ParameterList prepend(MethodParameter argRecord) {
-            List<MethodParameter> newArgs = new ArrayList<>(args.size() + 1);
-            newArgs.add(argRecord);
-            newArgs.addAll(args);
-
-            Map<String, Integer> newIndexes = new HashMap<>();
-            int idx = 0;
-            for (var ar : newArgs) {
-                newIndexes.put(ar.name(), idx);
-                ++idx;
-            }
-
-            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
-
-        }
-
-        public static ParameterList empty() {
-            return new ParameterList(List.of(), Map.of(), false, false);
-        }
-    };
-
     private final Iterable form;
     private final Namespace ns;
 
@@ -319,7 +122,7 @@ public class ParameterParser {
         return new ParameterList(args, indexes, isVarArgs, false);
     }
     
-    public void validateArgumentUniqueness(Set<String> existing, String newArg) {
+    private void validateArgumentUniqueness(Set<String> existing, String newArg) {
         if (existing.contains(newArg)) {
             String msg = "Duplicate argument parameter: " + newArg;
             throw new PileCompileException(msg, LexicalEnvironment.extract(form));
@@ -347,5 +150,202 @@ public class ParameterParser {
         }
 
         return new ParameterList(args, indexes, false, m.isVarArgs());
+    }
+
+    public record MethodParameter(String name, Class type) {
+    
+        public String getCompilableTypeDescriptor() {
+            return Type.getDescriptor(getCompilableClass());
+        }
+    
+        public Type getCompilableType() {
+            return Type.getType(getCompilableClass());
+        }
+    
+        public Class<?> getCompilableClass() {
+            return toCompilableType(type);
+        }
+    
+    }
+
+    public record ParameterList(List<MethodParameter> args, Map<String, Integer> indexes, boolean isVarArgs,
+            boolean isJavaVarArgs) {
+    
+        /**
+         * Update the types with the receiver and types from the supplied method.
+         * 
+         * @param method
+         * @return
+         */
+        public ParameterList updateTypesAndReceiver(Method method) {
+            ensure(args.size() == method.getParameterCount() + 1, "Wrong number of args to update");
+            ensure((method.getModifiers() & Modifier.STATIC) == 0, "Must be an instance method");
+    
+            List<MethodParameter> newArgs = new ArrayList<>();
+            Iterator<MethodParameter> it = args.iterator();
+            newArgs.add(new MethodParameter(it.next().name(), method.getDeclaringClass()));
+    
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            int i = 0;
+            while (it.hasNext()) {
+                MethodParameter argRecord = it.next();
+                newArgs.add(new MethodParameter(argRecord.name(), parameterTypes[i]));
+                ++i;
+            }
+            return new ParameterList(newArgs, indexes, isVarArgs, method.isVarArgs());
+        }
+    
+        public ParameterList updateTypes(Method method) {
+            List<MethodParameter> newArgs = new ArrayList<>();
+            Class<?>[] parameterTypes = method.getParameterTypes();
+            int i = 0;
+            for (MethodParameter argRecord : args) {
+                newArgs.add(new MethodParameter(argRecord.name(), parameterTypes[i]));
+                ++i;
+            }
+            return new ParameterList(newArgs, indexes, isVarArgs, method.isVarArgs());
+        }
+    
+        public ParameterList appendAll(ParameterList suffix) {
+            List<MethodParameter> newArgs = new ArrayList<>();
+            newArgs.addAll(args);
+            newArgs.addAll(suffix.args);
+    
+            Map<String, Integer> newIndexes = new HashMap<>();
+            newIndexes.putAll(indexes);
+            newIndexes.putAll(suffix.indexes);
+    
+            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
+        }
+    
+        public ParameterList append(MethodParameter suffix) {
+            List<MethodParameter> newArgs = new ArrayList<>();
+            newArgs.addAll(args);
+            newArgs.add(suffix);
+    
+            Map<String, Integer> newIndexes = new HashMap<>();
+            newIndexes.putAll(indexes);
+            newIndexes.put(suffix.name, newArgs.size());
+    
+            return new ParameterList(newArgs, newIndexes, false, false);
+        }
+    
+        public ParameterList withJavaVarArgs() {
+            return withJavaVarArgs(true);
+        }
+    
+        public ParameterList withJavaVarArgs(boolean isVarArgs) {
+            return new ParameterList(args, indexes, isVarArgs, isVarArgs);
+        }
+    
+        public ParameterList withVarArgs() {
+            return new ParameterList(args, indexes, true, isJavaVarArgs);
+        }
+    
+        public MethodType toMethodType(Class<?> returnType) {
+            List<Class<?>> classes = mapL(args(), MethodParameter::getCompilableClass);
+            return methodType(returnType, classes);
+        }
+    
+        public ParameterList append(List<MethodParameter> closureArgs) {
+            List<MethodParameter> newArgs = new ArrayList<>(args.size() + closureArgs.size());
+            newArgs.addAll(args);
+            newArgs.addAll(closureArgs);
+    
+            Map<String, Integer> newIndexes = new HashMap<>(indexes);
+            int startIdx = args.size();
+            for (var cl : closureArgs) {
+                newIndexes.put(cl.name(), startIdx);
+                ++startIdx;
+            }
+    
+            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
+        }
+    
+        public MethodParameter lastArg() {
+            return args.get(args.size() - 1);
+        }
+    
+        public ParameterList popFirst() {
+            MethodParameter firstArg = args.get(0);
+            List<MethodParameter> newArgs = args.subList(1, args.size());
+            Map<String, Integer> newIndexes = new HashMap<>(indexes);
+            newIndexes.remove(firstArg.name());
+            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
+        }
+    
+        public ParameterList popLast() {
+            MethodParameter lastArg = args.getLast();
+            List<MethodParameter> newArgs = args.subList(0, args.size() - 1);
+            Map<String, Integer> newIndexes = new HashMap<>(indexes);
+            newIndexes.remove(lastArg.name());
+            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
+        }
+    
+        public ParameterList modifyLastArg(UnaryOperator<MethodParameter> fn) {
+            MethodParameter last = lastArg();
+            MethodParameter newRec = fn.apply(last);
+            return this.popLast().append(newRec);
+        }
+    
+        /**
+         * Create a generic compilable version of this method type.
+         * 
+         * @return
+         */
+        public ParameterList genericCompilable() {
+            List<MethodParameter> recs = new ArrayList<>();
+            this.args.forEach(or -> recs.add(new MethodParameter(or.name(), Object.class)));
+    
+            ParameterList pr = new ParameterList(recs, indexes, isVarArgs, isJavaVarArgs);
+    
+            if (isJavaVarArgs) {
+                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), Object[].class));
+            } else if (isVarArgs) {
+                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), ISeq.class));
+            }
+    
+            return pr;
+        }
+    
+        /**
+         * Create a generic version of this method type.
+         * 
+         * @return
+         */
+        public ParameterList generic() {
+            List<MethodParameter> recs = new ArrayList<>();
+            this.args.forEach(or -> recs.add(new MethodParameter(or.name(), Any.class)));
+    
+            ParameterList pr = new ParameterList(recs, indexes, isVarArgs, isJavaVarArgs);
+    
+            if (isJavaVarArgs) {
+                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), Any[].class));
+            } else if (isVarArgs) {
+                pr = pr.modifyLastArg(o -> new MethodParameter(o.name(), ISeq.class));
+            }
+    
+            return pr;
+        }
+    
+        public ParameterList prepend(MethodParameter argRecord) {
+            List<MethodParameter> newArgs = new ArrayList<>(args.size() + 1);
+            newArgs.add(argRecord);
+            newArgs.addAll(args);
+    
+            Map<String, Integer> newIndexes = new HashMap<>();
+            int idx = 0;
+            for (var ar : newArgs) {
+                newIndexes.put(ar.name(), idx);
+                ++idx;
+            }
+    
+            return new ParameterList(newArgs, newIndexes, isVarArgs, isJavaVarArgs);
+    
+        }
+    
+        public static ParameterList empty() {
+            return new ParameterList(List.of(), Map.of(), false, false);
+        }
     }
 }

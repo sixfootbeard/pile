@@ -104,8 +104,8 @@ public enum IntrinsicBinding implements Binding {
     DEFPROTOCOL("defprotocol", DefProtocolForm::new),
     EXTENDS("extend*", ExtendsForm::new),
     
-    DEFGENERIC("defgeneric", DefGenericForm::new),
-    DEFIMPL("defimpl", DefImplForm::new),
+    DEFGENERIC("defgeneric", DefGenericForm.DOCUMENTATION, DefGenericForm::new),
+    DEFIMPL("defimpl", DefImplForm.DOCUMENTATION, DefImplForm::new),
     
     ;
 	
@@ -167,11 +167,6 @@ public enum IntrinsicBinding implements Binding {
     public SwitchPoint getSwitchPoint() {
         return null;
     }
-
-//    @Override
-//    public BindingType getType() {
-//        return BindingType.INTRINSIC;
-//    }
 
     @Override
     public String namespace() {
