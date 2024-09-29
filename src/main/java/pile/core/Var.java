@@ -21,6 +21,7 @@ public interface Var<T> extends SettableRef<T>, Metadata, PileMethod {
 
     public String getName();
 
+    public BindingInvocation bindWith(BindingInvocation prev, Object val);
 
     default public Symbol asSymbol() {
         return new Symbol(getNamespace().getName(), getName());

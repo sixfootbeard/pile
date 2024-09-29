@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.Spliterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.concurrent.StructuredTaskScope.Subtask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -277,12 +278,13 @@ public class NativeCore {
         }
     }
 
-    @PileDoc("Dereferences the provided Ref or Future.")
+    @PileDoc("Dereferences the provided Ref/Future/Subtask.")
     @Precedence(0)
     public static Object deref(Object o) throws Throwable {
         return switch (o) {
             case Ref ref -> ref.deref();
             case Future f -> f.get();
+            case Subtask st -> st.get();
             default -> null;
         };
     }

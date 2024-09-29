@@ -16,6 +16,9 @@
 
 (import (java.util.concurrent RecursiveTask CompletableFuture))
 
+;; Unstructured concurrency
+;;;;;;
+
 (defmacro async
     """
     Asynchronously run the provided expression. Prefer this if the function will 
@@ -45,5 +48,27 @@
     [& body]
     `(new pile.core.concurrency.Delay (fn [] ~@body)))
 
+;; Structured concurrency
+;;;;;;;;;;;;
 
+(defmacro task-scope [task-sym & body]
+   `(with [~task-sym (java.util.concurrent.StructuredTaskScope.)]
+     ~@body))
 
+(defn fork [^java.util.concurrent.StructuredTaskScope scope f] (.fork scope ~#f))
+(defn join [^java.util.concurrent.StructuredTaskScope scope] (.join scope))
+
+(defmacro plet 
+   """
+   Evaluate the bindings in parallel, assigning their resulting values to their symbols and then evaluate the body.
+   """
+   [bindings & body]
+   (let [sname (gensym)
+         bmap (->> bindings
+                   (partition 2)
+                   (map (fn [[sym val]] [sym [val (gensym)]])))]
+     `(task-scope ~sname
+        (let [~@(->> bmap (mapcat (fn [[sym [val gsym]]] [gsym `(fork ~sname (fn [] ~val))])))]
+          (join ~sname)
+          (let [~@(->> bmap (mapcat (fn [[sym [val gsym]]] [sym `(.get ~gsym)])))]
+            ~@body)))))

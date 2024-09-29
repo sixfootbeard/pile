@@ -18,7 +18,6 @@ package pile.compiler.form;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
-import java.io.PrintStream;
 import java.lang.invoke.SwitchPoint;
 import java.util.List;
 
@@ -28,7 +27,6 @@ import pile.collection.PersistentVector;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
-import pile.compiler.Helpers;
 import pile.core.Keyword;
 import pile.core.Metadata;
 import pile.core.Namespace;
@@ -37,6 +35,7 @@ import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
 import pile.core.binding.NativeDynamicBinding;
+import pile.core.binding.ScopedBinding;
 import pile.core.binding.ThreadLocalBinding;
 import pile.core.binding.Unbound;
 import pile.core.compiler.aot.AOTHandler;
@@ -135,6 +134,7 @@ public class DefForm implements Form {
             final Binding bind = switch (type) {
                 case VALUE -> new ImmutableBinding(ns.getName(), BindingType.VALUE, initializerValue, meta, new SwitchPoint());
                 case DYNAMIC -> new ThreadLocalBinding<>(ns.getName(), name, initializerValue, meta, new SwitchPoint()); 
+                case SCOPED -> new ScopedBinding<>(ns.getName(), initializerValue, meta); 
                 default -> throw new PileCompileException("Unexpected binding type: " + type, LexicalEnvironment.extract(form));                   
             };
             ns.define(name, bind);
@@ -175,8 +175,16 @@ public class DefForm implements Form {
             
             The symbol can be annotated:
             
-            (def ^:final symbol value)   ;; This symbol cannot be redefined with (def ...) or (set! ...)
-            (def ^:dynamic symbol value) ;; This symbol's value will be thread-local and can be changed with (set! ...) 
+            ;; This symbol cannot be redefined
+            (def ^:final symbol value)   
+            
+            ;; This symbol's value will be thread-local.
+            ;; It can be changed with (set! ...) or (binding ...)
+            (def ^:dynamic symbol value)
+             
+            ;; This symbol's value will be thread-local and can be inherited in certain cases.
+            ;; Its value can be updated via the (binding ...) form
+            (def ^:scoped symbol value)  
             """;
     
 

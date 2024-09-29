@@ -22,6 +22,7 @@ import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
 import pile.compiler.form.AnonClassForm;
 import pile.compiler.form.AnonFnForm;
+import pile.compiler.form.BindingForm;
 import pile.compiler.form.CaseForm;
 import pile.compiler.form.CastForm;
 import pile.compiler.form.DefForm;
@@ -58,6 +59,7 @@ import pile.util.CommonConstants;
 
 public enum IntrinsicBinding implements Binding {
     DEF("def", DefForm.DOCUMENTATION, DefForm::new),
+    BINDING("binding", BindingForm.DOCUMENTATION, BindingForm::new),
     FN("fn*", MethodForm::new),
     LET("let*", LetForm::new),
     DO("do",DoForm.DOCUMENTATION, DoForm::new),
