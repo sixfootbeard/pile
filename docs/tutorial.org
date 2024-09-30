@@ -9,7 +9,7 @@ Pile is a programming language in the LISP family that runs on the JVM. It dupli
 
 You will need the following software installed:
 
-- Java 22
+- Java 23
 - Git
 - Maven
 
@@ -591,12 +591,113 @@ Using the :: sugar
 
 Pile also supports the dot operator '.' with the same syntax as Clojure.
 
-* TODO Concurrency
-** Synchronization
-** Atoms
-** async/await
-** Channels
+* DONE Concurrency
+** DONE Synchronization
+
+Java synchronization is accomplished via the locking form which synchronizes on an object and then evaluates an expression while holding the object's monitor.
+
+#+begin_src clojure :eval no
+;; (locking object expression)
+(def base (java.util.HashMap.))
+(locking base (.put base "foo" "bar"))
+#+end_src
+
+** DONE Atoms
+
+An atom is a thread-safe reference to a value which can be overriden with (reset! ...) or updated with (swap! ...)
+
+#+begin_src clojure :eval no
+(def val (atom 0))
+(reset! val 22)
+(prn val) 
+;; 22
+(swap! val + 5)
+(prn val)
+;; 27
+#+end_src
+
+** DONE Structured Concurrency
+
+Prefer structured concurrency when the lifetime of the subtasks are well defined. 
+
+#+begin_src clojure :eval no
+;; This macro creates a new task scope and evaluates the body.
+;; (task-scope scope & body)
+
+;; Fork a new task calling the provided function
+;; (fork scope f)
+
+;; Join the provided scope, waiting for all tasks to complete.
+;; (join scope)
+
+(defn compute-slow [a b]
+  (sleep 1000)
+  (+ a b))
+
+(task-scope scope
+  (let [first (fork scope #(compute-slow 1 2))
+        second (fork scope #(compute-slow 2 3))]
+     (join scope)
+     (+ @first @second)))
+
+;; 8
+#+end_src
+
+Additionally, all subtasks automatically inherit values set in the (binding) form for ^:scoped vars.
+
+#+begin_src clojure :eval no
+(def ^:scoped username)
+
+(defn run [name]
+   (binding [username name]
+     (plet [greeting (str "Hello " username "!")
+            farewell (str "Goodbye " username "!")]
+       (prn greeting)
+       (prn farewell))))
+
+#+end_src
+
+In the above plet (parallel-let) the expressions were all computed in separate threads but were able to see the bound value for 'username'. 
+
+** DONE Unstructured Concurrency
+
+Unstructured Concurrency can be used when the lifetime of a thread of execution is indefinite.
+
+*** Async/Await
+
+An expression can be evaluated asynchronously by using the (async) macro. The result is a running task which can be awaited (await ...) or cancelled (cancel ...).
+
+#+begin_src clojure :eval no
+(def task (async (+ 1 2)))
+(await task) 
+;; 3
+#+end_src
+
+The await function can take multiple running tasks and returns the first task which completes.
+
+#+begin_src clojure :eval no
+(await (async (sleep 1000) 1) (async 2))
+;; 2
+#+end_src
+
+*** Channels
+
+A channel is a thread-safe container of values which different running tasks can interact with to share data.
    
+Channels can be created with (channel max-size). Values can be enqueued with (cput chan val) and values can be retrieved with (deref channel)
+
+#+begin_src clojure :eval no
+(def chan (channel 16))
+(async (loop [] (prn "Got a value: " (deref chan)) (recur)))
+(cput chan "first value")
+;; "Got a value: first value"
+(cput chan "second value")
+;; "Got a value: second value"
+
+#+end_src
+
+An await expression can atomically interact with channels as well, enqueueing or dequeueing items.
+
 * TODO Syntax
 
 This section can be read just as reference if some piece of syntax in the other sections isn't clear.

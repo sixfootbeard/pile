@@ -21,6 +21,15 @@ public interface Var<T> extends SettableRef<T>, Metadata, PileMethod {
 
     public String getName();
 
+    /**
+     * Create an invoker capable of {@link BindingInvocation#call(PCall) invoking} a
+     * function in the context of 1 or more bound var values.
+     * 
+     * @param prev The invoker to attach our state to.
+     * @param val
+     * @return A new {@link BindingInvocation} with our bound var state.
+     */
+    public BindingInvocation bindWith(BindingInvocation prev, Object val);
 
     default public Symbol asSymbol() {
         return new Symbol(getNamespace().getName(), getName());

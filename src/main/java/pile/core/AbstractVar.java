@@ -17,15 +17,15 @@ package pile.core;
 
 import static java.util.Objects.*;
 
+import java.lang.ScopedValue.Carrier;
 import java.lang.invoke.CallSite;
 import java.lang.invoke.MethodType;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
-import pile.collection.PersistentMap;
 import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
+import pile.core.binding.ScopedBinding;
 import pile.core.binding.ThreadLocalBinding;
 import pile.core.indy.CallSiteType;
 import pile.core.indy.CompilerFlags;
@@ -84,6 +84,25 @@ public abstract class AbstractVar<T> implements Var<T> {
             case DYNAMIC -> ((ThreadLocalBinding) bind).update(fn);
             default -> throw new PileInvocationException("Cannot update value of binding with type:" + type);
         }  
+    }
+    
+    @Override
+    public BindingInvocation bindWith(BindingInvocation prev, Object val) {
+        Binding bind = bind();
+        BindingType type = Binding.getType(bind);
+        return switch (type) {
+            case VALUE, DYNAMIC -> prev.withVar(this, val);
+            case SCOPED -> {
+                var pc = prev.getCarrier();
+                ScopedValue sv = ((ScopedBinding)bind).getScopedValue();
+                Carrier carrier = switch (pc) {
+                    case null -> ScopedValue.where(sv, val);
+                    default -> pc.where(sv, val);
+                };
+                yield prev.withCarrier(carrier);
+            }
+            default -> throw new PileInvocationException("Cannot update value of binding with type:" + type);
+        }; 
     }
     
     

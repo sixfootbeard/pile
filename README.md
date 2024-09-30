@@ -1,6 +1,6 @@
 # Overview
 
-Pile is a Lisp implementation that runs on the JVM. It targets Java 20+ to take advantage of new Java features. 
+Pile is a Lisp implementation that runs on the JVM. It targets Java 23 to take advantage of new Java features. 
 
 ```clojure
 (defn fib [a b] (cons a (lazy-seq (fib b (+ a b)))))
