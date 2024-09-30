@@ -7,7 +7,7 @@
 
     <properties>
         <asm.version>9.5</asm.version>
-        <java.version>22</java.version>
+        <java.version>23</java.version>
         <project.inceptionYear>2022</project.inceptionYear>
         <project.organization.name>John Hinchberger</project.organization.name>
         <project.projectName>Pile Language</project.projectName>
@@ -218,7 +218,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.10.1</version>
+                <version>3.13.0</version>
                 <configuration>
                     <release>${java.version}</release>
                     <compilerArgs>
@@ -230,7 +230,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M6</version>
+                <version>3.5.0</version>
                 <configuration>
                     <argLine>--enable-preview</argLine>
                 </configuration>
