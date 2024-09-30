@@ -4,8 +4,16 @@ import java.lang.ScopedValue.Carrier;
 import java.util.ArrayList;
 import java.util.List;
 
+import pile.core.binding.BindingType;
 import pile.core.exception.PileExecutionException;
 
+/**
+ * At a high level this class contains mappings of {@link Var vars} to values,
+ * and can execute a function call which will see those bound var values as set.
+ * This is typically useful with {@link BindingType#SCOPED} and
+ * {@link BindingType#DYNAMIC} vars. In these cases only the current thread will
+ * see those vars bound to those values.
+ */
 public class BindingInvocation {
 
     private final Carrier carrier;
@@ -21,13 +29,18 @@ public class BindingInvocation {
         this.vars = other.vars;
     }
 
-    public BindingInvocation(BindingInvocation other, Var var, Object varVal) {
+    private BindingInvocation(BindingInvocation other, Var var, Object varVal) {
         List<VarVal> copy = new ArrayList<>(other.vars);
         copy.add(new VarVal(var, varVal));
         this.carrier = other.carrier;
         this.vars = copy;
     }
-    
+
+    /**
+     * The current {@link Carrier}. May be null.
+     * 
+     * @return
+     */
     public Carrier getCarrier() {
         return carrier;
     }
@@ -42,7 +55,7 @@ public class BindingInvocation {
 
     public Object call(PCall fn) throws Exception {
         List<VarVal> befores = null;
-        if (! vars.isEmpty()) {
+        if (!vars.isEmpty()) {
             befores = new ArrayList<>(vars.size());
             for (var pair : vars) {
                 befores.add(new VarVal(pair.var(), pair.var().deref()));
@@ -78,7 +91,7 @@ public class BindingInvocation {
                         // TODO ERROR
                     }
                 }
-            
+
             }
         }
     }

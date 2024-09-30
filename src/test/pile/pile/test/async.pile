@@ -17,6 +17,15 @@
 
 (require '[pile.core.async :as a])
 
+(test "task-scope"
+  (each-form
+    (a/task-scope scope
+      (let [one (a/fork scope (constantly 1))
+            two (a/fork scope (constantly 2))
+            three (a/fork scope (constantly 3))]
+        (a/join scope)         
+        (is (= "123" (str @one @two @three)))))))
+
 (def ^:scoped sval)
 
 (test "scope-eval"
@@ -26,3 +35,39 @@
         (a/join scope)
         (is (= "test-value" (deref v)))))))
 
+
+(test "scope-compile"
+  (let [f (fn [] (binding [sval "test-value"]
+                   (a/task-scope scope
+                     (let [v (a/fork scope #(identity sval))]
+                       (a/join scope)
+                       (is (= "test-value" (deref v)))))))]
+    (f)))
+
+
+(def ^:scoped sone)
+(def ^:scoped stwo)
+(def ^:dynamic done)
+
+(test "scope-compile two"
+  (let [f (fn [] (binding [sone "s1"
+                           stwo "s2"]
+                   (a/task-scope scope
+                     (let [sv (a/fork scope #(identity sone))
+                           tv (a/fork scope #(identity stwo))]
+                       (a/join scope)
+                       (is (= "s1" (deref sv)))
+                       (is (= "s2" (deref tv)))))))]
+    (f)))
+
+
+(test "scope-compile mixed"
+  (let [f (fn [] (binding [sone "scoped"
+                           done "dynamic"]
+                   (a/task-scope scope
+                     (let [sv (a/fork scope #(identity sone))
+                           dv done]
+                       (a/join scope)
+                       (is (= "scoped" (deref sv)))
+                       (is (= "dynamic" dv))))))]
+    (f)))

@@ -141,7 +141,8 @@ public class BindingForm extends AbstractListForm {
         MethodHandle tgt = caller.findVirtual(BindingInvocation.class, "call", methodType(Object.class, PCall.class));
         MethodHandle newBinding = caller.findConstructor(BindingInvocation.class, methodType(void.class));
 
-        for (var o : syms) {
+        for (int i = syms.length - 1; i >= 0; --i) {
+            var o = syms[i];
             Symbol sym = (Symbol) o;
             Namespace ns = RuntimeRoot.get(sym.getNamespace());
             Var var = VarForm.getIn(ns, sym.getName());
