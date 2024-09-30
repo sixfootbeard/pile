@@ -91,7 +91,7 @@ public class BindingForm extends AbstractListForm {
     public Object evaluateForm(CompilerState cs) throws Throwable {
         ISeq s = form.seq().next();
         Object bindingSyntax = s.first();
-        ISeq fnSyntax = s.next();
+        var fnSyntax = s.next().first();
 
         BindingInvocation invoke = new BindingInvocation();
         Iterator<Pair<Object, Object>> pairs = pairIter(seq(bindingSyntax));
@@ -102,9 +102,9 @@ public class BindingForm extends AbstractListForm {
             invoke = v.bindWith(invoke, value);
             // TODO Handle failures & reset state
         }
-        ISeq synFn = fnSyntax.cons(EMPTY_ARGS).cons(FN_SYM);
-        PCall fn = (PCall) Compiler.evaluate(cs, synFn);
-        return invoke.call(fn);
+        return invoke.call((args) -> {
+            return Compiler.evaluate(cs, fnSyntax);
+        });
     }
 
     private Var getVar(CompilerState cs, Object o) {

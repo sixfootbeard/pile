@@ -65,8 +65,13 @@ public class RuntimeRoot {
      */
     private static final Map<String, CountDownLatch> LOADING_NS = new ConcurrentHashMap<>();
 
-    // Reentrant TL
-    private static final ThreadLocal<String> DEFINING_NS = new ThreadLocal<>();
+    /**
+     * Contains a nominal reference to a namespace which privileges the thread who
+     * first evaluates a namespace to see the in-progress state. Additionally, since
+     * it is a scoped variable this privilege is extended to structured concurrent
+     * subtasks.
+     */
+    private static final ScopedValue<String> DEFINING_NS = ScopedValue.newInstance();
 
     // above needs initialized before this is called.
     static {
@@ -80,19 +85,18 @@ public class RuntimeRoot {
             CountDownLatch old = LOADING_NS.putIfAbsent(name, ourLatch);
             if (old == null) {
                 LOG.debug("Creating namespace: %s", name);
-                var oldDef = DEFINING_NS.get();
-                DEFINING_NS.set(name);
-                try {
-                    // Natives first
-                    NAMESPACES.putIfAbsent(name, new Namespace(name, ROOTS));
-                    loadClasspathFile(name);
-                } finally {
-                    ourLatch.countDown();
-                    DEFINING_NS.set(oldDef);
-                    LOG.debug("Completed creating namespace: %s", name);
-                }
+                ScopedValue.runWhere(DEFINING_NS, name, () -> {
+                    try {
+                        // Natives first
+                        NAMESPACES.putIfAbsent(name, new Namespace(name, ROOTS));
+                        loadClasspathFile(name);
+                    } finally {
+                        ourLatch.countDown();
+                        LOG.debug("Completed creating namespace: %s", name);
+                    }
+                });
             } else {
-                var maybeDefining = DEFINING_NS.get();
+                var maybeDefining = DEFINING_NS.orElse(null);
                 if (!name.equals(maybeDefining)) {
                     LOG.debug("Waiting on load: ns=%s, defining=%s", name, maybeDefining);
                     try {
@@ -112,7 +116,7 @@ public class RuntimeRoot {
     }
 
     public static Namespace get(String name) {
-        var maybeDefining = DEFINING_NS.get();
+        var maybeDefining = DEFINING_NS.orElse(null);
         if (!name.equals(maybeDefining)) {
             try {
                 CountDownLatch latch = LOADING_NS.get(name);
