@@ -19,14 +19,6 @@
 
 (def ^:scoped sval)
 
-#_(test "scope-eval-native"
-  (binding [sval 12]
-    (a/task-scope scope
-      (let [v (a/fork scope #(+ sval 8))]
-        (a/join scope)
-        (is (= 20 (deref v)))))))
-
-
 (test "scope-eval"
   (binding [sval "test-value"]
     (a/task-scope scope
@@ -34,8 +26,3 @@
         (a/join scope)
         (is (= "test-value" (deref v)))))))
 
-#_(binding [sval "test-value"]
-    (a/task-scope scope
-      (let [v (a/fork scope #(identity sval))]
-        (a/join scope)
-        (prn sval))))
