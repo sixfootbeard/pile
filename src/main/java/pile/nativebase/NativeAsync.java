@@ -41,7 +41,7 @@ import pile.core.log.LoggerSupplier;
 import pile.nativebase.method.PileInvocationException;
 
 public class NativeAsync {
-    
+
     private static final Logger LOG = LoggerSupplier.getLogger(NativeAsync.class);
 
     private static class ScheduledHolder {
@@ -57,6 +57,7 @@ public class NativeAsync {
     public static void cput(PileChannel chan, Object o) throws InterruptedException {
         chan.put(o);
     }
+
     @PileDoc("Cancel a running async task. ")
     public static void cancel(Future<?> f) {
         f.cancel(true);
@@ -104,11 +105,11 @@ public class NativeAsync {
     }
 
     @PileDoc("""
-            Awaits the completion of 1 or many tasks. Tasks types may be either async calls, channel gets or 
+            Awaits the completion of 1 or many tasks. Tasks types may be either async calls, channel gets or
             channel puts. Respectively: (await (async (do-compute)) get-channel [put-channel val-to-enqueue]).
             This function returns either the result of the async call, the received value from the channel, or
-            the value that was put into the channel. This process is atomic and only one task may succeed. 
-            Alternatively, this method can accept a single argument mapping from an arbitrary key type to any of the task types. 
+            the value that was put into the channel. This process is atomic and only one task may succeed.
+            Alternatively, this method can accept a single argument mapping from an arbitrary key type to any of the task types.
             The result will be (task-key task-result), which can aid in which task was selected. This method does
             not cancel any unselected results. If the selected task threw an exception then
             this method will also throw the same exception.
@@ -121,9 +122,9 @@ public class NativeAsync {
             throw e;
         }
     }
-    
+
     public static Object await_index(Object... vals) throws Exception {
-        CompletableFuture<Object> last = new CompletableFuture<>(); 
+        CompletableFuture<Object> last = new CompletableFuture<>();
         int i = 0;
         for (Object src : vals) {
             collect(src, i, last);
@@ -140,26 +141,23 @@ public class NativeAsync {
             Awaits the completion of 1 or many tasks similar to await, however this variant will cancel
             all remaining async tasks. Channel operations are not affected.
             """)
-    public static Object await_any(Object... fns) throws InterruptedException, ExecutionException {
-        PersistentVector vec = PersistentVector.createArr(fns);
-        CompletableFuture<Object> fut = awaitFuture(vec);
-        return fut.thenApply(result -> {
-            PersistentList typed = (PersistentList) result;
-            int resultIdx = (int) first(typed);
-            for (int i = 0; i < fns.length; ++i) {
-                if (resultIdx == i) {
-                    continue;
-                }
-                Object part = fns[i];
-                if (part instanceof Future future) {
-                    future.cancel(true);
-                }
+    public static Object await_any(Object... fns) throws Exception {
+        PersistentList typed = (PersistentList) await_index(fns);
+        int resultIdx = (int) first(typed);
+        for (int i = 0; i < fns.length; ++i) {
+            if (resultIdx == i) {
+                continue;
             }
-            return second(typed);
-        }).get();
+            Object part = fns[i];
+            if (part instanceof Future future) {
+                cancel(future);
+            }
+        }
+        return second(typed);
+
 
     }
-    
+
     @PileDoc("""
             Attaches a new callback to a running (async) function which is called with the result of computation.
             If completed exceptionally, this attached task is not run.
@@ -172,7 +170,7 @@ public class NativeAsync {
                 LOG.warn("Error while running attached stage", e);
             }
         }, Executors.newVirtualThreadPerTaskExecutor());
-    
+
     }
 
     private static void handleCancellation(CompletableFuture<Object> cf, Thread t) {
@@ -220,64 +218,77 @@ public class NativeAsync {
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static void collect(Object source, CompletableFuture<Object> stage) {
-        if (source instanceof CompletableFuture f) {
-            ((CompletableFuture<Object>)f).whenComplete((result, ex) -> {
-                if (result != null) {
-                    stage.complete(result);
-                } else if (ex != null) {
-                    stage.completeExceptionally(ex);
-                }
-            });
-        } else if (source instanceof Future f) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    Object result = f.get();
-                    stage.complete(result);
-                } catch (Throwable t) {
-                    stage.completeExceptionally(t);
-                }
-            });
-        } else if (source instanceof PileChannel chan) {
-            // channel take
-            chan.get(stage::complete);
-        } else if (source instanceof PersistentVector pv) {
-            // channel put
-            var chan = (PileChannel) pv.get(0);
-            var val = pv.get(1);
-            chan.put(() -> stage.complete(val), val);
-        } else {
-            throw new PileInvocationException("Don't know how to use a " + source.getClass() + " as an await source.");
+        switch (source) {
+            case null -> throw new PileInvocationException("Cannot await a null source");
+            case CompletableFuture f -> {
+                ((CompletableFuture<Object>) f).whenComplete((result, ex) -> {
+                    if (ex != null) {
+                        stage.completeExceptionally(ex);
+                    } else {
+                        stage.complete(result);
+                    }
+                });
+            }
+            case Future f -> {
+                Thread.startVirtualThread(() -> {
+                    try {
+                        Object result = f.get();
+                        stage.complete(result);
+                    } catch (Throwable t) {
+                        stage.completeExceptionally(t);
+                    }
+                });
+            }
+            case PileChannel chan -> {
+                // channel take
+                chan.get(stage::complete);
+            }
+            case PersistentVector pv -> {
+                // channel put
+                var chan = (PileChannel) pv.get(0);
+                var val = pv.get(1);
+                chan.put(() -> stage.complete(val), val);
+
+            }
+            default -> throw new PileInvocationException(
+                    "Don't know how to use a " + source.getClass() + " as an await source.");
         }
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     private static void collect(Object source, Object key, CompletableFuture<Object> stage) {
-        if (source instanceof CompletableFuture f) {
-            ((CompletableFuture<Object>)f).whenComplete((result, ex) -> {
-                if (result != null) {
-                    stage.complete(PersistentList.reversed(key, result));
-                } else if (ex != null) {
-                    stage.completeExceptionally(ex);
-                }
-            });
-        } else if (source instanceof Future f) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    Object result = f.get();
-                    stage.complete(PersistentList.reversed(key, result));
-                } catch (Throwable t) {
-                    stage.completeExceptionally(t);
-                }
-            });
-        } else if (source instanceof PileChannel chan) {
-            chan.get(result -> stage.complete(PersistentList.reversed(key, result)));
-        } else if (source instanceof PersistentVector pv) {
-            // channel put
-            var chan = (PileChannel) pv.get(0);
-            var val = pv.get(1);
-            chan.put(() -> stage.complete(PersistentList.reversed(key, val)), val);
-        } else {
-            throw new PileInvocationException("Don't know how to use a " + source.getClass() + " as an await source.");
+        switch (source) {
+            case null -> throw new PileInvocationException("Cannot await a null source");
+            case CompletableFuture f -> {
+                ((CompletableFuture<Object>) f).whenComplete((result, ex) -> {
+                    if (result != null) {
+                        stage.complete(PersistentList.reversed(key, result));
+                    } else if (ex != null) {
+                        stage.completeExceptionally(ex);
+                    }
+                });
+            }
+            case Future f -> {
+                Thread.startVirtualThread(() -> {
+                    try {
+                        Object result = f.get();
+                        stage.complete(PersistentList.reversed(key, result));
+                    } catch (Throwable t) {
+                        stage.completeExceptionally(t);
+                    }
+                });
+            }
+            case PileChannel chan -> {
+                chan.get(result -> stage.complete(PersistentList.reversed(key, result)));
+            }
+            case PersistentVector pv -> {
+                // channel put
+                var chan = (PileChannel) pv.get(0);
+                var val = pv.get(1);
+                chan.put(() -> stage.complete(PersistentList.reversed(key, val)), val);
+            }
+            default -> throw new PileInvocationException(
+                    "Don't know how to use a " + source.getClass() + " as an await source.");
         }
     }
 
