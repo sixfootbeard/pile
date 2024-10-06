@@ -17,6 +17,7 @@ package pile.compiler.typed;
 
 import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
+import static pile.core.indy.IndyHelpers.*;
 import static pile.nativebase.NativeCore.*;
 
 import java.lang.reflect.Method;
@@ -39,12 +40,14 @@ import pile.compiler.DefTypeClassCompiler;
 import pile.compiler.MethodDefiner;
 import pile.compiler.MethodDefiner.MethodRecord;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.ParameterParser;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.form.AnonFnForm;
 import pile.compiler.form.SExpr;
+import pile.compiler.form.SetForm;
 import pile.core.Metadata;
 import pile.core.Namespace;
 import pile.core.Symbol;
@@ -156,11 +159,16 @@ public class FunctionalInterfaceAdapter {
         mv.visitInsn(Opcodes.DUP);
         // Push single cons arg
         Compiler.compile(cs, sym);
-        stack.pop();
-        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, internalName, "<init>", getMethodDescriptor(VOID_TYPE, OBJECT_TYPE),
-                false);
-
-        stack.push(compiledClass);
+        switch (stack.popR()) {
+            case TypeRecord tr -> {
+                mv.visitMethodInsn(Opcodes.INVOKESPECIAL, internalName, "<init>",
+                        getMethodDescriptor(VOID_TYPE, OBJECT_TYPE), false);
+                stack.push(compiledClass);
+            }
+            case InfiniteRecord _ -> {
+                stack.pushInfiniteLoop();
+            }
+        }
     }
 
     private void compileAdaptedAnonFn(CompilerState cs, Method m, PersistentList arg) {

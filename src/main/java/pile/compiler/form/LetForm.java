@@ -37,6 +37,7 @@ import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodStack;
 import pile.compiler.Scopes;
+import pile.compiler.MethodStack.InfiniteRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.typed.Any;
 import pile.core.Namespace;
@@ -128,28 +129,31 @@ public class LetForm implements Form {
         
         int count = localBindings.count();
         if (count % 2 != 0) {
-            throw new PileCompileException("Bindings size should be a multiple of 2, size=" + count, LexicalEnvironment.extract(local, form));
+            throw new PileCompileException("Bindings size should be a multiple of 2, size=" + count,
+                    LexicalEnvironment.extract(local, form));
         }
-        
+
         PersistentList rest = local.pop();
         ensureSyntax(rest.seq() != null, form, "Let form must have a body");
         var doForm = rest.conj(DO_SYM);
-    
+
         return new ProcessedForm(localBindings, doForm);
     }
 
     static void createLocalVariableMetadata(MethodVisitor mv, Label endLabel, List<LetScopeRecord> scopes) {
-		for (LetScopeRecord lsr : scopes) {
-			mv.visitLocalVariable(lsr.name(), lsr.descriptor(), lsr.signature(), lsr.start(), endLabel, lsr.index());
-		}
-	}
+        for (LetScopeRecord lsr : scopes) {
+            mv.visitLocalVariable(lsr.name(), lsr.descriptor(), lsr.signature(), lsr.start(), endLabel, lsr.index());
+        }
+    }
 
-	static List<LetScopeRecord> compileBindings(CompilerState cs, Namespace ns, Iterator bindingIterator) {
-	
+    static List<LetScopeRecord> compileBindings(CompilerState cs, Namespace ns, Iterator bindingIterator) {
+
 	    MethodVisitor mv = cs.getCurrentMethodVisitor();
 	    GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
 	    Scopes scope = cs.getScope();
 	    MethodStack methodStack = cs.getMethodStack();
+	    
+	    boolean isInfinite = false;
 
 		List<LetScopeRecord> scopes = new ArrayList<>();
 
@@ -174,8 +178,14 @@ public class LetForm implements Form {
 			defer.compile().accept(cs);
 			Label startLabel = new Label();
 			mv.visitLabel(startLabel);
-
-			TypeRecord typeRecord = methodStack.popR();
+			
+			var rawRecord = methodStack.popR();
+            TypeRecord typeRecord = switch (rawRecord) {
+                case TypeRecord tr -> tr;
+                // RETHINK allowing this
+                case InfiniteRecord _ -> throw new PileCompileException("Infinite loop in let binding expression.",
+                        LexicalEnvironment.extract(rhs));
+            };
 			Class<?> javaClass = typeRecord.javaClass();
 			Class<?> localClass = Helpers.getTypeHint(sym, ns)
 			                        .map(hint -> {

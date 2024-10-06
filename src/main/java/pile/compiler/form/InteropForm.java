@@ -42,6 +42,7 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.Scopes.ScopeLookupResult;
 import pile.compiler.typed.Any;
@@ -328,9 +329,18 @@ public class InteropForm implements Form {
 
         var receiver = stack.popR();
 
-        Class<?> javaClass = receiver.javaClass();
+        // RETHINK
+        // This will not run the compilation of the store if the expression never
+        // returns.
+        TypeRecord tr;
+        switch (receiver) {
+            case TypeRecord rec: tr = rec; break;
+            case InfiniteRecord _: return;
+        }
+        Class<?> javaClass = tr.javaClass();
         Class<?> fieldType = Object.class;
 
+        // TODO should this be Any?
         if (!(javaClass.equals(Object.class))) {
             try {
                 Field declaredField = javaClass.getDeclaredField(fieldOrMethodName);
@@ -349,7 +359,7 @@ public class InteropForm implements Form {
         }
 
         InteropType interopType = InteropType.INSTANCE_FIELD_GET;
-        compileInteropIndy(mv, fieldOrMethodName, fieldType, List.of(receiver), interopType);
+        compileInteropIndy(mv, fieldOrMethodName, fieldType, List.of(tr), interopType);
 
         stack.pushAny();
 

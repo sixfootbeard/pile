@@ -35,6 +35,8 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 
 import pile.collection.PersistentList;
 import pile.compiler.CompilerState.AnnotationData;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
 import pile.compiler.form.VarScope;
@@ -160,7 +162,17 @@ public class SingleMethodCompilerBuilder {
 
                 // Compile form
                 Compiler.compile(cs, body.conj(DO_SYM));
-                createReturnInsn(cs, actualReturnType, cs.getMethodStack().peek());
+                MethodStack methodStack = cs.getMethodStack();
+                switch (methodStack.popR()) {
+                    case TypeRecord tr -> {
+                        Class<?> targetType = tr.javaClass();
+                        createReturnInsn(cs, actualReturnType, targetType);
+                    }
+                    case InfiniteRecord _ -> {
+                        // pass
+                        // entire function was an infinite loop which is fine.
+                    }
+                };
             }
             method.visitMaxs(0, 0);
             method.visitEnd();

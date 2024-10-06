@@ -19,14 +19,13 @@ import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
-import org.objectweb.asm.Opcodes;
-
 import pile.collection.PersistentList;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.MethodStack;
-import pile.core.Namespace;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.core.Symbol;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
@@ -43,20 +42,29 @@ public class CastForm extends AbstractListForm {
     public DeferredCompilation compileForm(CompilerState compilerState) {
         // (cast class-sym expr)
         return new DeferredCompilation(TypeTag.SEXP, IntrinsicBinding.CAST, cs -> {
+            MethodStack stack = cs.getMethodStack();
+
             handleLineNumber(cs.getCurrentMethodVisitor(), form);
             Compiler.compile(cs, nth(form, 2));
-            MethodStack stack = cs.getMethodStack();
-            Class<?> topClazz = stack.pop();
-            var castClass = getTargetClass();
-            if (!(topClazz.equals(castClass))) {
-                try { 
-                    cs.getCurrentGeneratorAdapter().cast(getType(topClazz), getType(castClass));
-                } catch (IllegalArgumentException e) {
-                    throw new PileCompileException("Bad cast", LexicalEnvironment.extract(form), e);
+
+            switch (stack.popR()) {
+                case TypeRecord tr -> {
+                    Class<?> topClazz = tr.javaClass();
+                    var castClass = getTargetClass();
+                    if (!(topClazz.equals(castClass))) {
+                        try {
+                            cs.getCurrentGeneratorAdapter().cast(getType(topClazz), getType(castClass));
+                        } catch (IllegalArgumentException e) {
+                            // TODO Better msg
+                            throw new PileCompileException("Bad cast", LexicalEnvironment.extract(form), e);
+                        }
+                    }
+                    stack.push(castClass);
+                }
+                case InfiniteRecord _ -> {
+                    stack.pushInfiniteLoop();
                 }
             }
-            stack.push(castClass);
-            
         });
 
     }

@@ -40,6 +40,8 @@ import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
 import pile.core.parse.LexicalEnvironment;
@@ -129,7 +131,8 @@ public class CaseForm extends AbstractListForm {
         // (case <toCheck> ...)
         handleLineNumber(ga, toCheck);
         Compiler.compile(cs, toCheck);
-        Class<?> topClass = stack.pop();
+        // RETHINK This might be ok, but dead code would exist.
+        Class<?> topClass = popNoInfinite(stack, toCheck, "Case expression cannot be an infinite loop").javaClass(); 
         ga.box(getType(topClass));
         Class<?> topClassWrapper = toWrapper(topClass);
         int caseTestInstance = ga.newLocal(getType(topClassWrapper));
@@ -244,9 +247,17 @@ public class CaseForm extends AbstractListForm {
                 handleLineNumber(mv, tgt.targetExpr());
                 Compiler.compile(cs, tgt.targetExpr());
                 // Each final expr eval pushes a value that we need to remove
-                Class<?> targetType = stack.pop();
-                if (targetType.isPrimitive()) {
-                    ga.box(getType(targetType));
+                var stackRecord = stack.popR();
+                switch (stackRecord) {
+                    case TypeRecord tr -> {
+                        Class<?> targetType = tr.javaClass();
+                        if (targetType.isPrimitive()) {
+                            ga.box(getType(targetType));
+                        }
+                    }
+                    case InfiniteRecord _ -> {
+                        stack.pushInfiniteLoop();
+                    }
                 }
                 mv.visitJumpInsn(Opcodes.GOTO, endCase);
             }
@@ -256,11 +267,16 @@ public class CaseForm extends AbstractListForm {
         if (parts.defaultExpr().isPresent()) {
             Object defaultExpr = parts.defaultExpr().get();
             Compiler.compile(cs, defaultExpr);
-            if (stack.peek().isPrimitive()) {
-                Class<?> popped = stack.pop();
-                ga.box(getType(popped));
-                // not adding the boxed type back is effectively popping the boxed type since
-                // the final stack element will be generic.
+            // not adding the boxed type back is effectively popping the boxed type since
+            // the final stack element will be generic.
+            switch (stack.popR()) {
+                case TypeRecord tr -> {
+                    Class<?> javaClass = tr.javaClass();
+                    if (javaClass.isPrimitive()) {
+                        ga.box(getType(javaClass));
+                    }
+                }
+                case InfiniteRecord _ -> stack.pushInfiniteLoop();
             }
         } else {
             // TODO Maybe string msg.

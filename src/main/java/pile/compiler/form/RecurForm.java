@@ -37,6 +37,7 @@ import pile.compiler.LoopCompileTarget;
 import pile.compiler.LoopEvaluationTarget;
 import pile.compiler.LoopTargetType;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.core.Namespace;
 import pile.core.binding.IntrinsicBinding;
 import pile.core.exception.PileCompileException;
@@ -68,6 +69,7 @@ public class RecurForm implements Form {
             MethodVisitor mv = cs.getCurrentMethodVisitor();
             LoopCompileTarget target = cs.lastLoopTarget();
             GeneratorAdapter generatorAdapter = cs.getCurrentGeneratorAdapter();
+            MethodStack stack = cs.getMethodStack();
 
             LoopTargetType loopTargetType = target.ltt();
 
@@ -88,10 +90,12 @@ public class RecurForm implements Form {
             // Evaluate all new values first, pushing them all
             int idx = 0; 
             while (fit.hasNext()) {
-                Compiler.compile(cs, fit.next());
-                MethodStack stack = cs.getMethodStack();
+                Object valueSyntax = fit.next();
+                Compiler.compile(cs, valueSyntax);
                 ClassSlot recurSlotType = params.get(idx);
-                Class<?> stackTopCompilable = toCompilableType(stack.pop());
+                // RETHINK Allowing this
+                TypeRecord topRecord = popNoInfinite(stack, valueSyntax, "Recur value cannnot be an infinite loop");
+                Class<?> stackTopCompilable = toCompilableType(topRecord.javaClass());
                 
                 Class<?> recurType = recurSlotType.type();
                 if (! (stackTopCompilable.equals(recurType)) && ! recurType.isAssignableFrom(stackTopCompilable)) {
@@ -121,6 +125,7 @@ public class RecurForm implements Form {
                 }
             }
             mv.visitJumpInsn(Opcodes.GOTO, target.loopStart());
+            stack.pushInfiniteLoop();
         });
     }
 

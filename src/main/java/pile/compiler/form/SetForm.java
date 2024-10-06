@@ -43,6 +43,8 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.Scopes.ScopeLookupResult;
 import pile.compiler.form.InteropForm.FieldOrMethod;
 import pile.compiler.form.InteropForm.InteropFormRecord;
@@ -169,7 +171,7 @@ public class SetForm extends AbstractListForm {
             MethodStack stack = cs.getMethodStack();
 
             switch (parseForm.ios()) {
-                case INSTANCE: {
+                case INSTANCE -> {
                     // stack: [base, val]
                     Compiler.compile(cs, parseForm.instanceOrClass());
                     Compiler.compile(cs, val);
@@ -179,27 +181,26 @@ public class SetForm extends AbstractListForm {
                             mapA(types, tr -> getType(tr.javaClass()), Type[]::new), parseForm.fieldOrMethodName());
                     mv.visitInsn(Opcodes.ACONST_NULL);
                     stack.pushNull();
-
-                    break;
                 }
-                case STATIC: {
+                case STATIC -> {
                     // stack: [val]
                     Compiler.compile(cs, val);
-                    var type = stack.pop();
+                    switch (stack.popR()) {
+                        case TypeRecord tr -> {
+                            var type = tr.javaClass();
+                            Symbol classSym = (Symbol) parseForm.instanceOrClass();
+                            var staticClass = classSym.getAsClass(ns);
 
-                    Symbol classSym = (Symbol) parseForm.instanceOrClass();
-                    var staticClass = classSym.getAsClass(ns);
-
-                    // bootstrap args: [clazz, fieldName]
-                    indyVarArg(mv, "static", SetForm.class, "bootstrap", void.class, new Type[] { getType(type) },
-                            staticClass.getName(), parseForm.fieldOrMethodName());
-                    mv.visitInsn(Opcodes.ACONST_NULL);
-                    stack.pushNull();
-
-                    break;
+                            // bootstrap args: [clazz, fieldName]
+                            indyVarArg(mv, "static", SetForm.class, "bootstrap", void.class,
+                                    new Type[] { getType(type) }, staticClass.getName(), parseForm.fieldOrMethodName());
+                            mv.visitInsn(Opcodes.ACONST_NULL);
+                            stack.pushNull();
+                        }
+                        case InfiniteRecord _ -> stack.pushInfiniteLoop();
+                    }
                 }
-                default:
-                    throw new PileCompileException("Bad interop form", LexicalEnvironment.extract(form));
+                default -> throw new PileCompileException("Bad interop form", LexicalEnvironment.extract(form));
             }
         });
     }
@@ -216,11 +217,18 @@ public class SetForm extends AbstractListForm {
                 MethodStack stack = compilerState.getMethodStack();
 
                 Compiler.compile(compilerState, val);
-                Class<?> stackTop = stack.pop();
-                indyVarArg(mv, "var", SetForm.class, "bootstrap", void.class, types(List.of(stackTop)),
-                        slr.namespace(), sym.getName());
-                mv.visitInsn(Opcodes.ACONST_NULL);
-                stack.pushNull();
+                switch (stack.popR()) {
+                    case TypeRecord tr -> {
+                        Class<?> stackTop = tr.javaClass();
+                        indyVarArg(mv, "var", SetForm.class, "bootstrap", void.class, types(List.of(stackTop)),
+                                slr.namespace(), sym.getName());
+                        mv.visitInsn(Opcodes.ACONST_NULL);
+                        stack.pushNull();
+                    }
+                    case InfiniteRecord _ -> {
+                        stack.pushInfiniteLoop();
+                    }
+                }
             });
         } else {
             throw new PileCompileException(

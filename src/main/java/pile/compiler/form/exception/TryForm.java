@@ -27,6 +27,7 @@ import java.util.function.BiConsumer;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 
 import pile.collection.PersistentList;
@@ -37,6 +38,7 @@ import pile.compiler.ExceptionBlockTarget;
 import pile.compiler.MethodStack;
 import pile.compiler.Scopes;
 import pile.compiler.CompilerState.SavedStack;
+import pile.compiler.MethodStack.InfiniteRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.Scopes.ScopeLookupResult;
 import pile.compiler.form.AbstractListForm;
@@ -46,6 +48,8 @@ import pile.core.Keyword;
 import pile.core.Namespace;
 import pile.core.Symbol;
 import pile.core.binding.IntrinsicBinding;
+import pile.core.exception.PileCompileException;
+import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 
 public class TryForm extends AbstractListForm {
@@ -171,7 +175,8 @@ public class TryForm extends AbstractListForm {
         // try body
         ga.visitLabel(tryStart);
         f.accept(cs, parts.body());
-        stack.pop();
+        // RETHINK infinite here ok?
+        stack.popR();
         int returnValueIndex = ga.newLocal(OBJECT_TYPE);
         // TODO Type coercions
         ga.storeLocal(returnValueIndex);
@@ -199,11 +204,18 @@ public class TryForm extends AbstractListForm {
 
                 // Do body
                 f.accept(cs, cp.cbody());
-                Class<?> catchBodyResultValue = stack.pop();
-                if (catchBodyResultValue.isPrimitive()) {
-                    ga.box(getType(catchBodyResultValue));
-                }
-                ga.storeLocal(returnValueIndex);
+                switch (stack.popR()) {
+                    case TypeRecord tr -> {
+                        Class<?> catchBodyResultValue = tr.javaClass();
+                        if (catchBodyResultValue.isPrimitive()) {
+                            ga.box(getType(catchBodyResultValue));
+                        }
+                        ga.storeLocal(returnValueIndex);
+                    }
+                    case InfiniteRecord _ -> {
+                        // pass
+                    }
+                };
                 
                 ga.visitLabel(endCatch);
 
@@ -211,7 +223,15 @@ public class TryForm extends AbstractListForm {
                 if (parts.finallyBody() != null) {
                     ga.visitTryCatchBlock(startCatch, endCatch, throwingFinally, null);
                     f.accept(cs, parts.finallyBody());
-                    DoForm.popStack(ga, stack);
+                    switch (stack.popR()) {
+                        case TypeRecord tr -> {
+                            Type topType = Type.getType(tr.javaClass());
+                            DoForm.popStack(ga, topType);
+                        }
+                        case InfiniteRecord _ -> {
+                            // pass
+                        }
+                    }
                 }
                 ga.visitJumpInsn(Opcodes.GOTO, beforeReturn);
                 scope.leaveScope();
@@ -230,7 +250,15 @@ public class TryForm extends AbstractListForm {
             
             if (parts.finallyBody() != null) {
                 f.accept(cs, parts.finallyBody());
-                DoForm.popStack(ga, stack);
+                switch (stack.popR()) {
+                    case TypeRecord tr -> {
+                        Type topType = Type.getType(tr.javaClass());
+                        DoForm.popStack(ga, topType);
+                    }
+                    case InfiniteRecord _ -> {
+                        // pass
+                    }
+                };
             }
             // stack - restore
             ga.visitLabel(beforeReturn);
