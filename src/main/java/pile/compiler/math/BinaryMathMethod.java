@@ -43,6 +43,7 @@ import pile.core.indy.guard.GuardBuilder;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractRelinkingCallSite;
+import pile.core.method.LinkableMethod;
 import pile.util.ComparableUtils;
 import pile.util.Pair;
 
@@ -74,10 +75,15 @@ public class BinaryMathMethod implements PileMethod {
     
     @Override
     public Optional<CallSite> staticLink(CallSiteType csType, MethodType staticTypes, long anyMask) {
-        Class<?> lhs = staticTypes.parameterType(0);
-        Class<?> rhs = staticTypes.parameterType(1);
-        return getHandle(lhs, rhs)
-            .map(ConstantCallSite::new);
+        return switch (csType) {
+            case PLAIN -> {
+                Class<?> lhs = staticTypes.parameterType(0);
+                Class<?> rhs = staticTypes.parameterType(1);
+                yield getHandle(lhs, rhs)
+                    .map(ConstantCallSite::new);
+            } 
+            case PILE_VARARGS -> Optional.empty();
+        };        
     }
     
     private Optional<MethodHandle> getHandle(Class<?> lhs, Class<?> rhs) {
@@ -102,38 +108,44 @@ public class BinaryMathMethod implements PileMethod {
     @Override
     public CallSite dynamicLink(CallSiteType csType, MethodType statictypes, long anyMask, CompilerFlags flags) {
 
-        /**
-         * @implSpec Threading Concerns: None, currently. This just relinks every time,
-         *           which is bad but we have no threading concerns.
-         */
-        return new AbstractRelinkingCallSite(statictypes) {
+        return switch (csType) {
+            case PLAIN -> {
+                /**
+                 * @implSpec Threading Concerns: None, currently. This just relinks every time,
+                 *           which is bad but we have no threading concerns.
+                 */
+                yield new AbstractRelinkingCallSite(statictypes) {
 
-            @Override
-            protected MethodHandle findHandle(Object[] args) throws Throwable {
-                final var lhs = args[0].getClass();
-                final var rhs = args[1].getClass();
-                MethodHandle target = getHandle(args[0].getClass(), args[1].getClass())
-                                        .orElseThrow(() -> {
-                                            String msg  = "Cannot link method '" + methodName + "(" + lhs + ", " + rhs + ")'";
-                                            return new PileException(msg);
-                                        });
+                    @Override
+                    protected MethodHandle findHandle(Object[] args) throws Throwable {
+                        final var lhs = args[0].getClass();
+                        final var rhs = args[1].getClass();
+                        MethodHandle target = getHandle(args[0].getClass(), args[1].getClass()).orElseThrow(() -> {
+                            String msg = "Cannot link method '" + methodName + "(" + lhs + ", " + rhs + ")'";
+                            return new PileException(msg);
+                        });
 
-//                NumericPromoter promoter = new NumericPromoter();
-//                MethodHandle promoted = promoter.promote(target, statictypes);
-                GuardBuilder guard = new GuardBuilder(target, relink, statictypes);
-                var lhsStaticType = statictypes.parameterType(0);
-                if (! lhsStaticType.isPrimitive()) {
-                    guard.guardExact(0, lhs);
-                }
-                var rhsStaticType = statictypes.parameterType(1);
-                if (! rhsStaticType.isPrimitive()) {
-                    guard.guardExact(1, rhs);
-                }
-                
-                LOG.trace("(Re)linked to math method %s%s", methodName, target.type());
-                return guard.getHandle();
+                        GuardBuilder guard = new GuardBuilder(target, relink, statictypes);
+                        var lhsStaticType = statictypes.parameterType(0);
+                        if (!lhsStaticType.isPrimitive()) {
+                            guard.guardExact(0, lhs);
+                        }
+                        var rhsStaticType = statictypes.parameterType(1);
+                        if (!rhsStaticType.isPrimitive()) {
+                            guard.guardExact(1, rhs);
+                        }
+
+                        LOG.trace("(Re)linked to math method %s%s", methodName, target.type());
+                        return guard.getHandle();
+                    }
+                };
+            }
+            case PILE_VARARGS -> {
+                var mh = LinkableMethod.invokeLink(csType, this).asType(statictypes);
+                yield new ConstantCallSite(mh);
             }
         };
+
     }
 
     @Override
