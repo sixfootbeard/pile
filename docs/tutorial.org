@@ -7,13 +7,13 @@ Pile is a programming language in the LISP family that runs on the JVM. It dupli
 
 * Getting Started
 
-You will need the following software installed:
+The following software is needed before getting started:
 
 - Java 23
 - Git
 - Maven
 
-After git cloning the project you can run the repl by executing the file named 'repl' in the root directory. This will build the project and then run the REPL main. Once in the REPL you can enter Pile code to be evaluated:
+After git cloning the project run the repl by executing the file named 'repl' in the root directory. This will build the project and then run the REPL main. Once in the REPL Pile code can be evaluated:
 
 #+begin_src clojure :eval no
 (prn "Hello, World!")
@@ -33,7 +33,7 @@ pile.repl> (+ *0 5)
 The first expression produced the number 3 which was assigned to the symbol '*0'. This symbol can be referenced in later expressions.
 
 Some REPL tips:
-- You can use the REPL function 'help' on a function to show arguments, comments, and examples for that function
+- The REPL function 'help' can be used on a function to show arguments, comments, and examples.
 
 #+begin_src clojure :eval no
 (help 'prn)
@@ -43,7 +43,7 @@ Some REPL tips:
 
 * Namespaces
 
-Namespaces are containers of values and functions. The repl displays the namespace before each prompt. To change the namespace you can simply call the _ns_ function with a new namespace:
+Namespaces are containers of values and functions. The repl displays the namespace before each prompt. To change the namespace call the _ns_ function with a new namespace:
 
 #+begin_src clojure :eval no
 pile.repl> (ns a.b.c)
@@ -85,9 +85,64 @@ pile.repl> (plus 40 4)
 ;; 44
 #+end_src
 
-** TODO Varargs
+** DONE Varargs
+
+Functions can accept a variable number of trailing arguments by adding a '&' symbol before the last element:
+
+#+begin_src clojure :eval no
+(defn varfn [preamble & items] 
+  (prn preamble)
+  (prn items)) 
+#+end_src
+
+The trailing argument will be a Sequence of values wrapping all the trailing arguments:
+
+#+begin_src clojure :eval no
+(varfn 1 2 3 4)
+;; 1
+;; (2 3 4)
+#+end_src
+
+** DONE Multiple Arity
+
+A single function may accept multi sizes (arities) of arguments.
+
+#+begin_src clojure :eval no
+;; (fn ([arglist] body) ([another-arglist] another-body) ...)
+(def many (fn ([a] :one) ([a b] :two)))
+(many 1)
+;; :one
+(many 1 2)
+;; :two
+#+end_src
+
+Functions can mix vararg types as well, but will always prefer the non-vararg arity if available.
+
+#+begin_src clojure :eval no
+(defn many ([a] :single) ([a & b] :vararg))
+(many 1)
+;; :single
+(many 1 2)
+;; :vararg
+(many 1 2 3)
+;; :vararg
+#+end_src
+
 ** TODO Closures
-** TODO Anonymous Functions
+** DONE Anonymous Functions
+
+Anonymous functions can be created with the (anon-fn ...) form or the syntactic sugar #(...). Within an anonymous function form arguments can be referenced via the percent syntax (%N):
+
+#+begin_src clojure :eval no
+(def add (anon-fn (+ %0 %1)))
+(add 1 2)
+;; 3
+(def add #(+ %0 %1))
+(add 1 2)
+;; 3
+#+end_src
+
+Anonymous functions can be closures. 
 
 * Control Flow
 
@@ -113,7 +168,7 @@ pile.repl> (if (> 3 4) "less than!")
 
 * Local Variables
 
-You can define local variables within functions and at the namespace level using the 'let' expression. These local variables will be usable only within the body of the let expression. 
+The 'let' expression allows defining local variables within functions and at the namespace level. These local variables will be usable only within the body of the let expression. 
 
 #+begin_src clojure :eval no
 (let [bindings] body)
@@ -159,7 +214,7 @@ Some things to note:
 - The recur syntax updates each local with the provided expressions in the order the locals were defined.
 * Do Forms
 
-Occasionally it will be necessary to execute statements with side effects such as logging statements before performing other operations. To accomplish this you can use the do form:
+Occasionally it will be necessary to execute statements with side effects such as logging statements before performing other operations. To accomplish this use the do form:
 
 #+begin_src clojure :eval no
 (do expression_0 expression_1 ... expression_N)
@@ -295,7 +350,7 @@ Create sets using the hash-set function or as a literal with a hash and curly br
 ;; true
 #+end_src
 
-You can test set inclusion with the same (contains?) function, which returns a boolean indicating if the item was in the set.
+Testing set inclusion is accomplished with the same (contains?) function, which returns a boolean indicating if the item was in the set.
 
 #+begin_src clojure :eval no
 (def aset #{1 4 :abcd "pop"})
@@ -315,7 +370,7 @@ You can test set inclusion with the same (contains?) function, which returns a b
 
 Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
 
-You can create sequences by calling the (seq ...) function. Sequences can be created from collections, streams or a combination of operations.
+Sequences are created by calling the (seq _source_) function. Sequences can be created from collections, streams or a combination of operations.
 
 Core Sequence functions: 
 #+begin_src clojure :eval no
@@ -332,7 +387,7 @@ Core Sequence functions:
 (nth sequence index) 
 #+end_src
 
-Similar to collections you can conjoin an element to a sequence which creates a new sequence with that element as its head.
+Similar to collections, conjoining an element to a sequence creates a new sequence with that element as its head.
 
 #+begin_src clojure :eval no
 (def s (seq [1 2 3]))
@@ -435,9 +490,10 @@ Intermediate Operators: map, filter, reduce, mapcat, take, take-while, drop, dro
 
 Terminal Operators: any?, all?, into, foreach, sorted, joining
 
-* Error Handling
+* TODO Math
+* DONE Error Handling
 
-** try/catch
+** DONE try/catch
 
 Exceptions are handled by a try/catch form:
 
@@ -574,22 +630,166 @@ By convention, an :else is used as a default/catch-all last expression since the
 
 * TODO Polymorphism
 
-** Generic Methods
+** TODO Generic Methods
 
-** Multimethods
+Pile supports type-based multiple dispatch via generic functions.
+
+Generic functions are defined with 'defgeneric', and typed implementations with 'defimpl'. 
+
+#+begin_src clojure :eval no
+(defgeneric write-to [sink src])
+(defimpl write-to [^PrintWriter sink ^String src] (.write sink src) (.flush sink))
+(def pw (PrintWriter. System/-out))
+(write-to pw "output")
+;; "output"
+#+end_src
+
+Single dispatch variants can be inline specialized at a type definition (deftype) by adding :specialize within the definition followed by any number of specialized method implementations:
+
+#+begin_src clojure :eval no
+(defgeneric tostr [t])
+(deftype Stringable [s] 
+	:specialize 
+	(tostr [this] s))
+(def s (Stringable. "1234"))
+(tostr s)
+;; "1234"
+#+end_src
+
+** DONE Multimethods
+
+Pile supports arbitrary multiple dispatch via multimethods. Use defmulti/defmethod to create/update multimethods.
+
+#+begin_src clojure :eval no
+(defmulti getl (fn* [x] (get x :type)))
+(defmethod getl :a [x] "a")
+(defmethod getl :b [x] "b")
+(defmethod getl :default [x] "default")
+
+(= "a" (getl {:type :a}))
+(= "b" (getl {:type :b}))
+(= :default (getl {:type "idk"}))
+#+end_src
+
+Multimethods can use custom hierarchies if the keying function produces keywords. 
+
+*** TODO Hierarchies
 
 * TODO Macros
 * TODO Java Interop
 
-** TODO Java Functions 
-
-Using the :: sugar
-
-** TODO Type Creation
-
 ** TODO Dot Operator
 
 Pile also supports the dot operator '.' with the same syntax as Clojure.
+
+** DONE First-class Java Functions 
+
+Integer::valueOf is syntactic sugar that creates a first-class that calls the named function of the provided type. This means java methods can exist as first class functions:
+
+#+begin_src clojure :eval no
+(Integer::valueOf "12") // 12
+(map Number::longValue [1 2.2]) // (1L 2L)
+#+end_src
+
+The generated function can call any arity/type of the named method although typically it is going to be a single method target. This syntax can call either static or instance methods, however all named variants must be all static or all instance methods (eg. Integer::toString would fail because there are both instance and static methods of Integer named 'toString'). Under the hood that syntax is converted to a call to (java-method Integer "valueOf"). Constructors can be called using this syntax by using the method named 'new' similar to how Java method references work.
+
+This function can be used in all the ways a function can:
+
+#+begin_src clojure :eval no
+;; record Person(String fname, String lname, int age) {}
+(def info ["John" "H" 36])
+(apply Person::new info) ;; Person(John, H, 36)
+
+(def johns-only (partial Person::new "John"))
+(johns-only "Smith" 44) ;; Person(John, Smith, 44)
+#+end_src
+
+** DONE Type Creation
+
+Pile has several methods of creating types that extend base classes and/or implement interfaces.
+
+*** DONE deftype
+
+The deftype form defines a named class implementing statically known supertype & interfaces with no closed over values. This form has several parts:
+- Type Name
+- Type Constructor arguments
+- Implemented supertype (0 or 1) and/or interfaces (0 to many)
+  If the supertype is specified it *must* be followed by a vector of constructor arguments.
+- Method definitions
+
+#+begin_src clojure :eval no
+;; Template
+(deftype TypeName [type constructor arguments]
+         Supertype [supertype constructor arguments]
+         Interface0
+         (ifacefn [this] ...)
+         Interface1
+         (otherfn [this a b] ...))
+
+#+end_src
+
+
+An empty iterator:
+#+begin_src clojure :eval no
+(deftype EmptyIter [] 
+         java.util.Iterator 
+         (hasNext [this] false) 
+         (next [this] (throw (java.util.NoSuchElementException.))))
+#+end_src
+
+A point in time which takes in an instant to return each invocation of instant:
+#+begin_src clojure :eval no
+(deftype PointInTime [inst] 
+         java.time.InstantSource (instant [this] inst))
+(def p (PointInTime. (java.time.Instant/now)))
+(.instant p)
+
+#+end_src
+
+Varargs methods are supported for implementation:
+#+begin_src clojure :eval no
+;; public interface VariadicInterface { public String call(int num, String... strs); }
+(deftype VarIntf []
+    VariadicInterface
+    (call [this num & strs] (apply str num strs)))
+(. vi call 123 "a" "b" "c") ;; "123abc"
+#+end_src
+
+The vararg parameter ('strs' in the example above) may be treated like a sequence.
+
+_Notes_
+
+The order of the super-type/interface-types with the method definitions is not semantically relevant and can be in any order (with the exception that the supertype constructor arguments must follow the supertype itself) eg.
+#+begin_src clojure :eval no
+(deftype T []
+         Interface0
+         Interface1
+         (interface0-method [this] ...)
+         Supertype [a b c]
+         (interface1-method [this] ...))
+#+end_src
+
+While this is allowed it is preferred if the types precede their associated method definitions.
+
+*** DONE anon-cls
+
+The anon-cls form creates an anonymous instance implementing statically known supertype & interfaces and allows closed over values.
+#+begin_src clojure :eval no
+(defn source []
+      (let [inst (Instant/now)]
+          (anon-cls java.time.InstantSource (instant [this] inst))))
+#+end_src
+
+*** DONE proxy
+
+The proxy method creates an anonymous instance with dynamic interfaces and dynamically created method implementations. This method takes in a vector of interfaces to implement and a map from method name to either a function or a list of functions.
+
+#+begin_src clojure :eval no
+(def p (proxy [java.time.InstantSource] {"instant" (fn [this] (java.time.Instant/now))}))
+(.instant p) ;; #object[java.time.Instant@524241174 "<time repr>"]
+;; default methods
+(.millis p) ;; 1634455725692
+#+end_src
 
 * DONE Concurrency
 ** DONE Synchronization
@@ -643,7 +843,8 @@ Prefer structured concurrency when the lifetime of the subtasks are well defined
 ;; 8
 #+end_src
 
-Additionally, all subtasks automatically inherit values set in the (binding) form for ^:scoped vars.
+_Scoped Vars_
+All subtasks automatically inherit values set in the (binding) form for ^:scoped vars.
 
 #+begin_src clojure :eval no
 (def ^:scoped username)
@@ -680,6 +881,14 @@ The await function can take multiple running tasks and returns the first task wh
 ;; 2
 #+end_src
 
+To await for the first completion among a set of subtasks, cancelling the rest use (await-any)
+
+#+begin_src clojure :eval no
+(await-any (async (sleep 1000) (prn "waking up") 12) (async 44))
+;; 44
+;; Waking up does not print as that task was cancelled.
+#+end_src
+
 *** Channels
 
 A channel is a thread-safe container of values which different running tasks can interact with to share data.
@@ -697,6 +906,46 @@ Channels can be created with (channel max-size). Values can be enqueued with (cp
 #+end_src
 
 An await expression can atomically interact with channels as well, enqueueing or dequeueing items.
+
+* Misc Topics
+
+** DONE Var Modifiers
+
+Values and functions defined in a namespace can have attribute that modify their behavior.
+
+#+begin_src clojure :eval no
+;; The var stable cannot be redefined by any means.
+(def ^:final stable 12)
+#+end_src
+
+#+begin_src clojure :eval no
+;; The var 'local' is a thread-local var.
+(def ^:dynamic local 12)
+#+end_src
+
+#+begin_src clojure :eval no
+;; The var 'scope' is a thread-local var which will automatically inherit its parent's value within the context of a structured concurrent task scope. See Structured Concurrency.
+(def ^:scoped scope 12)
+#+end_src
+
+** TODO Function apply
+
+An inverse to varargs is the apply function. 
+
+#+begin_src clojure :eval no
+(apply function arg0 arg1 ... argLast)
+#+end_src
+
+It unpacks the last argument in the form and calls the function. 
+
+All the following forms are similar and return 3:
+
+#+begin_src clojure :eval no
+(apply + [1 2])
+(apply + 1 [2])
+(apply + 1 2 [])
+(apply + 1 2 nil)
+#+end_src
 
 * TODO Syntax
 
