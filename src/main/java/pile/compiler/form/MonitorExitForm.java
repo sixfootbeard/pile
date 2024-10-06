@@ -23,6 +23,9 @@ import pile.collection.PersistentList;
 import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
+import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.core.Namespace;
 import pile.core.exception.PileCompileException;
 import pile.core.parse.LexicalEnvironment;
@@ -42,12 +45,17 @@ public class MonitorExitForm extends AbstractListForm {
     public DeferredCompilation compileForm(CompilerState compilerState) {
         return new DeferredCompilation(TypeTag.SEXP, null, cs -> {
             GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
+            MethodStack stack = cs.getMethodStack();
             var sym = second(form);
+
             Compiler.compile(cs, sym);
-            cs.getMethodStack().pop();
             ga.monitorExit();
-            // Instead of an empty stack we leave null:
-            Compiler.compile(cs, null);
+
+            switch (stack.popR()) {
+                // Instead of an empty stack we leave null:
+                case TypeRecord tr -> Compiler.compile(cs, null);
+                case InfiniteRecord _ -> stack.pushInfiniteLoop();
+            }
         });
     }
 

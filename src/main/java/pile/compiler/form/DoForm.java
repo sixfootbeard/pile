@@ -15,6 +15,7 @@
  */
 package pile.compiler.form;
 
+import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
@@ -30,9 +31,13 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.MacroEvaluated;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.core.ISeq;
 import pile.core.Keyword;
 import pile.core.binding.IntrinsicBinding;
+import pile.core.exception.PileCompileException;
+import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 
 public class DoForm implements Form {
@@ -82,12 +87,21 @@ public class DoForm implements Form {
            boolean prevTailValue = cs.isCompiledRecurPosition();
            cs.setCompileRecurPosition(false);
 
+           // TODO OBO?
            for (int i = 0; i < count - 1; ++i) {
                var childElement = first(doBody);
                handleLineNumber(method, childElement);
                comp.accept(cs, childElement);
                doBody = doBody.next();
-               popStack(method, stack);
+               switch (stack.popR()) {
+                   case TypeRecord tr -> {
+                       Type topType = Type.getType(tr.javaClass());
+                       popStack(method, topType);
+                   }
+                   case InfiniteRecord _ -> {
+                       stack.pushInfiniteLoop();
+                   }
+               }
            }
            cs.setCompileRecurPosition(prevTailValue);
            var childElement = first(doBody);
@@ -96,8 +110,7 @@ public class DoForm implements Form {
         });
     }
 
-    public static void popStack(MethodVisitor method, MethodStack stack) {
-    	Type topType = Type.getType(stack.pop());
+    public static void popStack(MethodVisitor method, Type topType) {    	
     	if (topType.getSize() == 2) {
     		method.visitInsn(Opcodes.POP2);
     	} else if (topType.getSize() == 1) {

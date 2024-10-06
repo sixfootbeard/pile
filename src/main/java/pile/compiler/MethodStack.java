@@ -44,19 +44,26 @@ import pile.core.exception.MissingStackResultException;
  */
 public class MethodStack {
 
-    public record TypeRecord(Class<?> clazz, boolean constant) {
-    
+    public sealed interface StackRecord permits TypeRecord, InfiniteRecord {
+
+    }
+
+    public record InfiniteRecord() implements StackRecord {
+    }
+
+    public record TypeRecord(Class<?> clazz, boolean constant) implements StackRecord {
+
         public TypeRecord(Class<?> clazz) {
             this(clazz, false);
         }
-    
+
         public Class<?> javaClass() {
             return clazz() == Any.class ? Object.class : clazz();
         }
-    
+
     };
 
-    private record CurrentStack(Deque<TypeRecord> currentStack) {
+    private record CurrentStack(Deque<StackRecord> currentStack) {
     };
 
     private static final Deque<CurrentStack> stacks = new ArrayDeque<>();
@@ -64,7 +71,7 @@ public class MethodStack {
     public void enterMethod() {
         stacks.addLast(new CurrentStack(new ArrayDeque<>()));
     }
-    
+
     public void leaveMethod() {
         stacks.removeLast();
     }
@@ -72,33 +79,66 @@ public class MethodStack {
     public void pushAny() {
         push(Any.class);
     }
-    
+
     public void pushNull() {
         push(Any.class, true);
+    }
+    
+    public void pushInfiniteLoop() {
+        stacks.getLast().currentStack().addLast(new InfiniteRecord());
     }
 
     public void push(Class<?> type) {
         push(type, false);
     }
-    
+
     public void pushConstant(Class<?> type) {
         push(type, true);
     }
-    
+
     public void push(Class<?> type, boolean constant) {
         Objects.requireNonNull(type, "Type cannot be null");
         stacks.getLast().currentStack().addLast(new TypeRecord(type, constant));
     }
-    
+
+    public Class<?> peek() {
+        CurrentStack currentStack = stacks.getLast();
+        StackRecord sr = currentStack.currentStack().peekLast();
+        return switch (sr) {
+            case TypeRecord tr -> tr.javaClass();
+            case InfiniteRecord ir -> throw new IllegalArgumentException(); // TODO
+        };
+    }
+
+    public StackRecord peekR() {
+        CurrentStack currentStack = stacks.getLast();
+        StackRecord sr = currentStack.currentStack().peekLast();
+        return sr;
+    }
+
+    public List<TypeRecord> peekN(int formCount) {
+        List<TypeRecord> out = new ArrayList<>(formCount);
+        Iterator<StackRecord> desc = stacks.getLast().currentStack().descendingIterator();
+        for (int i = 0; i < formCount; ++i) {
+            out.add(asTypeRecord(desc.next()));
+        }
+        Collections.reverse(out);
+        return out;
+    }
+
+    public boolean peekConstant() {
+        return asTypeRecord(peekR()).constant();
+    }
 
     /**
      * Pop N raw type records (eg. can contain {@link Any})
+     * 
      * @param count
      * @return
      */
     public List<TypeRecord> popN(int count) {
         CurrentStack last = stacks.getLast();
-        Deque<TypeRecord> currentStack = last.currentStack();
+        Deque<StackRecord> currentStack = last.currentStack();
         int size = currentStack.size();
 
         List<TypeRecord> out = new ArrayList<>(size);
@@ -106,7 +146,7 @@ public class MethodStack {
             out.add(null);
 
         for (int i = count - 1; i >= 0; --i) {
-            out.set(i, currentStack.removeLast());
+            out.set(i, asTypeRecord(currentStack.removeLast()));
         }
 
         return out;
@@ -119,39 +159,24 @@ public class MethodStack {
      */
     public Class<?> pop() {
         CurrentStack currentStack = stacks.getLast();
-        Deque<TypeRecord> typeRecords = currentStack.currentStack();
-        ensureEx(! typeRecords.isEmpty(), MissingStackResultException::new,
+        Deque<StackRecord> typeRecords = currentStack.currentStack();
+        ensureEx(!typeRecords.isEmpty(), MissingStackResultException::new,
                 "Expected to have a stack argument, found none.");
-        TypeRecord typeRecord = typeRecords.pollLast();
-        return typeRecord.javaClass();        
+        StackRecord stackRecord = typeRecords.pollLast();
+        return asTypeRecord(stackRecord).javaClass();
     }
 
     /**
      * Pop raw type record.
+     * 
      * @return
      */
-    public TypeRecord popR() {
+    public StackRecord popR() {
         CurrentStack currentStack = stacks.getLast();
-        TypeRecord typeRecord = currentStack.currentStack().pollLast();
-        return typeRecord;
-    }
-
-    public Class<?> peek() {
-        CurrentStack currentStack = stacks.getLast();
-        TypeRecord tr = currentStack.currentStack().peekLast();
-        return tr.javaClass();        
+        StackRecord stackRecord = currentStack.currentStack().pollLast();
+        return stackRecord;
     }
     
-    public List<TypeRecord> peekN(int formCount) {
-        List<TypeRecord> out = new ArrayList<>(formCount);
-        Iterator<TypeRecord> desc = stacks.getLast().currentStack().descendingIterator();
-        for (int i = 0; i < formCount; ++i) {
-            out.add(desc.next());
-        }
-        Collections.reverse(out);
-        return out;
-    }
-
     public boolean isEmpty() {
         CurrentStack currentStack = stacks.getLast();
         return currentStack.currentStack().isEmpty();
@@ -160,21 +185,22 @@ public class MethodStack {
     @Override
     public String toString() {
         return stacks.stream()
-                     .map(cs -> cs.currentStack().stream()
-                                  .map(TypeRecord::clazz)
-                                  .map(Object::toString)
-                                  .collect(Collectors.joining(",", "[", "]")))
-                     .collect(Collectors.joining(",\n"));
-    }
-
-    public boolean peekConstant() {
-        CurrentStack currentStack = stacks.getLast();
-        TypeRecord tr = currentStack.currentStack().peekLast();
-        return tr.constant();
+                .map(cs -> cs.currentStack().stream()
+//                             .map(TypeRecord::clazz)
+                             .map(Object::toString)
+                             .collect(Collectors.joining(",", "[", "]")))
+                .collect(Collectors.joining(",\n"));
     }
 
     public int size() {
         return stacks.getLast().currentStack().size();
+    }
+
+    private TypeRecord asTypeRecord(StackRecord sr) {
+        return switch (sr) {
+            case TypeRecord tr -> tr;
+            case InfiniteRecord ir -> throw new IllegalArgumentException(); // TODO
+        };
     }
 
 }

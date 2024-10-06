@@ -100,7 +100,10 @@ public class DefTypeClassCompiler extends AbstractClassCompiler {
                     MethodParameter param = superTypeConstructorTypes.args().get(i);
                     Object syntax = superTypeConstructorArgumentSyntax.get(i);
                     Compiler.compile(cs, syntax);
-                    Class<?> top = stack.pop();
+
+                    // RETHINK Might allow this
+                    Class<?> top = popNoInfinite(stack, syntax, "deftype: Constructor argument is an infinite loop.")
+                            .javaClass();
                     ga.cast(getType(top), param.getCompilableType());
                     stack.push(param.type());
                 }

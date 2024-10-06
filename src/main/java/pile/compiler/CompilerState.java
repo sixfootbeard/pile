@@ -43,6 +43,8 @@ import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.GeneratorAdapter;
 
 import pile.collection.PersistentList;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.StackRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.ParameterParser.MethodParameter;
 import pile.compiler.ParameterParser.ParameterList;
@@ -365,10 +367,15 @@ public class CompilerState {
         if (! stack.isEmpty()) {
             List<SavedStackSlot> out = new ArrayList<>();
             while (! stack.isEmpty()) {
-                TypeRecord popR = stack.popR();
-                int slot = newSlackVariable(popR.javaClass());
+                StackRecord raw = stack.popR();
+                TypeRecord tr = switch (raw) {
+                    case TypeRecord rec -> rec;
+                    case InfiniteRecord _ -> throw new IllegalArgumentException(
+                            "Should not find an infinite record here");
+                };
+                int slot = newSlackVariable(tr.javaClass());
                 // TODO save constants?
-                SavedStackSlot saved = new SavedStackSlot(slot, popR);
+                SavedStackSlot saved = new SavedStackSlot(slot, tr);
                 out.add(saved);
                 
                 GeneratorAdapter ga = getCurrentGeneratorAdapter();

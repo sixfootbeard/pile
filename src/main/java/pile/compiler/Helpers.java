@@ -54,6 +54,8 @@ import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
 import pile.collection.PersistentVector;
 import pile.collection.SingleMap;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.StackRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.typed.Any;
 import pile.core.Concat;
@@ -771,5 +773,25 @@ public class Helpers {
             }
         }
         return null;
+    }
+
+    /**
+     * Pop a stack record, ensuring it is not an {@link InfiniteRecord}.
+     * 
+     * @param stack  The stack to pop
+     * @param syntax The syntax that produced the corresponding stack record to use
+     *               in event of an error for a {@link LexicalEnvironment}.
+     * @param errMsg The error message if the stack element is an
+     *               {@link InfiniteRecord}.
+     * @return The stack {@link TypeRecord}.
+     * @throws PileCompileException If the top stack record is an
+     *                              {@link InfiniteRecord}.
+     */
+    public static MethodStack.TypeRecord popNoInfinite(MethodStack stack, Object syntax, String errMsg) {
+        MethodStack.StackRecord sr = stack.popR();
+        return switch (sr) {
+            case MethodStack.TypeRecord tr -> tr;
+            case MethodStack.InfiniteRecord _ -> throw new PileCompileException(errMsg, LexicalEnvironment.extract(syntax));
+        };
     }
 }

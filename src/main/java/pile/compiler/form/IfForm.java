@@ -34,9 +34,14 @@ import pile.compiler.CompilerState;
 import pile.compiler.DeferredCompilation;
 import pile.compiler.Helpers;
 import pile.compiler.MethodStack;
+import pile.compiler.MethodStack.InfiniteRecord;
+import pile.compiler.MethodStack.StackRecord;
+import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.typed.Any;
 import pile.core.Keyword;
 import pile.core.binding.IntrinsicBinding;
+import pile.core.exception.PileCompileException;
+import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
 
 public class IfForm implements Form {
@@ -63,21 +68,28 @@ public class IfForm implements Form {
 	
 	private void compile(CompilerState cs, BiConsumer<CompilerState, Object> fn) {
         MethodVisitor mv = cs.getCurrentMethodVisitor();
+        GeneratorAdapter ga = cs.getCurrentGeneratorAdapter();
         MethodStack stack = cs.getMethodStack();
+        
+        boolean testInfiniteLoop = false;
+        boolean thenInfiniteLoop = false;
+        boolean elseInfiniteLoop = false;
 
         // test
         Object testSyntax = second(form);
         handleLineNumber(mv, testSyntax);
         fn.accept(cs, testSyntax);
-
-        Class<?> testTypeClass = stack.peek();          
-
-        if (!testTypeClass.equals(boolean.class)) {
-            CompilerState.boxTop(cs);
-            mv.visitMethodInsn(INVOKESTATIC, Type.getType(Helpers.class).getInternalName(), "ifCheck",
-                    Type.getMethodDescriptor(Type.getType(boolean.class), OBJECT_TYPE), false);
+        switch (stack.popR()) {
+            case TypeRecord tr -> {
+                Class<?> testTypeClass = tr.javaClass();
+                if (!testTypeClass.equals(boolean.class)) {
+                    box(cs, testTypeClass);
+                    mv.visitMethodInsn(INVOKESTATIC, Type.getType(Helpers.class).getInternalName(), "ifCheck",
+                            Type.getMethodDescriptor(Type.getType(boolean.class), OBJECT_TYPE), false);
+                }
+            }
+            case InfiniteRecord _ -> testInfiniteLoop = true;
         }
-        stack.pop();
 
         mv.visitInsn(ICONST_1);
         Label elseLabel = new Label();
@@ -86,21 +98,34 @@ public class IfForm implements Form {
 
         // then
         Object thenSyntax = ssecond(form);
+        Class<?> thenClass = null;
+        
         handleLineNumber(mv, thenSyntax);
         fn.accept(cs, thenSyntax);
-        CompilerState.boxTop(cs);
-        Class<?> thenClass = stack.pop();
+        
+        switch (stack.popR()) {
+            case TypeRecord tr -> {
+                Class<?> testTypeClass = tr.javaClass();
+                thenClass = box(cs, testTypeClass);
+            }
+            case InfiniteRecord _ -> thenInfiniteLoop = true;
+        }
         mv.visitJumpInsn(GOTO, nextInsn);
 
         // else
-        final Class<?> elseClass;
+        Class<?> elseClass = null;
         mv.visitLabel(elseLabel);
         if (form.count() == 4) {
             Object elseSyntax = fnext(nnext(form));
             handleLineNumber(mv, elseSyntax);
             fn.accept(cs, elseSyntax);
-            CompilerState.boxTop(cs);
-            elseClass = stack.pop();
+            switch (stack.popR()) {
+                case TypeRecord tr -> {
+                    Class<?> testTypeClass = tr.javaClass();
+                    elseClass = box(cs, testTypeClass);
+                }
+                case InfiniteRecord _ -> elseInfiniteLoop = true;
+            }
         } else {
             mv.visitInsn(Opcodes.ACONST_NULL);
             elseClass = Any.class;
@@ -108,24 +133,45 @@ public class IfForm implements Form {
 
         mv.visitLabel(nextInsn);
 
-        if (thenClass.equals(elseClass)) {
-            stack.push(thenClass);
-        } else {            
-            if (thenClass.isAssignableFrom(elseClass)) {
+        if (testInfiniteLoop) {
+            // test infinite always going to be infinite.
+            stack.pushInfiniteLoop();
+        } else {
+            // If both branches are infinite then it is infinite
+            // If only a single branch is then the type is the other branch's type
+            // If neither are infinite then we do assignment analysis
+            if (thenInfiniteLoop) {
+                if (elseInfiniteLoop) {
+                    stack.pushInfiniteLoop();
+                } else {
+                    stack.push(elseClass);
+                }
+            } else if (elseInfiniteLoop) {
                 stack.push(thenClass);
-            } else if (elseClass.isAssignableFrom(thenClass)) {
-                stack.push(elseClass);
             } else {
-                stack.pushAny();
+                if (thenClass.equals(elseClass)) {
+                    stack.push(thenClass);
+                } else {
+                    if (thenClass.isAssignableFrom(elseClass)) {
+                        stack.push(thenClass);
+                    } else if (elseClass.isAssignableFrom(thenClass)) {
+                        stack.push(elseClass);
+                    } else {
+                        stack.pushAny();
+                    }
+                }
             }
         }
-	}
+    }
 
-	private Class<?> box(GeneratorAdapter ga, Class<?> thenClass) {
-		Class<?> wrapper = Helpers.primitiveToWrapper(thenClass);
-		ga.box(getType(thenClass));
-		return wrapper != null ? wrapper : thenClass;
-	}
+    private Class<?> box(CompilerState cs, Class<?> thenClass) {
+        Class<?> wrapper = Helpers.primitiveToWrapper(thenClass);
+        if (wrapper != null) {
+            cs.getCurrentGeneratorAdapter().box(getType(thenClass));
+        }
+        return wrapper != null ? wrapper : thenClass;
+
+    }
 
 	@Override
 	public Object evaluateForm(CompilerState cs) throws Throwable {

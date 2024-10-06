@@ -45,6 +45,7 @@ import pile.compiler.LoopTargetType;
 import pile.compiler.MethodStack;
 import pile.compiler.RecurId;
 import pile.compiler.Scopes;
+import pile.compiler.MethodStack.InfiniteRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.form.LetForm.LetScopeRecord;
 import pile.compiler.typed.Any;
@@ -144,22 +145,30 @@ public class LoopForm implements Form {
 
 		List<LoopBindingSlot> scopes = new ArrayList<>();
 
-		while (bindingIterator.hasNext()) {
-			Symbol sym = expectSymbol(bindingIterator.next());
-			Class<?> symbolTypeHintClass = sym.getAnnotatedType(ns);
+        while (bindingIterator.hasNext()) {
+            Symbol sym = expectSymbol(bindingIterator.next());
+            Class<?> symbolTypeHintClass = sym.getAnnotatedType(ns);
             String symbolName = Helpers.strSym(sym);
 
-			DeferredCompilation defer = Compiler.compileDefer(cs, bindingIterator.next());
-			defer.compile().accept(cs);
-			Label startLabel = new Label();
-			mv.visitLabel(startLabel);
+            Object bindingValue = bindingIterator.next();
+            DeferredCompilation defer = Compiler.compileDefer(cs, bindingValue);
+            defer.compile().accept(cs);
+            Label startLabel = new Label();
+            mv.visitLabel(startLabel);
 
-			// rhs might be primitive, box it if so
-			TypeRecord stackTypeRecord = methodStack.popR();
-			Class<?> rhsClass = stackTypeRecord.clazz();
-			
-			// Must always use generic object for types for loop variables
-			// TODO Eventually we may be able to observe if the recur targets use the same
+            // rhs might be primitive, box it if so
+            var stackTypeRecord = methodStack.popR();
+
+            TypeRecord typeRecord = switch (stackTypeRecord) {
+                case TypeRecord tr -> tr;
+                // RETHINK allowing this
+                case InfiniteRecord _ -> throw new PileCompileException("Infinite loop in loop binding expression.",
+                        LexicalEnvironment.extract(bindingValue));
+            };
+            Class<?> rhsClass = typeRecord.javaClass();
+
+            // Must always use generic object for types for loop variables
+            // TODO Eventually we may be able to observe if the recur targets use the same
 			// types and optimize this, but for now use object.
 			Class<?> symbolTypeHintCompilableClass = toCompilableType(symbolTypeHintClass);
 			Class<?> rhsCompilableClass = toCompilableType(rhsClass);
