@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import pile.collection.PersistentMap;
 import pile.core.exception.PileInternalException;
 import pile.core.indy.DebugHelpers;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 /**
  * See pile.core.data
@@ -75,7 +76,7 @@ public class NativeData {
 
     private static Map<String, MethodHandle> createGetters(Class<? extends Object> clz) throws IllegalAccessException {
         Map<String, MethodHandle> getters = new HashMap<>();
-        Lookup lookup = lookup();
+        Lookup lookup = LookupHolder.PUBLIC_LOOKUP;
     
         RecordComponent[] recordComponents = clz.getRecordComponents();
         ensure(recordComponents != null, clz + " is not a record");
@@ -111,7 +112,7 @@ public class NativeData {
         List<MethodHandle> order = new ArrayList<>();
         List<Class> types = new ArrayList<>();
 
-        Lookup lookup = lookup();
+        Lookup lookup = LookupHolder.PUBLIC_LOOKUP;
 
         RecordComponent[] recordComponents = clz.getRecordComponents();
         ensure(recordComponents != null, clz + " is not a record");

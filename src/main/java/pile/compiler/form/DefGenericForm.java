@@ -176,8 +176,8 @@ public class DefGenericForm extends AbstractListForm {
 
             byte[] classArray = cs.compileClass();
             AbstractClassCompiler.printDebug(classArray);
-            Class<?> clazz = LookupHolder.LOOKUP.defineClass(classArray);
-            MethodCollector coll = new MethodCollector(clazz, LookupHolder.LOOKUP);
+            Class<?> clazz = LookupHolder.PRIVATE_LOOKUP.defineClass(classArray);
+            MethodCollector coll = new MethodCollector(clazz, LookupHolder.PRIVATE_LOOKUP);
             Map<String, MethodArity> methodMap = coll.collectPileMethods();
 
             ensure(methodMap.size() == 1, "Shouldn't have more than one method");

@@ -45,6 +45,7 @@ import pile.core.indy.guard.JavaGuardBuilder;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractRelinkingCallSite;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.MethodHandleHelpers;
 import pile.util.Pair;
 
@@ -215,7 +216,7 @@ public class Multimethod implements PileMethod {
 
         @Override
         protected MethodHandle makeCold(Object[] args, MethodType methodType) throws Throwable {
-            MethodHandle invoke = lookup().findVirtual(PileMethod.class, "invoke",
+            MethodHandle invoke = LookupHolder.PRIVATE_LOOKUP.findVirtual(PileMethod.class, "invoke",
                     methodType(Object.class, Object[].class));
             return invoke.bindTo(mm).asCollector(Object[].class, methodType.parameterCount()).asType(methodType);
         }

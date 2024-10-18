@@ -34,6 +34,7 @@ import pile.core.indy.CallSiteType;
 import pile.core.indy.CompilerFlags;
 import pile.core.indy.guard.FullTypeGuard;
 import pile.core.method.AbstractRelinkingCallSite;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 public class ShiftMethod implements PileMethod {
 
@@ -95,7 +96,7 @@ public class ShiftMethod implements PileMethod {
 
     private MethodHandle findMethod(Class<?> clazz) {
         try {
-            return lookup().findStatic(NumberMethods.class, methodName,
+            return LookupHolder.PRIVATE_LOOKUP.findStatic(NumberMethods.class, methodName,
                     methodType(clazz, clazz, Long.TYPE));
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw error("Shouldn't happen", e);

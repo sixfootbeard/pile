@@ -14,25 +14,11 @@
  * limitations under the License.
  */
 module pile.lang {
-	exports pile.collection;
-	
-	exports pile.core;
-	exports pile.core.parse;
-	exports pile.core.hierarchy;
-	exports pile.compiler;
-	exports pile.core.binding;
-	exports pile.core.runtime.generated_classes;
-	exports pile.core.indy;
-	exports pile.repl;
-	
-	exports pile.nativebase;
-	exports pile.util;
 
-	requires java.base;
+	// exports pile.api;
+	
 	requires org.objectweb.asm;
 	requires org.objectweb.asm.util;
 	requires org.objectweb.asm.commons;
 	
-	// Testing only...
-	requires jdk.unsupported;
 }

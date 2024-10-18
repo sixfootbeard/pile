@@ -43,6 +43,7 @@ import pile.core.ISeq;
 import pile.core.PCall;
 import pile.core.exception.ShouldntHappenException;
 import pile.core.indy.PersistentLiteralLinker;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.NativeCore;
 
 public abstract class PersistentVector<E> extends AbstractList<E>
@@ -155,7 +156,7 @@ public abstract class PersistentVector<E> extends AbstractList<E>
         // We have N ordinaryIndexes corresponding to the current stack elements
         MethodHandle assoc;
         try {
-            assoc = lookup().findVirtual(PersistentArrayVector.class, "assoc",
+            assoc = LookupHolder.PRIVATE_LOOKUP.findVirtual(PersistentArrayVector.class, "assoc",
                     methodType(PersistentArrayVector.class, Integer.class, Object.class));
         } catch (NoSuchMethodException | IllegalAccessException e) {
             throw new ShouldntHappenException(e);

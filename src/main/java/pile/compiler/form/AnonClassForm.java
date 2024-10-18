@@ -61,6 +61,7 @@ import pile.core.exception.ShouldntHappenException;
 import pile.core.exception.UnlinkableMethodException;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.InvokeDynamicBootstrap;
 
 public class AnonClassForm extends AbstractListForm {
@@ -120,7 +121,7 @@ public class AnonClassForm extends AbstractListForm {
         List<Class<?>> classes = getArgClasses(evaluated);
         MethodType type = methodType(anon.definedType(), classes);
 
-        CallSite callSite = bootstrap(lookup(), "method", type, anon.closureStart(), anon.isVarArgs() ? 1 : 0);
+        CallSite callSite = bootstrap(LookupHolder.PRIVATE_LOOKUP, "method", type, anon.closureStart(), anon.isVarArgs() ? 1 : 0);
         return callSite.dynamicInvoker().invokeWithArguments(evaluated);
     }
 

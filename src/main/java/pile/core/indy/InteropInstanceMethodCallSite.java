@@ -56,10 +56,13 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
 
     private final long anyMask;
 
-	public InteropInstanceMethodCallSite(MethodType type, String methodName, long anyMask) {
+    private final Lookup caller;
+
+	public InteropInstanceMethodCallSite(Lookup caller, MethodType type, String methodName, long anyMask) {
 		super(type);
 		this.methodName = methodName;
 		this.anyMask = anyMask;
+		this.caller = caller;
 	}
 
     public static Optional<MethodHandle> crackReflectedMethod(Lookup lookup, Class<?> clazz, String methodName,
@@ -79,7 +82,7 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
             
             // Might not be any interfaces either, but might be in a supertype.
             var currentType = actualMethod.getDeclaringClass();
-            while (! Object.class.equals(currentType) && currentType != null) {
+            while ( currentType != null) {
                 try {
                     MethodHandle maybeVirtual = lookup.findVirtual(currentType, methodName, actualMethodType);
                     return Optional.of(maybeVirtual);
@@ -111,7 +114,6 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
 		
 		List<Class<?>> staticTypes = blendAnyMask(type(), anyMask);
 		
-		Lookup lookup = MethodHandles.lookup();
 		List<Class<?>> runtimeTypes = getArgClasses(args);
 		Class<?> receiverType = runtimeTypes.get(0);
 		
@@ -122,7 +124,7 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
         Optional<Method> matchedMethod = dyn.findMatchingTarget(staticMethodTypes, runtimeMethodTypes,
                 i -> contentionIndexes[i+1] = true, TypedHelpers.findInstanceMethods(receiverType, methodName));
         MethodHandle handle = matchedMethod
-                .flatMap(method -> crackReflectedMethod(lookup, receiverType, methodName, method))
+                .flatMap(method -> crackReflectedMethod(caller, receiverType, methodName, method))
                 .orElseThrow(() -> new UnlinkableMethodException("Could not find method " + receiverType + "." + methodName
                         + runtimeTypes));
                         

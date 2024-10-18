@@ -114,6 +114,7 @@ import pile.core.parse.ParserConstants;
 import pile.core.parse.ParserResult;
 import pile.core.parse.PileParser;
 import pile.core.runtime.ArrayGetMethod;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.method.PileInvocationException;
 
 /**
@@ -228,6 +229,18 @@ public class NativeCore {
         };        
     }
 
+    @RenamedMethod("bound?")
+    public static boolean isBound(Namespace ns, String sym) {
+        return Namespace.getIn(ns, sym) != null;
+    }
+    
+    public static void refer_from(Namespace dest, Namespace source) {
+        dest.referFrom(source);
+    }
+    
+    public static Namespace namespace(String ns) {
+        return RuntimeRoot.defineOrGet(ns);
+    }
     
     public static void alias(Symbol alias, Symbol sym) {
         Namespace ns = NativeDynamicBinding.NAMESPACE.deref();
@@ -605,6 +618,10 @@ public class NativeCore {
         }
     
     } 
+    
+    public static Stream<Object> streamable_stream(Streamable s) {
+        return s.toStream();
+    }
     
     public static Stream<Object> stream_partition(Stream<Object> s, int n) {
         return s.gather(Gatherer.ofSequential(() -> new ArrayList<>(), (list, item, down) -> {
@@ -1606,7 +1623,7 @@ public class NativeCore {
 
     private static MethodHandle computeAdapter(Class<? extends Object> clazz, Object o) throws Throwable {
         Method m = FunctionalInterfaceAdapter.findMethodToImplement(clazz);
-        MethodHandle handle = lookup().unreflect(m);
+        MethodHandle handle = LookupHolder.PUBLIC_LOOKUP.unreflect(m);
         var pre = ADAPTER_CACHE.putIfAbsent(clazz, handle);
         return pre == null ? handle : pre;
     }

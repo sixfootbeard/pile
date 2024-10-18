@@ -65,6 +65,7 @@ import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 public class InteropForm implements Form {
 
@@ -179,12 +180,14 @@ public class InteropForm implements Form {
         List<Object> params = evaluateAdaptedArgs(cs, formRecord.args(), bc.clazz(), fieldOrMethodName, bc.base() == null);
         Class[] argClasses = Helpers.getArgClasses(params).toArray(Class[]::new);
         
+        final var publicLookup = LookupHolder.PUBLIC_LOOKUP;
+        
         switch (fieldOrMethod) {
             case METHOD: {
                 DynamicTypeLookup<Method> lookup = new DynamicTypeLookup<Method>(TypedHelpers::ofMethod);
                 Stream<Method> candidates = TypedHelpers.findMethods(bc.clazz(), fieldOrMethodName, bc.base() == null);
                 MethodHandle handle = lookup.findMatchingTarget(Arrays.asList(argClasses), Arrays.asList(argClasses), candidates)
-                      .flatMap(method -> InteropInstanceMethodCallSite.crackReflectedMethod(lookup(), bc.clazz(), fieldOrMethodName, method))
+                      .flatMap(method -> InteropInstanceMethodCallSite.crackReflectedMethod(publicLookup, bc.clazz(), fieldOrMethodName, method))
                       .orElseThrow(() -> makeError(form, formRecord, argClasses, bc.clazz(), bc.base())); 
                 ;
                 var varArgs = handle.isVarargsCollector();

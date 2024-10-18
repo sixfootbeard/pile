@@ -75,6 +75,7 @@ import pile.core.log.LoggerSupplier;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.ParserConstants;
 import pile.core.parse.TypeTag;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.NativeCore;
 
 public class Helpers {
@@ -143,19 +144,6 @@ public class Helpers {
             default -> true;
         };
     }
-
-    static final MethodHandle CALL_PCALL;
-
-    static {
-        try {
-            CALL_PCALL = MethodHandles.lookup().findVirtual(PCall.class, "invoke",
-                    MethodType.methodType(Object.class, Object[].class));
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-   
 
     // Helpers
     

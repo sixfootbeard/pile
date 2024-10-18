@@ -44,6 +44,7 @@ import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractRelinkingCallSite;
 import pile.core.method.LinkableMethod;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.ComparableUtils;
 import pile.util.Pair;
 
@@ -90,7 +91,7 @@ public class BinaryMathMethod implements PileMethod {
         return finder.findTarget(lhs, rhs)
                 .flatMap(methodType -> {
                     try {
-                        MethodHandle foundHandle = lookup().findStatic(methodClass, methodName, methodType);
+                        MethodHandle foundHandle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, methodType);
                         MethodType synthetic = methodType(foundHandle.type().returnType(), lhs, rhs);
                         NumericPromoter promoter = new NumericPromoter();
                         MethodHandle promoted = promoter.promote(foundHandle, synthetic);

@@ -66,13 +66,13 @@ import pile.core.method.HiddenCompiledMethod;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.ParserConstants;
 import pile.core.parse.TypeTag;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.InvokeDynamicBootstrap;
 
 public class MethodForm implements Form {
 
     private static final Logger LOG = LoggerSupplier.getLogger(MethodForm.class);
     
-    private static final Lookup MC_LOOKUP = lookup();
 	private static final Type HCM_TYPE = getType(PileMethod.class);
 
     private final Namespace ns;
@@ -236,7 +236,7 @@ public class MethodForm implements Form {
 			// clos = ClosureCompiledMethod(c, methodArity^)
 			
             MethodType consType = methodType(void.class, Class.class, Object.class, MethodArity.class);
-            MethodHandle closureCons = MC_LOOKUP.findConstructor(ClosureCompiledMethod.class, consType);
+            MethodHandle closureCons = LookupHolder.PRIVATE_LOOKUP.findConstructor(ClosureCompiledMethod.class, consType);
             MethodHandle boundClass = insertArguments(closureCons, 0, clazz);
             MethodHandle boundArity = insertArguments(boundClass, 1, m);
             MethodHandle typedBound = boundArity.asType(boundArity.type().changeParameterType(0, cons.type().returnType()));

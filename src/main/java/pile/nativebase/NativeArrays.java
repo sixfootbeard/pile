@@ -24,6 +24,7 @@ import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -38,6 +39,7 @@ import pile.core.indy.CompilerFlags;
 import pile.core.indy.guard.GuardBuilder;
 import pile.core.method.AbstractRelinkingCallSite;
 import pile.core.method.LinkableMethod;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 public class NativeArrays {
 
@@ -514,15 +516,16 @@ public class NativeArrays {
                             Class clazz = (Class) args[0];
                             final MethodHandle arrayMethod;
                             final Class arrayType;
+                            Lookup lookup = LookupHolder.PUBLIC_LOOKUP;
                             if (clazz.isPrimitive()) {
                                 arrayType = clazz.arrayType();
-                                MethodHandle copy = lookup().findStatic(Arrays.class, "copyOf",
+                                MethodHandle copy = lookup.findStatic(Arrays.class, "copyOf",
                                         methodType(arrayType, arrayType, int.class));
                                 copy = insertArguments(copy, 1, arraySize);
                                 arrayMethod = copy;
                             } else {
                                 arrayType = Object.class.arrayType();
-                                MethodHandle copy = lookup().findStatic(Arrays.class, "copyOf",
+                                MethodHandle copy = lookup.findStatic(Arrays.class, "copyOf",
                                         methodType(arrayType, arrayType, int.class, Class.class));
                                 copy = insertArguments(copy, 1, arraySize, clazz.arrayType());
                                 arrayMethod = copy;

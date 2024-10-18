@@ -36,6 +36,7 @@ NB. This project is still being developed and should currently only be used for 
 - [First-Class Java Functions](#first-class-java-functions)
 - [Arbitrary-precision arithmetic](#arbitrary-precision-arithmetic)
 - [Text Blocks](#text-blocks)
+- [Encapsulation](#encapsulation)
 - [Condition System](#condition-system) (beta)
 - [AOT Compilation](#aot-compilation) (beta)
 
@@ -570,6 +571,40 @@ Pile supports triple quoted strings called text blocks:
 
 In the above case the resulting string is "My\nReally\nLong\nDocs". Indentation is trimmed to the minimum indentation of any non-empty line.
 
+## Encapsulation
+
+The Language uses Java modules to encapsulate its own types. This prevents them from being accessed from their Java APIs while still allowing access from their related Pile functions. This allows the evolution of the language without needing to also manage the API surface of all the Java methods in the provided types.
+
+```clojure
+(def m {:a :b})
+
+;; Interop attempting to call pile.collection.Counted.count() and failing
+(.count m)
+pile.core.exception.PileSyntaxErrorException: Unable to find INSTANCE method class pile.collection.SingleMap/count() to call [f:<repl>/l:1/c:1] 
+    at pile.lang@0.0.1-SNAPSHOT/pile.compiler.form.InteropForm.makeError(InteropForm.java:514)
+    at pile.lang@0.0.1-SNAPSHOT/pile.compiler.form.InteropForm.lambda$evaluateForm$3(InteropForm.java:191)
+    at java.base/java.util.Optional.orElseThrow(Optional.java:403)
+    at pile.lang@0.0.1-SNAPSHOT/pile.compiler.form.InteropForm.evaluateForm(InteropForm.java:191)
+    at pile.lang@0.0.1-SNAPSHOT/pile.compiler.form.SExpr.evaluateForm(SExpr.java:190)
+    at pile.lang@0.0.1-SNAPSHOT/pile.compiler.Compiler.evaluate(Compiler.java:64)
+    at pile.lang@0.0.1-SNAPSHOT/pile.compiler.Compiler.evaluate(Compiler.java:54)
+    at pile.lang@0.0.1-SNAPSHOT/pile.repl.ReplMain.run(ReplMain.java:88)
+    at pile.lang@0.0.1-SNAPSHOT/pile.repl.ReplMain.main(ReplMain.java:130)
+
+;; Calling the method which produces the count:
+(count m)
+;; 1
+
+;; Access to exported Types and their functions is still available via interop
+;; containsKey(Object) is defined in java.util.Map which is exported from module 'java.base'.
+(.containsKey m :a)
+;; true
+
+(.get m :a)
+;; :b
+
+```
+
 ## Condition System
 
 There is preliminary support for a condition system.
@@ -611,7 +646,7 @@ Binds named handler functions which can be targeted from an error function. Hand
 (invoke-restart restart-case-name & args)
 This function transfers control to a non-local named restart case and is typically called from within a bound handler function.
 
-# AOT Compilation
+## AOT Compilation
 
 There is preliminary support for AOT compiling code (currently just the standard library). You can create the AOT files with the 'aotgen' script. Then, run 'aotrepl' which uses these files.
 

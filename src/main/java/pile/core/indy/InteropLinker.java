@@ -15,12 +15,14 @@
  */
 package pile.core.indy;
 
+import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
 import static pile.compiler.Helpers.*;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Constructor;
@@ -49,19 +51,21 @@ public class InteropLinker {
 	private static final Logger LOG = LoggerSupplier.getLogger(InteropLinker.class);
 
 	@InvokeDynamicBootstrap
-	public static CallSite bootstrap(Lookup caller, String name, MethodType type, InteropType interopMethod,
+	public static CallSite bootstrap(Lookup raw, String name, MethodType type, InteropType interopMethod,
 			long anyMask, Object... args) throws Exception {
+			
+		var caller = raw.dropLookupMode(Lookup.MODULE);
 	    
 		switch (interopMethod) {
 			case STATIC_METHOD_CALL: {
 				// indy args: class,
 				// stack: arg0, arg1...
-				return new InteropStaticMethodCallSite(type, loadClass((String) args[0]), name, anyMask);
+				return new InteropStaticMethodCallSite(caller, type, loadClass((String) args[0]), name, anyMask);
 			}
 			case INSTANCE_CALL: {
 				// indy args: <none>
 				// stack: recv, arg0, arg1...
-				return new InteropInstanceMethodCallSite(type, name, anyMask);
+				return new InteropInstanceMethodCallSite(caller, type, name, anyMask);
 			} 
 			case INSTANCE_FIELD_GET: {
 			    Class<?> base = type.parameterType(0);
