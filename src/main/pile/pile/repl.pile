@@ -39,8 +39,8 @@
    (if (not (symbol? sym))
      (prn "Help argument must be a symbol, eg. (help 'stream)")
      (let [v (try 
-             (pile.compiler.form.VarForm/getIn *ns* sym)
-             (catch java.lang.NullPointerException e nil))]
+               (resolve sym)
+               (catch java.lang.NullPointerException e nil))]
       (if (nil? v)
           (prn "No function found with name: " (str sym))
         (let [m (meta v)

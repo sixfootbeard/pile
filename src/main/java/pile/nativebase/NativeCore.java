@@ -72,6 +72,7 @@ import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.Helpers;
 import pile.compiler.form.SExpr;
+import pile.compiler.form.VarForm;
 import pile.compiler.specialization.StrCatSpecializer;
 import pile.compiler.typed.FunctionalInterfaceAdapter;
 import pile.core.AbstractSeq;
@@ -100,6 +101,7 @@ import pile.core.SettableRef;
 import pile.core.StandardLibraryLoader;
 import pile.core.Streamable;
 import pile.core.Symbol;
+import pile.core.Var;
 import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
@@ -227,6 +229,12 @@ public class NativeCore {
             case Metadata m -> m.meta().get(ParserConstants.ANNO_TYPE_KEY);
             default -> null;
         };        
+    }
+    
+    public static Var find_var(Symbol sym) {
+        var nsStr = requireNonNull(sym.getNamespace());
+        Namespace ns = RuntimeRoot.get(nsStr);
+        return VarForm.getIn(ns, sym.getName());
     }
 
     @RenamedMethod("bound?")
@@ -1381,6 +1389,15 @@ public class NativeCore {
     @PileDoc("Returns a map from namespace names to the namespace itself.")
     public static Map<String, Namespace> ns_map() {
         return PersistentMap.from(RuntimeRoot.getMap());
+    }
+    
+    public static Var ns_resolve(Namespace ns, Symbol sym) {
+        var resolved = sym.maybeResolve(ns);
+        return ns.getVar(resolved);
+    }
+    
+    public static Var resolve(Symbol sym) {
+        return ns_resolve(NativeDynamicBinding.NAMESPACE.deref(), sym);
     }
     
     @PileDoc("""
