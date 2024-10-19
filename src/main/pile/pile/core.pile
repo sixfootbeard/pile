@@ -261,10 +261,6 @@
 
 ;; end destructuring
 
-(defn bound? 
-      "Returns true if the symbol is bound in the current namespace, false otherwise"
-      [n name]
-      (not (nil? (Namespace/getIn n name))))
       
 (defmacro defonce 
    "Defines a value in the current namespace once only if it was not already defined"
@@ -344,7 +340,7 @@
 
 (extend* pile.core.Streamable
         ToStream
-        (to-stream [this] (.toStream this)))
+        (to-stream [this] (streamable-stream this)))
 
 (extend* java.util.Collection
         ToStream
@@ -672,7 +668,7 @@
     "Update ref by calling (apply f old-val args). 
      May call function multiple times."
      [^pile.core.SettableRef ref f & args]
-        (. ref update #(apply f % args)))  
+        (update ref #(apply f % args)))  
 
 ;; Math stuff     
 (defn min [l r] (if (<= l r) l r))
@@ -699,16 +695,16 @@
 ;; Multimethods
 
 (defmacro defmulti [fname keyfn]
-    `(def ~fname (new Multimethod *ns* #'default-hierarchy ~(name fname) ~keyfn)))
+    `(def ~fname (multimethod-new *ns* #'default-hierarchy ~(name fname) ~keyfn)))
     
 (defmacro defmethod [name key args body]
-    `(. (cast Multimethod ~name) addKey ~key (fn* ~args ~body)))
+    `(multimethod-add ~name ~key (fn* ~args ~body)))
 
 (defn remove-method [^Multimethod mm key]
-    (. mm removeKey key))
+    (multimethod-remove mm key))
 
 (defn methods [^Multimethod mm]
-    (. mm getMethods))
+    (multimethod-methods mm))
 
 ;; Random
 
@@ -895,7 +891,7 @@
 (defmacro refer-single
     [^Symbol ns-sym]
     (let [nsStr (str *ns*)]
-         `(.referFrom (pile.core.RuntimeRoot/get ~nsStr) (pile.core.RuntimeRoot/defineOrGet ~(name ns-sym)))))
+         `(refer-from (namespace ~nsStr) (namespace ~(name ns-sym)))))
 
 (defmacro refer [& parts]
     `(do ~@(map refer-single parts)))
@@ -975,7 +971,7 @@
         `(try
            ~form
            (catch pile.core.PileRestartException e#
-              (let [restart-name# (.getRestartName e#)
-                    restart-args# (.getRestartFunctionArgs e#)
+              (let [restart-name# (cond-restart-name e#)
+                    restart-args# (cond-restart-args e#)
                     restart-fn# (get ~case-map restart-name#)]
                  (apply restart-fn# restart-args#))))))

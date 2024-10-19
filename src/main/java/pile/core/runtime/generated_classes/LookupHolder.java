@@ -19,5 +19,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 
 public class LookupHolder {
-    public static final Lookup LOOKUP = MethodHandles.lookup();
+    public static final Lookup PRIVATE_LOOKUP = MethodHandles.lookup();
+    public static final Lookup PUBLIC_LOOKUP = MethodHandles.lookup().dropLookupMode(Lookup.MODULE);
 }

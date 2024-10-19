@@ -33,6 +33,7 @@ import java.util.TreeMap;
 import pile.compiler.typed.DynamicTypeLookup;
 import pile.compiler.typed.TypedHelpers;
 import pile.core.exception.PileExecutionException;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 public class JavaMethod implements PileMethod {
 
@@ -94,7 +95,7 @@ public class JavaMethod implements PileMethod {
         
         for (var cons : base.getConstructors()) {
             boolean varArgs = cons.isVarArgs();
-            MethodHandle handle = lookup().unreflectConstructor(cons);
+            MethodHandle handle = LookupHolder.PUBLIC_LOOKUP.unreflectConstructor(cons);
             int size = handle.type().parameterCount();
             final Map<Integer, List<MethodHandle>> map;
             if (varArgs) {
@@ -142,7 +143,7 @@ public class JavaMethod implements PileMethod {
         
         for (var m : all) {
             boolean varArgs = m.isVarArgs();
-            MethodHandle handle = lookup().unreflect(m);
+            MethodHandle handle = LookupHolder.PUBLIC_LOOKUP.unreflect(m);
             int size = handle.type().parameterCount();
             final Map<Integer, List<MethodHandle>> map;
             if (varArgs) {

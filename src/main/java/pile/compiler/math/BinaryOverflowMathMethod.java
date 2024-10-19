@@ -41,6 +41,7 @@ import pile.core.indy.guard.GuardBuilder;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractRelinkingCallSite;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.ComparableUtils;
 
 public class BinaryOverflowMathMethod implements PileMethod {
@@ -116,7 +117,7 @@ public class BinaryOverflowMathMethod implements PileMethod {
 
         MethodType methodType = methodType(getReturnType(targetType), targetType, targetType);
         try {
-            MethodHandle foundHandle = lookup().findStatic(methodClass, methodName, methodType);
+            MethodHandle foundHandle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, methodType);
             MethodType synthetic = methodType(foundHandle.type().returnType(), lhs, rhs);
             NumericPromoter promoter = new NumericPromoter();
             MethodHandle promoted = promoter.promote(foundHandle, synthetic);

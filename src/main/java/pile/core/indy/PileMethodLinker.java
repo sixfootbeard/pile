@@ -46,6 +46,7 @@ import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractRelinkingCallSite;
 import pile.core.method.LinkableMethod;
 import pile.core.parse.LexicalEnvironment;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.InvokeDynamicBootstrap;
 
 /**
@@ -137,7 +138,7 @@ public class PileMethodLinker {
      */
     public static MethodHandle generateCallableDynamicHandle(String namespaceStr, String name, MethodType callSiteType)
             throws Exception, NoSuchMethodException, IllegalAccessException {
-        Lookup caller = lookup();
+        Lookup caller = LookupHolder.PRIVATE_LOOKUP;
         Binding bind = Namespace.getIn(RuntimeRoot.get(namespaceStr), name);
         
         MethodHandle deref = caller.findVirtual(Binding.class, "getValue", methodType(Object.class));

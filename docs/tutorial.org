@@ -947,6 +947,10 @@ All the following forms are similar and return 3:
 (apply + 1 2 nil)
 #+end_src
 
+** Java Modules
+
+Pile is specified in the module 'pile.lang'. Other projects which wish to use interop must export and/or open their module to this module.
+
 * TODO Syntax
 
 This section can be read just as reference if some piece of syntax in the other sections isn't clear.

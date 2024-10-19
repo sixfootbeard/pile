@@ -56,6 +56,7 @@ import pile.core.exception.PileCompileException;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.parse.LexicalEnvironment;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 /**
  * Defines methods in a particular type that may require special care to match
@@ -267,7 +268,7 @@ public class MethodDefiner {
     
         for (Method m : clazz.getDeclaredMethods()) {
             if (m.isAnnotationPresent(GeneratedMethod.class)) {
-                MethodHandle handle = MethodHandles.lookup().unreflect(m);
+                MethodHandle handle = LookupHolder.PRIVATE_LOOKUP.unreflect(m);
     
                 boolean isVarArgs = m.isAnnotationPresent(PileVarArgs.class);
                 if (isVarArgs) {

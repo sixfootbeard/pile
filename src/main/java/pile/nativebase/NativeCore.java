@@ -72,6 +72,7 @@ import pile.compiler.Compiler;
 import pile.compiler.CompilerState;
 import pile.compiler.Helpers;
 import pile.compiler.form.SExpr;
+import pile.compiler.form.VarForm;
 import pile.compiler.specialization.StrCatSpecializer;
 import pile.compiler.typed.FunctionalInterfaceAdapter;
 import pile.core.AbstractSeq;
@@ -86,11 +87,13 @@ import pile.core.ISeq;
 import pile.core.JavaMethod;
 import pile.core.Keyword;
 import pile.core.Metadata;
+import pile.core.Multimethod;
 import pile.core.Named;
 import pile.core.Namespace;
 import pile.core.NativeValue;
 import pile.core.PCall;
 import pile.core.PileMethod;
+import pile.core.PileRestartException;
 import pile.core.Ref;
 import pile.core.ReversibleSeq;
 import pile.core.RuntimeRoot;
@@ -100,6 +103,7 @@ import pile.core.SettableRef;
 import pile.core.StandardLibraryLoader;
 import pile.core.Streamable;
 import pile.core.Symbol;
+import pile.core.Var;
 import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
@@ -114,6 +118,7 @@ import pile.core.parse.ParserConstants;
 import pile.core.parse.ParserResult;
 import pile.core.parse.PileParser;
 import pile.core.runtime.ArrayGetMethod;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.method.PileInvocationException;
 
 /**
@@ -227,7 +232,25 @@ public class NativeCore {
             default -> null;
         };        
     }
+    
+    public static Var find_var(Symbol sym) {
+        var nsStr = requireNonNull(sym.getNamespace());
+        Namespace ns = RuntimeRoot.get(nsStr);
+        return VarForm.getIn(ns, sym.getName());
+    }
 
+    @RenamedMethod("bound?")
+    public static boolean isBound(Namespace ns, String sym) {
+        return Namespace.getIn(ns, sym) != null;
+    }
+    
+    public static void refer_from(Namespace dest, Namespace source) {
+        dest.referFrom(source);
+    }
+    
+    public static Namespace namespace(String ns) {
+        return RuntimeRoot.defineOrGet(ns);
+    }
     
     public static void alias(Symbol alias, Symbol sym) {
         Namespace ns = NativeDynamicBinding.NAMESPACE.deref();
@@ -605,6 +628,10 @@ public class NativeCore {
         }
     
     } 
+    
+    public static Stream<Object> streamable_stream(Streamable s) {
+        return s.toStream();
+    }
     
     public static Stream<Object> stream_partition(Stream<Object> s, int n) {
         return s.gather(Gatherer.ofSequential(() -> new ArrayList<>(), (list, item, down) -> {
@@ -1366,6 +1393,15 @@ public class NativeCore {
         return PersistentMap.from(RuntimeRoot.getMap());
     }
     
+    public static Var ns_resolve(Namespace ns, Symbol sym) {
+        var resolved = sym.maybeResolve(ns);
+        return ns.getVar(resolved);
+    }
+    
+    public static Var resolve(Symbol sym) {
+        return ns_resolve(NativeDynamicBinding.NAMESPACE.deref(), sym);
+    }
+    
     @PileDoc("""
             Creates a new function which delegates all calls to the first function that could accept 
             those arguments (by arity match only).
@@ -1537,6 +1573,22 @@ public class NativeCore {
         return JavaMethod.of(c, name);
     }
     
+    public static Multimethod multimethod_new(Namespace ns, Var hierarchy, String name, PileMethod fn) {
+        return new Multimethod(ns, hierarchy, name, fn);
+    }
+    
+    public static void multimethod_add(Multimethod mm, Object key, PileMethod fn) {
+        mm.addKey(key, fn);
+    }
+    
+    public static void multimethod_remove(Multimethod mm, Object key) {
+        mm.removeKey(key);
+    }
+    
+    public static PersistentMap<Object, PileMethod> multimethod_methods(Multimethod mm) {
+        return mm.getMethods();
+    }
+    
     // ============
     // Hierarchies
     // ============
@@ -1606,7 +1658,7 @@ public class NativeCore {
 
     private static MethodHandle computeAdapter(Class<? extends Object> clazz, Object o) throws Throwable {
         Method m = FunctionalInterfaceAdapter.findMethodToImplement(clazz);
-        MethodHandle handle = lookup().unreflect(m);
+        MethodHandle handle = LookupHolder.PUBLIC_LOOKUP.unreflect(m);
         var pre = ADAPTER_CACHE.putIfAbsent(clazz, handle);
         return pre == null ? handle : pre;
     }
@@ -1906,5 +1958,14 @@ public class NativeCore {
     public static Object resume(Coroutine c) throws InterruptedException {
         return c.resume();
     }
+
+    public static Object cond_restart_name(PileRestartException pre) {
+        return pre.getRestartName();
+    }
+    
+    public static Object[] cond_restart_args(PileRestartException pre) {
+        return pre.getRestartFunctionArgs();
+    }
+    
     
 }

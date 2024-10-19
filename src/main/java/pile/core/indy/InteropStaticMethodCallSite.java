@@ -49,8 +49,11 @@ public class InteropStaticMethodCallSite extends AbstractRelinkingCallSite {
     private final Class<?> clazz;
     private final long anyMask;
 
-    public InteropStaticMethodCallSite(MethodType type, Class<?> clazz, String methodName, long anyMask) {
+    private final Lookup caller;
+
+    public InteropStaticMethodCallSite(Lookup caller, MethodType type, Class<?> clazz, String methodName, long anyMask) {
         super(type); // argument type +1?
+        this.caller = caller;
         this.methodName = methodName;
         this.clazz = clazz;
         this.anyMask = anyMask;
@@ -62,14 +65,13 @@ public class InteropStaticMethodCallSite extends AbstractRelinkingCallSite {
         MethodType type = type();
         List<Class<?>> staticTypes = blendAnyMask(type(), anyMask);
 
-        Lookup lookup = MethodHandles.lookup();
         List<Class<?>> runtimeTypes = getArgClasses(args);
 
         boolean[] contentionIndexes = new boolean[runtimeTypes.size()];
         DynamicTypeLookup<Method> dyn = new DynamicTypeLookup<Method>(TypedHelpers::ofMethod);
         Optional<Method> matchedMethod = dyn.findMatchingTarget(staticTypes, runtimeTypes,
                 i -> contentionIndexes[i] = true, TypedHelpers.findStaticMethods(clazz, methodName));
-        MethodHandle handle = matchedMethod.flatMap(method -> crackReflectedMethod(lookup, clazz, methodName, method))
+        MethodHandle handle = matchedMethod.flatMap(method -> crackReflectedMethod(caller, clazz, methodName, method))
                 .orElseThrow(() -> new UnlinkableMethodException(
                         "Could not find method " + clazz + "." + methodName + runtimeTypes));
 

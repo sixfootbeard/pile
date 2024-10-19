@@ -272,7 +272,7 @@ public abstract class AbstractClassCompiler {
             AOTHandler.writeAOTClass(packageName, className, classArray);
         }
 
-        generatedClass = LookupHolder.LOOKUP.defineClass(classArray);
+        generatedClass = LookupHolder.PRIVATE_LOOKUP.defineClass(classArray);
     }    
 
     protected List<MethodParameter> toArgRecord(Map<String, ClosureRecord> closureSymbols) {

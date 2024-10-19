@@ -35,6 +35,7 @@ import pile.collection.PersistentVector;
 import pile.core.Keyword;
 import pile.core.PCall;
 import pile.core.concurrency.BufferedChannel;
+import pile.core.concurrency.Delay;
 import pile.core.concurrency.PileChannel;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
@@ -171,6 +172,11 @@ public class NativeAsync {
             }
         }, Executors.newVirtualThreadPerTaskExecutor());
 
+    }
+    
+    @RenamedMethod("delay*")
+    public static Delay delay_star(PCall fn) {
+        return new Delay(fn);
     }
 
     private static void handleCancellation(CompletableFuture<Object> cf, Thread t) {

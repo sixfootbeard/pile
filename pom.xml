@@ -88,9 +88,10 @@
                                 <argument>-Dpile.aot=write</argument>
                                 <argument>-Dpile.aot.dir=${project.build.outputDirectory}</argument>
                                 <argument>--enable-preview</argument>
-                                <argument>-classpath</argument>
-                                <classpath />
-                                <argument>pile.core.compiler.aot.AOTMain</argument>
+                                <argument>--module-path</argument>
+                                <modulepath />
+                                <argument>--module</argument>
+                                <argument>pile.lang/pile.core.compiler.aot.AOTMain</argument>
                             </arguments>
                             <!-- Will buffer too much unless this is on -->
                             <inheritIo>true</inheritIo>
@@ -122,9 +123,10 @@
                                 <argument>-Djava.library.path=target/lib</argument>
                                 <argument>-Dpile.aot=read</argument>
                                 <argument>--enable-preview</argument>
-                                <argument>-cp</argument>
-                                <classpath />
-                                <argument>pile.core.compiler.aot.AOTMain</argument>
+                                <argument>--module-path</argument>
+                                <modulepath />
+                                <argument>--module</argument>
+                                <argument>pile.lang/pile.core.compiler.aot.AOTMain</argument>
                             </arguments>
                             <!-- Will buffer too much unless this is on -->
                             <inheritIo>true</inheritIo>
@@ -155,9 +157,10 @@
                                 <argument>-Djava.library.path=target/lib</argument>
                                 <argument>-Dpile.aot=read</argument>
                                 <argument>-XX:+UseZGC</argument>
-                                <argument>-classpath</argument>
-                                <classpath />
-                                <argument>pile.repl.ReplMain</argument>
+                                <argument>--module-path</argument>
+                                <modulepath />
+                                <argument>--module</argument>
+                                <argument>pile.lang/pile.repl.ReplMain</argument>
                             </arguments>
                             <!-- Will buffer too much unless this is on -->
                             <inheritIo>true</inheritIo>
@@ -187,6 +190,7 @@
                             <classpathScope>test</classpathScope>
                             <executable>java</executable>
                             <arguments>
+                                <!-- TODO Modules? -->
                                 <argument>-classpath</argument>
                                 <classpath />
                                 <argument>org.openjdk.jmh.Main</argument>

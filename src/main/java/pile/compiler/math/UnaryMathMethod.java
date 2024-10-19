@@ -34,6 +34,7 @@ import pile.core.exception.PileExecutionException;
 import pile.core.indy.CallSiteType;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
+import pile.core.runtime.generated_classes.LookupHolder;
 
 public class UnaryMathMethod implements PileMethod {
 
@@ -69,7 +70,7 @@ public class UnaryMathMethod implements PileMethod {
             MethodType type = methodType(targetMethodType, targetMethodType);
             MethodHandle handle;
             try {
-                handle = lookup().findStatic(methodClass, methodName, type);
+                handle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, type);
                 return Optional.of(handle);
             } catch (NoSuchMethodException | IllegalAccessException e) {
                 LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, type);

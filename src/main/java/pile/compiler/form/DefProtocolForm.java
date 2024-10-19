@@ -111,12 +111,12 @@ public class DefProtocolForm extends AbstractListForm {
 
             byte[] classArray = cs.compileClass();
             AbstractClassCompiler.printDebug(classArray);
-            clazz = LookupHolder.LOOKUP.defineClass(classArray);
+            clazz = LookupHolder.PRIVATE_LOOKUP.defineClass(classArray);
         } finally {
             cs.leaveInterface();
         }
         
-        MethodCollector collector = new MethodCollector(clazz, lookup());
+        MethodCollector collector = new MethodCollector(clazz, LookupHolder.PRIVATE_LOOKUP);
         Map<String, MethodArity> pileMethods = collector.collectPileMethods();
         Map<String, HiddenCompiledMethod> collectedMethods = mapV(pileMethods, ma -> new HiddenCompiledMethod(clazz, ma));
         
@@ -128,7 +128,7 @@ public class DefProtocolForm extends AbstractListForm {
         if (hasDefault) {
             companionClass = buildDefaultDelegate(cs, methods);
             Object base = companionClass.getConstructor().newInstance();
-            MethodCollector companionCollector = new MethodCollector(companionClass, lookup());
+            MethodCollector companionCollector = new MethodCollector(companionClass, LookupHolder.PRIVATE_LOOKUP);
             for (var comp : companionCollector.collectPileMethods().entrySet()) {
                 MethodArity arity = comp.getValue();
                 
@@ -201,7 +201,7 @@ public class DefProtocolForm extends AbstractListForm {
             
             byte[] classArray = cs.compileClass();
             AbstractClassCompiler.printDebug(classArray);
-            return LookupHolder.LOOKUP.defineClass(classArray);
+            return LookupHolder.PRIVATE_LOOKUP.defineClass(classArray);
         } finally {
             cs.leaveClass();
         }

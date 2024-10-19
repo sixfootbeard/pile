@@ -46,7 +46,7 @@
     "Returns a dereffable value which runs the provided expression when called the first time
      and caches the result to return to all future calls."
     [& body]
-    `(new pile.core.concurrency.Delay (fn [] ~@body)))
+    `(delay* (fn [] ~@body)))
 
 ;; Structured concurrency
 ;;;;;;;;;;;;

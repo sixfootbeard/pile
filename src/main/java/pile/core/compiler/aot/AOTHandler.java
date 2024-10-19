@@ -170,7 +170,7 @@ public class AOTHandler {
         
         writeAOTClass(CoreConstants.GEN_PACKAGE_DOT, AOT_GEN_CLASS_NAME, classArray);
         
-        LookupHolder.LOOKUP.defineClass(classArray);
+        LookupHolder.PRIVATE_LOOKUP.defineClass(classArray);
     }
 
     public static AOTType getAotType() {
