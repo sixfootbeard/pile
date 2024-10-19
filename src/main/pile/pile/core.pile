@@ -695,16 +695,16 @@
 ;; Multimethods
 
 (defmacro defmulti [fname keyfn]
-    `(def ~fname (new Multimethod *ns* #'default-hierarchy ~(name fname) ~keyfn)))
+    `(def ~fname (multimethod-new *ns* #'default-hierarchy ~(name fname) ~keyfn)))
     
 (defmacro defmethod [name key args body]
-    `(. (cast Multimethod ~name) addKey ~key (fn* ~args ~body)))
+    `(multimethod-add ~name ~key (fn* ~args ~body)))
 
 (defn remove-method [^Multimethod mm key]
-    (. mm removeKey key))
+    (multimethod-remove mm key))
 
 (defn methods [^Multimethod mm]
-    (. mm getMethods))
+    (multimethod-methods mm))
 
 ;; Random
 

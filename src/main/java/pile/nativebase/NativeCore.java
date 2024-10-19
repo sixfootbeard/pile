@@ -87,6 +87,7 @@ import pile.core.ISeq;
 import pile.core.JavaMethod;
 import pile.core.Keyword;
 import pile.core.Metadata;
+import pile.core.Multimethod;
 import pile.core.Named;
 import pile.core.Namespace;
 import pile.core.NativeValue;
@@ -1569,6 +1570,22 @@ public class NativeCore {
     @PureFunction
     public static PileMethod java_method(Class c, String name) throws Exception {
         return JavaMethod.of(c, name);
+    }
+    
+    public static Multimethod multimethod_new(Namespace ns, Var hierarchy, String name, PileMethod fn) {
+        return new Multimethod(ns, hierarchy, name, fn);
+    }
+    
+    public static void multimethod_add(Multimethod mm, Object key, PileMethod fn) {
+        mm.addKey(key, fn);
+    }
+    
+    public static void multimethod_remove(Multimethod mm, Object key) {
+        mm.removeKey(key);
+    }
+    
+    public static PersistentMap<Object, PileMethod> multimethod_methods(Multimethod mm) {
+        return mm.getMethods();
     }
     
     // ============
