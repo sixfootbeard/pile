@@ -93,6 +93,7 @@ import pile.core.Namespace;
 import pile.core.NativeValue;
 import pile.core.PCall;
 import pile.core.PileMethod;
+import pile.core.PileRestartException;
 import pile.core.Ref;
 import pile.core.ReversibleSeq;
 import pile.core.RuntimeRoot;
@@ -1957,5 +1958,14 @@ public class NativeCore {
     public static Object resume(Coroutine c) throws InterruptedException {
         return c.resume();
     }
+
+    public static Object cond_restart_name(PileRestartException pre) {
+        return pre.getRestartName();
+    }
+    
+    public static Object[] cond_restart_args(PileRestartException pre) {
+        return pre.getRestartFunctionArgs();
+    }
+    
     
 }

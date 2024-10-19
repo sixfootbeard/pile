@@ -971,7 +971,7 @@
         `(try
            ~form
            (catch pile.core.PileRestartException e#
-              (let [restart-name# (.getRestartName e#)
-                    restart-args# (.getRestartFunctionArgs e#)
+              (let [restart-name# (cond-restart-name e#)
+                    restart-args# (cond-restart-args e#)
                     restart-fn# (get ~case-map restart-name#)]
                  (apply restart-fn# restart-args#))))))
