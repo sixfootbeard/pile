@@ -231,28 +231,22 @@ public class SExpr implements Form {
             if (type(first) == TypeTag.SYMBOL) {
                 ScopeLookupResult slr = cs.getScope().lookupSymbolScope((Symbol) first);
 
-                if (slr != null) {
-                    if (slr.val() instanceof Binding bind) {
-                        if (bind.isMacro()) {
-                            List<Object> evaluated = new ArrayList<>();
-                            for (Object f : form.pop()) {
-                                MacroEvaluated mev = Compiler.macroEval(cs, f, context);
-                                if (mev.isUnsplice())
-                                    throw new RuntimeException("NYI");
-                                evaluated.add(mev.result());
-                            }
+                if (slr != null && 
+                      slr.val() instanceof Binding bind && 
+                      bind.isMacro() && 
+                      bind instanceof IntrinsicBinding ib) {
 
-                            if (bind instanceof IntrinsicBinding ib) {
-                                // FIXME this is a hacky way to get the macro intrinsics to work.
-                                evaluated.add(0, null); 
-                                return ib.getCons().apply(PersistentList.fromList(evaluated)).macroEvaluateForm(cs, context);
-                            } else {
-                                var out = ((PCall) bind.getValue()).invoke(evaluated.toArray());
-                                return new MacroEvaluated(out, false);
-                            }
-
-                        }
+                    List<Object> evaluated = new ArrayList<>();
+                    for (Object f : form.pop()) {
+                        MacroEvaluated mev = Compiler.macroEval(cs, f, context);
+                        if (mev.isUnsplice())
+                            throw new RuntimeException("NYI");
+                        evaluated.add(mev.result());
                     }
+                    // FIXME this is a hacky way to get the macro intrinsics to work.
+                    evaluated.add(0, null);
+                    return ib.getCons().apply(PersistentList.fromList(evaluated)).macroEvaluateForm(cs, context);
+
                 }
             }
 

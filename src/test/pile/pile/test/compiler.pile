@@ -379,3 +379,8 @@
 (test "def form initializer dynamic"
    (def ^:dynamic dynvar)
    (is (-> (var dynvar) meta :dynamic)))
+
+(test "Macro evaluation - early"
+   (def ^:macro macro-map (fn [] {}))
+   (def macro-syntax '(macro-map))
+   (is (= (list 'macro-map) macro-syntax)))
