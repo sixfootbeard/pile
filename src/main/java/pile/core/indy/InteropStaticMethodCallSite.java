@@ -29,6 +29,9 @@ import java.util.Optional;
 import pile.compiler.typed.DynamicTypeLookup;
 import pile.compiler.typed.TypedHelpers;
 import pile.core.exception.UnlinkableMethodException;
+import pile.core.indy.InteropInstanceMethodCallSite.CrackResult;
+import pile.core.indy.InteropInstanceMethodCallSite.CrackError;
+import pile.core.indy.InteropInstanceMethodCallSite.CrackResult;
 import pile.core.indy.guard.GuardBuilder;
 import pile.core.indy.guard.JavaGuardBuilder;
 import pile.core.log.Logger;
@@ -71,9 +74,14 @@ public class InteropStaticMethodCallSite extends AbstractRelinkingCallSite {
         DynamicTypeLookup<Method> dyn = new DynamicTypeLookup<Method>(TypedHelpers::ofMethod);
         Optional<Method> matchedMethod = dyn.findMatchingTarget(staticTypes, runtimeTypes,
                 i -> contentionIndexes[i] = true, TypedHelpers.findStaticMethods(clazz, methodName));
-        MethodHandle handle = matchedMethod.flatMap(method -> crackReflectedMethod(caller, clazz, methodName, method))
-                .orElseThrow(() -> new UnlinkableMethodException(
-                        "Could not find method " + clazz + "." + methodName + runtimeTypes));
+
+        Method method = matchedMethod.orElseThrow(() -> new UnlinkableMethodException(
+                "Could not find method " + clazz + "." + methodName + runtimeTypes));
+        CrackResult<MethodHandle> result = crackReflectedMethod(caller, clazz, methodName, method);
+        MethodHandle handle = switch (result) {
+            case ResultValue(MethodHandle t) -> t;
+            case CrackError(String msg) -> throw new UnlinkableMethodException(msg);
+        };
 
         // TODO Infinite chain relinks
         GuardBuilder builder = new JavaGuardBuilder(handle, getTarget(), type);

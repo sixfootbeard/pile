@@ -52,6 +52,8 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
 	
 	private static Logger LOG = LoggerSupplier.getLogger(InteropInstanceMethodCallSite.class);
 	
+    private static final String CALLER_SENSITIVE_MESSAGE = "Attempt to lookup caller-sensitive method using restricted lookup object";
+	
 	private final String methodName;
 
     private final long anyMask;
@@ -64,13 +66,25 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
 		this.anyMask = anyMask;
 		this.caller = caller;
 	}
+	
+	public sealed interface CrackResult<T> permits ResultValue, CrackError {
+	}
+	public record ResultValue<T>(T t) implements CrackResult<T> {};
+	public record CrackError(String msg) implements CrackResult {};
 
-    public static Optional<MethodHandle> crackReflectedMethod(Lookup lookup, Class<?> clazz, String methodName,
+    public static CrackResult<MethodHandle> crackReflectedMethod(Lookup lookup, Class<?> clazz, String methodName,
             Method actualMethod) {
         try {
             var method = lookup.unreflect(actualMethod);
-            return Optional.of(method);
+            return new ResultValue<>(method);
         } catch (IllegalAccessException iae) {
+            // Caller Sensitive
+            if (CALLER_SENSITIVE_MESSAGE.equals(iae.getMessage())) {
+                String fmt = "Cannot create method handle to caller sensitive method: %s";
+                String msg = String.format(fmt, actualMethod.toString());
+                return new CrackError(msg);
+            }
+            
             // also slow way
             // TODO There's gotta be a faster way to do this.
             // So we can't touch the actual class but we may be able to touch interfaces
@@ -85,14 +99,14 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
             while ( currentType != null) {
                 try {
                     MethodHandle maybeVirtual = lookup.findVirtual(currentType, methodName, actualMethodType);
-                    return Optional.of(maybeVirtual);
+                    return new ResultValue<>(maybeVirtual);
                 } catch (NoSuchMethodException | IllegalAccessException e) {
                     // pass
                 }
                 for (Class<?> iface : currentType.getInterfaces()) {                    
                     try {
                         var ifaceMethod = lookup.findVirtual(iface, methodName, actualMethodType);
-                        return Optional.of(ifaceMethod);
+                        return new ResultValue<>(ifaceMethod);
                     } catch (NoSuchMethodException | IllegalAccessException e1) {
                         // pass
                     }
@@ -100,7 +114,9 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
                 currentType = currentType.getSuperclass();
             }
             
-            return Optional.empty();
+            String fmt = "Could not determine how to call method: %s";
+            String msg = String.format(fmt, actualMethod.toString());
+            return new CrackError(msg);
         }
     }
 	
@@ -123,10 +139,13 @@ public class InteropInstanceMethodCallSite extends AbstractRelinkingCallSite {
         List<Class<?>> runtimeMethodTypes = withoutHead(runtimeTypes);
         Optional<Method> matchedMethod = dyn.findMatchingTarget(staticMethodTypes, runtimeMethodTypes,
                 i -> contentionIndexes[i+1] = true, TypedHelpers.findInstanceMethods(receiverType, methodName));
-        MethodHandle handle = matchedMethod
-                .flatMap(method -> crackReflectedMethod(caller, receiverType, methodName, method))
-                .orElseThrow(() -> new UnlinkableMethodException("Could not find method " + receiverType + "." + methodName
-                        + runtimeTypes));
+        Method method = matchedMethod.orElseThrow(() -> new UnlinkableMethodException("Could not find method " + receiverType + "." + methodName
+                + runtimeTypes));
+        CrackResult<MethodHandle> result = crackReflectedMethod(caller, receiverType, methodName, method);
+        MethodHandle handle = switch (result) {
+            case ResultValue(MethodHandle t) -> t;
+            case CrackError(String msg) -> throw new UnlinkableMethodException(msg);
+        };
                         
         GuardBuilder builder = new JavaGuardBuilder(handle, relink, type);
         if (! staticTypes.get(0).equals(receiverType)) {

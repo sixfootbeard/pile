@@ -15,7 +15,6 @@
  */
 package pile.compiler.form;
 
-import static java.lang.invoke.MethodHandles.*;
 import static org.objectweb.asm.Type.*;
 import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
@@ -57,8 +56,12 @@ import pile.core.binding.NativeDynamicBinding;
 import pile.core.exception.PileCompileException;
 import pile.core.exception.PileException;
 import pile.core.exception.PileSyntaxErrorException;
+import pile.core.exception.UnlinkableMethodException;
 import pile.core.indy.IndyHelpers;
 import pile.core.indy.InteropInstanceMethodCallSite;
+import pile.core.indy.InteropInstanceMethodCallSite.CrackError;
+import pile.core.indy.InteropInstanceMethodCallSite.CrackResult;
+import pile.core.indy.InteropInstanceMethodCallSite.ResultValue;
 import pile.core.indy.InteropLinker;
 import pile.core.indy.LinkOptions;
 import pile.core.log.Logger;
@@ -186,10 +189,16 @@ public class InteropForm implements Form {
             case METHOD: {
                 DynamicTypeLookup<Method> lookup = new DynamicTypeLookup<Method>(TypedHelpers::ofMethod);
                 Stream<Method> candidates = TypedHelpers.findMethods(bc.clazz(), fieldOrMethodName, bc.base() == null);
-                MethodHandle handle = lookup.findMatchingTarget(Arrays.asList(argClasses), Arrays.asList(argClasses), candidates)
-                      .flatMap(method -> InteropInstanceMethodCallSite.crackReflectedMethod(publicLookup, bc.clazz(), fieldOrMethodName, method))
-                      .orElseThrow(() -> makeError(form, formRecord, argClasses, bc.clazz(), bc.base())); 
-                ;
+                Optional<Method> opt = lookup.findMatchingTarget(Arrays.asList(argClasses), Arrays.asList(argClasses), candidates);
+                Method method = opt.orElseThrow(() -> makeError(form, formRecord, argClasses, bc.clazz(), bc.base()));
+
+                CrackResult<MethodHandle> result = InteropInstanceMethodCallSite.crackReflectedMethod(publicLookup, bc.clazz(), fieldOrMethodName, method);
+
+                MethodHandle handle = switch (result) {
+                    case ResultValue(MethodHandle m) -> m;
+                    case CrackError(String msg) -> throw new UnlinkableMethodException(msg); // TODO
+                };
+
                 var varArgs = handle.isVarargsCollector();
                 if (formRecord.ios.equals(InstanceOrStatic.INSTANCE)) {
                     handle = handle.bindTo(bc.base());
@@ -509,7 +518,7 @@ public class InteropForm implements Form {
             Class[] argClasses, Class<?> clazz, Object base) {
         Optional<LexicalEnvironment> maybeLex = LexicalEnvironment.extract(form);
         String argStr = Arrays.stream(argClasses).map(Class::toString).collect(Collectors.joining(", "));
-        String msg = String.format("Unable to find %S method %s/%s(%s) to call", formRecord.ios(), clazz,
+        String msg = String.format("Unable to find %S method %s/%s(%s) to call", formRecord.ios(), clazz.getName(),
                 formRecord.fieldOrMethodName(), argStr);
         return new PileSyntaxErrorException(msg, maybeLex);
     }
