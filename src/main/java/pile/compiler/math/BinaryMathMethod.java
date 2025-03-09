@@ -153,7 +153,8 @@ public class BinaryMathMethod implements PileMethod {
     public Object invoke(Object... args) throws Throwable {
         ensure(args.length == 2, "Unary math method called with too many arguments");
         Optional<MethodHandle> maybe = getHandle(args[0].getClass(), args[1].getClass());
-        ensureEx(maybe.isPresent(), IllegalArgumentException::new, "Cannot find method types matching call");
+        ensureEx(maybe.isPresent(), IllegalArgumentException::new, 
+                () -> String.format("Cannot find method types matching call %s(%s, %s)", methodName, args[0].getClass(), args[1].getClass()));
 
         MethodHandle handle = maybe.get();
         return handle.invokeWithArguments(args);

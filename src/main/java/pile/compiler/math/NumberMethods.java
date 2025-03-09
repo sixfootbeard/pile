@@ -142,36 +142,42 @@ public class NumberMethods {
 	public static boolean numEquals(long lhs, long rhs) { return lhs == rhs; }
 	public static boolean numEquals(float lhs, float rhs) { return lhs == rhs; }
 	public static boolean numEquals(double lhs, double rhs) { return lhs == rhs; }
-	public static boolean numEquals(BigDecimal lhs, BigDecimal rhs) { return lhs.equals(rhs); }
+    public static boolean numEquals(BigInteger lhs, BigInteger rhs) { return lhs.equals(rhs); }
+    public static boolean numEquals(BigDecimal lhs, BigDecimal rhs) { return lhs.equals(rhs); }
 	
 	public static boolean lessThan(int lhs, int rhs) { return lhs < rhs; }
 	public static boolean lessThan(long lhs, long rhs) { return lhs < rhs; }
 	public static boolean lessThan(float lhs, float rhs) { return lhs < rhs; }
 	public static boolean lessThan(double lhs, double rhs) { return lhs < rhs; }
+	public static boolean lessThan(BigInteger lhs, BigInteger rhs) { return lhs.compareTo(rhs) < 0; }
 	public static boolean lessThan(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) < 0; }
 	
 	public static boolean greaterThan(int lhs, int rhs) { return lhs > rhs; }
 	public static boolean greaterThan(long lhs, long rhs) { return lhs > rhs; }
 	public static boolean greaterThan(float lhs, float rhs) { return lhs > rhs; }
 	public static boolean greaterThan(double lhs, double rhs) { return lhs > rhs; }
-	public static boolean greaterThan(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) > 0; }
+    public static boolean greaterThan(BigInteger lhs, BigInteger rhs) { return lhs.compareTo(rhs) > 0; }
+    public static boolean greaterThan(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) > 0; }
 	
 	public static boolean lessThanEquals(int lhs, int rhs) { return lhs <= rhs; }
 	public static boolean lessThanEquals(long lhs, long rhs) { return lhs <= rhs; }
 	public static boolean lessThanEquals(float lhs, float rhs) { return lhs <= rhs; }
 	public static boolean lessThanEquals(double lhs, double rhs) { return lhs <= rhs; }
-	public static boolean lessThanEquals(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) <= 0; }
+    public static boolean lessThanEquals(BigInteger lhs, BigInteger rhs) { return lhs.compareTo(rhs) <= 0; }
+    public static boolean lessThanEquals(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) <= 0; }
 	
 	public static boolean greaterThanEquals(int lhs, int rhs) { return lhs >= rhs; }
 	public static boolean greaterThanEquals(long lhs, long rhs) { return lhs >= rhs; }
 	public static boolean greaterThanEquals(float lhs, float rhs) { return lhs >= rhs; }
 	public static boolean greaterThanEquals(double lhs, double rhs) { return lhs >= rhs; }
-	public static boolean greaterThanEquals(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) >= 0; }
+    public static boolean greaterThanEquals(BigInteger lhs, BigInteger rhs) { return lhs.compareTo(rhs) >= 0; }
+    public static boolean greaterThanEquals(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs) >= 0; }
 	
 	public static int compare(int lhs, int rhs) { return lhs < rhs ? -1 : lhs == rhs ? 0 : 1; }
     public static int compare(long lhs, long rhs) { return lhs < rhs ? -1 : lhs == rhs ? 0 : 1; }
     public static int compare(float lhs, float rhs) { return lhs < rhs ? -1 : lhs == rhs ? 0 : 1; }
     public static int compare(double lhs, double rhs) { return lhs < rhs ? -1 : lhs == rhs ? 0 : 1; }
+    public static int compare(BigInteger lhs, BigInteger rhs) { return lhs.compareTo(rhs); }
     public static int compare(BigDecimal lhs, BigDecimal rhs) { return lhs.compareTo(rhs); }
     
     // Bits

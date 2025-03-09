@@ -20,7 +20,7 @@ import pile.compiler.math.finder.JavaBinaryPredicateMathMethodFinder;
 public class BinaryPredicateMethod extends BinaryMathMethod {
 
 	public BinaryPredicateMethod(String methodName) {
-		super(NumberMethods.class, methodName, new JavaBinaryPredicateMathMethodFinder(NumberHelpers.ALL_FIXED, Integer.TYPE));
+		super(NumberMethods.class, methodName, new JavaBinaryPredicateMathMethodFinder(NumberHelpers.ALL_ARBITRARY, Integer.TYPE));
 	}
 
 
