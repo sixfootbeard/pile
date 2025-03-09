@@ -89,7 +89,7 @@ public class HiddenNativeMethod implements PileMethod {
 
     @Override
     public Optional<Class<?>> getReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
-        return returnType;
+        return returnType.or(() -> determineReturnType(csType, staticTypes, anyMask));
     }
 
     @Override
@@ -181,6 +181,23 @@ public class HiddenNativeMethod implements PileMethod {
         return handle.invokeWithArguments(args);
     }
 
+
+    private Optional<Class<?>> determineReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
+        return switch (csType) {
+            case PLAIN -> {
+                int count = staticTypes.parameterCount();
+                List<MethodHandle> handles = arityHandles.get(count);
+                if (handles == null) {
+                    yield Optional.empty();
+                }
+                StaticTypeLookup<MethodHandle> tl = new StaticTypeLookup<>(TypedHelpers::of);
+                Optional<MethodHandle> match = tl.findSingularMatchingTarget(staticTypes.parameterList(), handles.stream());
+                yield match.map(mh -> mh.type().returnType());
+            }
+            default -> Optional.empty();
+            
+        };
+    }
 
     Optional<List<MethodHandle>> findHandlesMatchingSize(int size) {
         if (arityHandles.containsKey(size)) {
