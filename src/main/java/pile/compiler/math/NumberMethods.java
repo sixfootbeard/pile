@@ -198,6 +198,17 @@ public class NumberMethods {
     public static long remainder(long lhs, long rhs) { return lhs % rhs; }
     public static float remainder(float lhs, float rhs) { return lhs % rhs; }
     public static double remainder(double lhs, double rhs) { return lhs % rhs; }
+    
+    
+    public static Number negateSafe(int v) { if (v == Integer.MIN_VALUE) return -((long)v); else return -v; }
+    public static Number negateSafe(long v) { if (v == Long.MIN_VALUE) return BigInteger.valueOf(v).negate(); else return -v; }
+    // TODO Next two return types could be narrowed but not sure if that would break return typing.
+    public static Number negateSafe(float v) { return -v; }
+    public static Number negateSafe(double v) { return -v; } 
+ 
+    public static Number negateSafe(BigInteger v) { return v.negate(); }
+    public static Number negateSafe(BigDecimal v) { return v.negate(); } 
+
     //@formatter:on
     
     

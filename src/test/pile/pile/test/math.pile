@@ -69,6 +69,19 @@
 (teq -1L (negate 1L))
 (teq -1b (negate 1b))
 (teq -1N (negate 1N))
+(teq -2147483648 (negate -2147483648))
+(teq -9223372036854775808L (negate -9223372036854775808L))
+
+;; promotes to int
+(teq -1 (negate' (to-byte 1)))
+;; promotes to int
+(teq -1 (negate' (to-short 1)))
+(teq -1 (negate' 1))
+(teq -1L (negate' 1L))
+(teq -1b (negate' 1b))
+(teq -1N (negate' 1N))
+(teq 2147483648L (negate' -2147483648))
+(teq 9223372036854775808N (negate' -9223372036854775808L))
 
 ;; to-bigint
 (teq 1N (to-bigint (to-byte 1)))

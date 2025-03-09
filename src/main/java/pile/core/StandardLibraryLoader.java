@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -59,7 +60,9 @@ import pile.compiler.math.NumberMethods;
 import pile.compiler.math.ShiftMethod;
 import pile.compiler.math.UnaryMathMethod;
 import pile.compiler.math.finder.BinaryMethodFinder;
+import pile.compiler.math.finder.NegateMethodFinder;
 import pile.compiler.math.finder.OverflowBinaryMathMethodFinder;
+import pile.compiler.math.finder.UnaryMathMethodFinder;
 import pile.core.binding.Binding;
 import pile.core.binding.BindingType;
 import pile.core.binding.ImmutableBinding;
@@ -148,6 +151,8 @@ public class StandardLibraryLoader {
     );
     
     private static final BinaryMethodFinder OVERFLOW_MATH_METHOD = new OverflowBinaryMathMethodFinder(Integer.TYPE);
+    
+    private static final UnaryMathMethodFinder UNARY_DOUBLE = _ -> Optional.of(MethodType.methodType(Double.TYPE, Double.TYPE));
 
     private static final List<NumberOp> MATH_METHODS = List.of(
             new NumberOp("+", new BinaryMathMethod("plus")),
@@ -169,7 +174,10 @@ public class StandardLibraryLoader {
             
             // 
             new NumberOp("compareNum", new BinaryComparisonMethod("compare")), 
-            new NumberOp("negate", new UnaryMathMethod(NumberMethods.class, "negate", NumberHelpers.getBBDFLI())), 
+            new NumberOp("negate", new UnaryMathMethod(NumberMethods.class, "negate",
+                    new NegateMethodFinder(UnaryMathMethodFinder.EXACT))), 
+            new NumberOp("negate'", new UnaryMathMethod(NumberMethods.class, "negateSafe", 
+                    new NegateMethodFinder(UnaryMathMethodFinder.NUMBER))), 
             
         
             new NumberOp("<", new BinaryPredicateMethod("lessThan")),
@@ -177,19 +185,19 @@ public class StandardLibraryLoader {
             new NumberOp("<=", new BinaryPredicateMethod("lessThanEquals")),
             new NumberOp(">=", new BinaryPredicateMethod("greaterThanEquals")),
             
-            new NumberOp("abs", new UnaryMathMethod(Math.class, "abs", NumberHelpers.getDFLI())),
+            new NumberOp("abs", new UnaryMathMethod(Math.class, "abs", UnaryMathMethodFinder.only(UnaryMathMethodFinder.EXACT, NumberHelpers.getDFLI()::contains))),
             
-            new NumberOp("acos", new UnaryMathMethod(Math.class, "acos", NumberHelpers.getDoubleOnly())),
-            new NumberOp("asin", new UnaryMathMethod(Math.class, "asin", NumberHelpers.getDoubleOnly())),
-            new NumberOp("atan", new UnaryMathMethod(Math.class, "atan", NumberHelpers.getDoubleOnly())),
-            new NumberOp("cos", new UnaryMathMethod(Math.class, "cos", NumberHelpers.getDoubleOnly())),
-            new NumberOp("cosh", new UnaryMathMethod(Math.class, "cosh", NumberHelpers.getDoubleOnly())),
-            new NumberOp("log", new UnaryMathMethod(Math.class, "log", NumberHelpers.getDoubleOnly())),
-            new NumberOp("log10", new UnaryMathMethod(Math.class, "log10", NumberHelpers.getDoubleOnly())),
-            new NumberOp("sin", new UnaryMathMethod(Math.class, "sin", NumberHelpers.getDoubleOnly())),
-            new NumberOp("sinh", new UnaryMathMethod(Math.class, "sinh", NumberHelpers.getDoubleOnly())),
-            new NumberOp("tan", new UnaryMathMethod(Math.class, "tan", NumberHelpers.getDoubleOnly())),
-            new NumberOp("tanh", new UnaryMathMethod(Math.class, "tanh", NumberHelpers.getDoubleOnly())),
+            new NumberOp("acos", new UnaryMathMethod(Math.class, "acos", UNARY_DOUBLE)),
+            new NumberOp("asin", new UnaryMathMethod(Math.class, "asin", UNARY_DOUBLE)),
+            new NumberOp("atan", new UnaryMathMethod(Math.class, "atan", UNARY_DOUBLE)),
+            new NumberOp("cos", new UnaryMathMethod(Math.class, "cos", UNARY_DOUBLE)),
+            new NumberOp("cosh", new UnaryMathMethod(Math.class, "cosh", UNARY_DOUBLE)),
+            new NumberOp("log", new UnaryMathMethod(Math.class, "log", UNARY_DOUBLE)),
+            new NumberOp("log10", new UnaryMathMethod(Math.class, "log10", UNARY_DOUBLE)),
+            new NumberOp("sin", new UnaryMathMethod(Math.class, "sin", UNARY_DOUBLE)),
+            new NumberOp("sinh", new UnaryMathMethod(Math.class, "sinh", UNARY_DOUBLE)),
+            new NumberOp("tan", new UnaryMathMethod(Math.class, "tan", UNARY_DOUBLE)),
+            new NumberOp("tanh", new UnaryMathMethod(Math.class, "tanh", UNARY_DOUBLE)),
             
             new NumberOp("bit-shift-left", new ShiftMethod("shiftLeft")),
             new NumberOp("bit-shift-right", new ShiftMethod("shiftRight")),

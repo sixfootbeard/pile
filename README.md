@@ -531,7 +531,7 @@ Pile supports stateful, lazy transformation streams. These operations take a sou
 
 ## Arbitrary-precision arithmetic
 
-Pile supports both fixed-precision and arbitrary-precision arithmetic. All the short operators perform fixed width arithmetic which can overflow or lose precision during unit conversion:
+Pile supports both fixed-precision and arbitrary-precision arithmetic. All the math operators perform fixed-width arithmetic according to the Java spec. However, this  can overflow or lose precision during unit conversion:
 
 ```clojure
 (+ Long/-MAX_VALUE 1)
@@ -542,17 +542,17 @@ You can use the alternate operators, which have a single quote suffix, to perfor
 
 ```clojure
 (+' Long/-MAX_VALUE 1)
-;; 9223372036854775808
+;; 9223372036854775808N
 ```
 
 You can create arbitrary-precision integral literals with a 'N' suffix, and arbitrary-precision decimal literals with the 'b' suffix:
 
 ```clojure
 (+' 0.1b 0.2b)
-;; 0.3
+;; 0.3b
 ```
 
-All operations which would overflow or would lose precision are coerced to higher width or arbitrary precision types, depending on the context. 
+All arbitrary precision operations which would overflow or would lose precision are promoted to higher width or arbitrary precision types, depending on the context. 
 
 ## Text Blocks
 

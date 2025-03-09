@@ -15,7 +15,6 @@
  */
 package pile.compiler.math;
 
-import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
 import static pile.compiler.Helpers.*;
 
@@ -23,14 +22,10 @@ import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.InvocationTargetException;
-import java.util.List;
-import java.util.NavigableSet;
 import java.util.Optional;
-import java.util.Set;
 
+import pile.compiler.math.finder.UnaryMathMethodFinder;
 import pile.core.PileMethod;
-import pile.core.exception.PileExecutionException;
 import pile.core.indy.CallSiteType;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
@@ -40,13 +35,13 @@ public class UnaryMathMethod implements PileMethod {
 
     private static final Logger LOG = LoggerSupplier.getLogger(UnaryMathMethod.class);
 
-    private final NavigableSet<Class<?>> order;
+    private final UnaryMathMethodFinder finder;
     private final Class<?> methodClass;
     private final String methodName;
 
-    public UnaryMathMethod(Class<?> methodClass, String methodName, NavigableSet<Class<?>> order) {
+    public UnaryMathMethod(Class<?> methodClass, String methodName, UnaryMathMethodFinder order) {
         super();
-        this.order = order;
+        this.finder = order;
         this.methodClass = methodClass;
         this.methodName = methodName;
     }
@@ -64,18 +59,33 @@ public class UnaryMathMethod implements PileMethod {
             .map(ConstantCallSite::new);
     }
     
+    @Override
+    public Optional<Class<?>> getReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
+        if (staticTypes.parameterCount() != 1) {
+            return Optional.empty();
+        }
+        return switch (csType) {
+            case CallSiteType.PLAIN -> getHandle(staticTypes.parameterType(0)).map(mh -> mh.type().returnType());
+            default -> Optional.empty();
+        };
+    }
+    
     private Optional<MethodHandle> getHandle(Class<?> firstParameterType) {
         if (NumberHelpers.isNumberType(firstParameterType)) {
-            Class<?> targetMethodType = order.ceiling(toPrimitive(firstParameterType));
-            MethodType type = methodType(targetMethodType, targetMethodType);
-            MethodHandle handle;
-            try {
-                handle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, type);
-                return Optional.of(handle);
-            } catch (NoSuchMethodException | IllegalAccessException e) {
-                LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, type);
-                // fall through
-            }
+            return finder.findTarget(firstParameterType)
+                .flatMap(type -> {
+                    try {
+                        MethodHandle handle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, type);
+                        NumericPromoter promoter = new NumericPromoter();
+                        MethodHandle promoted = promoter.promote(handle, type);
+                        return Optional.of(promoted);
+                    } catch (NoSuchMethodException | IllegalAccessException e) {
+                        LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, type);
+                        return Optional.empty();
+                    }
+                    
+                });                
+            
         }
         return Optional.empty();
     }
