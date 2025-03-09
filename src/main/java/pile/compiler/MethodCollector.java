@@ -22,6 +22,8 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.function.Function;
 
 import pile.compiler.annotation.GeneratedMethod;
@@ -49,7 +51,7 @@ public class MethodCollector {
         Map<String, MethodArity> out = new HashMap<>();
 
         Function<String, MethodArity> get = k -> out.computeIfAbsent(k,
-                ig -> new MethodArity(new HashMap<>(), null, -1, null));
+                ig -> new MethodArity(new TreeMap<>(), null, -1, null));
 
         for (Method m : clazz.getDeclaredMethods()) {
             if (m.isAnnotationPresent(GeneratedMethod.class)) {
@@ -81,7 +83,7 @@ public class MethodCollector {
         return out;
     }
 
-    public record MethodArity(Map<Integer, MethodHandle> arityHandles, MethodHandle varArgsMethod, int varArgsSize,
+    public record MethodArity(NavigableMap<Integer, MethodHandle> arityHandles, MethodHandle varArgsMethod, int varArgsSize,
             MethodHandle kwArgsUnrolledMethod) {
             
         /**
@@ -92,7 +94,7 @@ public class MethodCollector {
          * @return
          */
         public MethodArity bind(Object base) {
-            Map<Integer, MethodHandle> newArityHandles = mapV(arityHandles(), m -> m.bindTo(base));
+            NavigableMap<Integer, MethodHandle> newArityHandles = mapVN(arityHandles(), m -> m.bindTo(base));
             MethodHandle newVarArgsMethod = varArgsMethod != null ? varArgsMethod.bindTo(base) : null;
             MethodHandle newKwArgsUnrolledMethod = kwArgsUnrolledMethod != null ? kwArgsUnrolledMethod.bindTo(base) : null;
             return new MethodArity(newArityHandles, newVarArgsMethod, varArgsSize, newKwArgsUnrolledMethod);
@@ -103,7 +105,7 @@ public class MethodCollector {
         }
         
         public MethodArity mergeSupplement(MethodArity defaultMethods) {
-            Map<Integer, MethodHandle> arityCopy = new HashMap<>(arityHandles);
+            NavigableMap<Integer, MethodHandle> arityCopy = new TreeMap<>(arityHandles);
             for (var other : defaultMethods.arityHandles().entrySet()) {
                 arityCopy.merge(other.getKey(), other.getValue(), (l, r) -> l);
             }

@@ -23,7 +23,6 @@ import static pile.compiler.Helpers.*;
 import static pile.nativebase.NativeCore.*;
 
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -35,6 +34,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
@@ -262,7 +262,7 @@ public class MethodDefiner {
     }
 
     public static MethodArity collectPileMethods(Class<?> clazz) throws IllegalAccessException, InstantiationException {
-        Map<Integer, MethodHandle> airityHandles = new HashMap<>();
+        TreeMap<Integer, MethodHandle> airityHandles = new TreeMap<>();
         MethodHandle varArgsMethod = null;
         int varArgsSize = -1;
     

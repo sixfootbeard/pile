@@ -31,7 +31,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.stream.Collectors;
 
 import pile.core.ISeq;
@@ -93,10 +95,6 @@ public abstract class AbstractCompiledMethod implements PileMethod {
         return call(methodHandle, args);
     }
     
-    public Class<?> getBacking() {
-        return backing;
-    }
-
     @Override
     public Object applyInvoke(Object... args) throws Throwable {
         // We're trying to optimize cases where an apply is used on a method with
@@ -175,9 +173,9 @@ public abstract class AbstractCompiledMethod implements PileMethod {
         
         switch (csType) {
             case PLAIN: {
-                HandleLookup handle = findNormalHandle(paramCount);
-                var ccs = new ConstantCallSite(adaptNormalMethod(handle, paramCount).asType(staticTypes));
-                return Optional.of(ccs);
+                return findNormalHandle(paramCount)
+                        .map(handle -> adaptNormalMethod(handle, paramCount).asType(staticTypes))
+                        .map(ConstantCallSite::new);
             }
             case PILE_VARARGS: {
                 if (getVarArgsArity() == -1) {
@@ -283,8 +281,56 @@ public abstract class AbstractCompiledMethod implements PileMethod {
         if (maybeCs.isEmpty()) {
             MethodHandle linked = LinkableMethod.invokeLink(csType, this).asType(staticTypes);
             return new ConstantCallSite(linked);
-        }   
-        return maybeCs.get();                
+        }
+        return maybeCs.get();
+    }
+
+    @Override
+    public Optional<Class<?>> getReturnType() {
+        if (getArityHandles().size() == 1 && getVarArgsArity() == -1) {
+            var type = getArityHandles().values().iterator().next().type().returnType();
+            return Optional.of(type);
+        } else if (getArityHandles().size() == 0 && getVarArgsArity() != -1) {
+            var type = getVarArgsMethod().type().returnType();
+            return Optional.of(type);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    @Override
+    public Optional<Class<?>> getReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
+        var argCount = staticTypes.parameterCount();
+        return switch (csType) {
+            case PLAIN -> {
+                Optional<HandleLookup> normalHandle = findNormalHandle(argCount);
+                Optional<Class<?>> t = normalHandle.map(h -> h.handle().type().returnType());
+                yield t;
+            }
+            case PILE_VARARGS -> {
+                SortedMap<Integer, MethodHandle> exactHandles = getArityHandles().tailMap(argCount - 1);
+
+                if (getVarArgsArity() == -1) {
+                    // no var args handles
+                    if (exactHandles.size() == 1) {
+                        var type = exactHandles.firstEntry().getValue().type().returnType();
+                        yield Optional.of(type);
+                    } else {
+                        yield Optional.empty();
+                    }
+                } else if (exactHandles.isEmpty()) {
+                    // only one possible handle (varargs)
+                    var type = getVarArgsMethod().type().returnType();
+                    yield Optional.of(type);
+                } else {
+                    yield Optional.empty();
+                }
+            }
+        };
+    }
+
+    public Class<?> getBacking() {
+        return backing;
     }
 
     private void pop(List<Object> argList) {
@@ -335,19 +381,19 @@ public abstract class AbstractCompiledMethod implements PileMethod {
         return l < r;
     }
 
-    private HandleLookup findNormalHandle(int paramCount) {
+    private Optional<HandleLookup> findNormalHandle(int paramCount) {
         Map<Integer, MethodHandle> methodTable = getArityHandles();
         MethodHandle methodHandle = methodTable.get(paramCount);
         if (methodHandle != null) {
             // Direct arity match
-            return new HandleLookup(HandleType.NORMAL, paramCount, methodHandle);
+            return Optional.of(new HandleLookup(HandleType.NORMAL, paramCount, methodHandle));
         } else {
             MethodHandle varargs = getVarArgsMethod();
             if (varargs != null) {
-                return new HandleLookup(HandleType.VARARGS, paramCount, varargs);
+                return Optional.of(new HandleLookup(HandleType.VARARGS, paramCount, varargs));
             } else {
                 // TODO Unrolled kw args
-                throw new IllegalArgumentException("Couldn't figure out how to link method");
+                return Optional.empty();
             }
         }
     }
@@ -364,6 +410,6 @@ public abstract class AbstractCompiledMethod implements PileMethod {
 
     protected abstract MethodHandle getVarArgsMethod();
 
-    protected abstract Map<Integer, MethodHandle> getArityHandles();
+    protected abstract NavigableMap<Integer, MethodHandle> getArityHandles();
 
 }

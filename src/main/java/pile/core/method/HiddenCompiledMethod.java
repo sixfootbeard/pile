@@ -15,36 +15,12 @@
  */
 package pile.core.method;
 
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-import static pile.compiler.Helpers.*;
-import static pile.nativebase.NativeCore.*;
-
-import java.lang.invoke.CallSite;
-import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
-import java.lang.invoke.MethodType;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 
-import pile.compiler.Helpers;
 import pile.compiler.MethodCollector.MethodArity;
-import pile.core.ISeq;
 import pile.core.Keyword;
-import pile.core.PCall;
-import pile.core.PileMethod;
-import pile.core.exception.PileException;
-import pile.nativebase.NativeCore;
-import pile.nativebase.method.PileInvocationException;
 
 /**
  * Wrapper for method handles for compiled methods. Don't leak.
@@ -56,7 +32,7 @@ public class HiddenCompiledMethod extends AbstractCompiledMethod {
 
     // can't put kw/var in here otherwise they might be called with the wrong
     // calling conventions.
-    private final Map<Integer, MethodHandle> arityHandles;
+    private final NavigableMap<Integer, MethodHandle> arityHandles;
     private final MethodHandle varArgsMethod;
     private final Integer varArgsArity;
 
@@ -65,12 +41,12 @@ public class HiddenCompiledMethod extends AbstractCompiledMethod {
     
     private final String methodName;
 
-    public HiddenCompiledMethod(Class<?> backing, Map<Integer, MethodHandle> arityHandles, MethodHandle varArgsMethod,
+    public HiddenCompiledMethod(Class<?> backing, NavigableMap<Integer, MethodHandle> arityHandles, MethodHandle varArgsMethod,
             Integer varArgsArity, MethodHandle kwMethodUnpacked) {
         this(backing, "anon", arityHandles, varArgsMethod, varArgsArity, kwMethodUnpacked);
     }
     
-    public HiddenCompiledMethod(Class<?> backing, String name, Map<Integer, MethodHandle> arityHandles, MethodHandle varArgsMethod,
+    public HiddenCompiledMethod(Class<?> backing, String name, NavigableMap<Integer, MethodHandle> arityHandles, MethodHandle varArgsMethod,
             Integer varArgsArity, MethodHandle kwMethodUnpacked) {
         super(backing);
         this.methodName = name;
@@ -90,7 +66,7 @@ public class HiddenCompiledMethod extends AbstractCompiledMethod {
     }    
 
     public HiddenCompiledMethod withDefaults(HiddenCompiledMethod defaultMethods) {
-        Map<Integer, MethodHandle> arityHandles = new HashMap<>(defaultMethods.arityHandles);
+        TreeMap<Integer, MethodHandle> arityHandles = new TreeMap<>(defaultMethods.arityHandles);
         arityHandles.putAll(this.arityHandles);
 
         Integer varArgsArity = this.varArgsArity;
@@ -112,7 +88,7 @@ public class HiddenCompiledMethod extends AbstractCompiledMethod {
     }
     
     @Override
-    protected Map<Integer, MethodHandle> getArityHandles() {
+    protected NavigableMap<Integer, MethodHandle> getArityHandles() {
         return arityHandles;
     }
     

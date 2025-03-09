@@ -47,12 +47,16 @@ public class ArrayGetMethod implements PileMethod {
     
     @Override
     public Optional<Class<?>> getReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
-        List<Class<?>> blendedMask = blendAnyMask(staticTypes, anyMask);
-        var first = blendedMask.get(0);
-        if (first.isArray()) {
-            return Optional.of(first.componentType());
+        switch (csType) {
+            case PLAIN:
+                List<Class<?>> blendedMask = blendAnyMask(staticTypes, anyMask);
+                var first = blendedMask.get(0);
+                if (first.isArray()) {
+                    return Optional.of(first.componentType());
+                }
+            default:
+                return Optional.empty();
         }
-        return Optional.empty();
     }
     
     @Override

@@ -26,9 +26,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.BinaryOperator;
@@ -125,10 +127,21 @@ public class CollectionUtils {
                 .collect(Collectors.toMap(Entry::getKey, valFn.compose(Entry::getValue)));
     }
     
+    public static <K, V, O> NavigableMap<K, O> mapVN(Map<K, V> input, Function<V, O> valFn) {
+        return input.entrySet().stream().collect(
+                Collectors.toMap(Entry::getKey, valFn.compose(Entry::getValue), (oldv, newv) -> newv, TreeMap::new));
+    }
+    
     public static <K, V, KO, VO> Map<KO, VO> mapKV(Map<K, V> input, BiFunction<K, V, Entry<KO, VO>> fn) {
         return input.entrySet().stream()
                 .map(k -> fn.apply(k.getKey(), k.getValue()))
                 .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+    }
+    
+    public static <K, V, KO, VO> NavigableMap<KO, VO> mapKVN(Map<K, V> input, BiFunction<K, V, Entry<KO, VO>> fn) {
+        return input.entrySet().stream()
+                .map(k -> fn.apply(k.getKey(), k.getValue()))
+                .collect(Collectors.toMap(Entry::getKey, Entry::getValue, (oldv, newv) -> newv, TreeMap::new));
     }
     
     public static <I> List<I> mapFilterL(Iterable<I> c, Predicate<I> filter) {

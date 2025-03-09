@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.Optional;
 
 import org.objectweb.asm.Opcodes;
@@ -132,7 +133,7 @@ public class DefProtocolForm extends AbstractListForm {
             for (var comp : companionCollector.collectPileMethods().entrySet()) {
                 MethodArity arity = comp.getValue();
                 
-                Map<Integer, MethodHandle> boundArityHandles = mapKV(arity.arityHandles(), (count, h) -> entry(count - 1, bind(h, base)));
+                NavigableMap<Integer, MethodHandle> boundArityHandles = mapKVN(arity.arityHandles(), (count, h) -> entry(count - 1, bind(h, base)));
                 MethodHandle boundVarArgs = bind(arity.varArgsMethod(), base);
                 MethodHandle boundkwArgs = bind(arity.kwArgsUnrolledMethod(), base);
                 int varArgsSize = arity.varArgsSize() == -1 ? -1 : arity.varArgsSize() - 1;

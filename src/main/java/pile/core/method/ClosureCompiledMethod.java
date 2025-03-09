@@ -17,6 +17,7 @@ package pile.core.method;
 
 import java.lang.invoke.MethodHandle;
 import java.util.Map;
+import java.util.NavigableMap;
 
 import pile.compiler.MethodCollector.MethodArity;
 
@@ -42,7 +43,7 @@ public class ClosureCompiledMethod extends AbstractCompiledMethod {
     }
 
     @Override
-    protected Map<Integer, MethodHandle> getArityHandles() {
+    protected NavigableMap<Integer, MethodHandle> getArityHandles() {
         return methods.arityHandles();
     }
 

@@ -59,6 +59,8 @@ import pile.util.Pair;
 public class Keyword extends PersistentObject<Keyword> implements PileMethod, Serializable, Comparable<Keyword>,
         Named, ConstForm<ConstantDynamic> {
 
+    private static final long serialVersionUID = 7719107214035788542L;
+    
     private static final Comparator<Keyword> COMPARATOR = Comparator.comparing(Keyword::getNamespace)
             .thenComparing(Keyword::getName);
     private static final Map<Pair<String, String>, Reference<Keyword>> GLOBAL_MAP = new ConcurrentHashMap<>();
@@ -178,7 +180,7 @@ public class Keyword extends PersistentObject<Keyword> implements PileMethod, Se
             default: throw new PileInvocationException("keyword: wrong number of method args, expected 1,2, found: " + len);
         }
     }
-
+    
     @Override
     public Optional<CallSite> staticLink(CallSiteType csType, MethodType staticTypes, long anyMask) {
         if (csType == CallSiteType.PLAIN) {

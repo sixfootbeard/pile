@@ -81,26 +81,23 @@ public class BinaryMathMethod implements PileMethod {
                 Class<?> lhs = staticTypes.parameterType(0);
                 Class<?> rhs = staticTypes.parameterType(1);
                 yield getHandle(lhs, rhs)
+                    .map(h -> h.asType(h.type().changeReturnType(staticTypes.returnType())))
                     .map(ConstantCallSite::new);
             } 
             case PILE_VARARGS -> Optional.empty();
         };        
     }
     
-    private Optional<MethodHandle> getHandle(Class<?> lhs, Class<?> rhs) {
-        return finder.findTarget(lhs, rhs)
-                .flatMap(methodType -> {
-                    try {
-                        MethodHandle foundHandle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, methodType);
-                        MethodType synthetic = methodType(foundHandle.type().returnType(), lhs, rhs);
-                        NumericPromoter promoter = new NumericPromoter();
-                        MethodHandle promoted = promoter.promote(foundHandle, synthetic);
-                        return Optional.of(promoted);
-                    } catch (NoSuchMethodException | IllegalAccessException e) {
-                        LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, methodType);
-                        return Optional.empty();                
-                    }
-                });        
+    @Override
+    public Optional<Class<?>> getReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
+        switch (csType) {
+            case PLAIN:
+                List<Class<?>> blendedMask = blendAnyMask(staticTypes, anyMask);
+                Optional<MethodType> maybeTarget = finder.findTarget(blendedMask.get(0), blendedMask.get(1));
+                return maybeTarget.map(MethodType::returnType);
+            default:
+                return Optional.empty();
+        }
     }
     
     /**
@@ -158,6 +155,22 @@ public class BinaryMathMethod implements PileMethod {
 
         MethodHandle handle = maybe.get();
         return handle.invokeWithArguments(args);
+    }
+
+    private Optional<MethodHandle> getHandle(Class<?> lhs, Class<?> rhs) {
+        return finder.findTarget(lhs, rhs)
+                .flatMap(methodType -> {
+                    try {
+                        MethodHandle foundHandle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, methodType);
+                        MethodType synthetic = methodType(foundHandle.type().returnType(), lhs, rhs);
+                        NumericPromoter promoter = new NumericPromoter();
+                        MethodHandle promoted = promoter.promote(foundHandle, synthetic);
+                        return Optional.of(promoted);
+                    } catch (NoSuchMethodException | IllegalAccessException e) {
+                        LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, methodType);
+                        return Optional.empty();                
+                    }
+                });        
     }
 
 }

@@ -15,23 +15,19 @@
  */
 package pile.compiler.math;
 
-import static java.lang.invoke.MethodHandles.*;
 import static java.lang.invoke.MethodType.*;
 import static pile.compiler.Helpers.*;
-import static pile.util.CollectionUtils.*;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.function.Predicate;
 
-import pile.compiler.Helpers;
 import pile.compiler.typed.Any;
 import pile.core.PileMethod;
 import pile.core.exception.PileException;
@@ -77,100 +73,10 @@ public class BinaryOverflowMathMethod implements PileMethod {
         }
         
         return getHandle(lhs, rhs)
+            .map(h -> h.asType(h.type().changeReturnType(staticTypes.returnType())))
             .map(ConstantCallSite::new);
     }
     
-    private Optional<MethodHandle> getHandle(Class lhs, Class rhs) {
-
-        // lower to higher
-        // Integral: byte, short, int, long, BigInteger
-        // Float: float, double, BigDecimal
-        // Big: BigInteger, BigDecimal 
-        
-        // Some widening primitive conversions (5.1.2) won't ever incur a loss of precision
-        // integral to higher integral
-        // byte/short/char to floating point
-        // int to double
-        // float to double
-        
-        // Floating point to Integral is always disallowed
-        
-        // Some minimum promotions eg. no add for (short, short);
-        
-        final Class<?> target;
-        if (NumberHelpers.isArbitraryPrecisionIntegralType(lhs)) {
-            if (NumberHelpers.isArbitraryPrecisionIntegralType(rhs)) {
-                target = findIntegral(lhs, rhs);
-            }
-            else {
-                target = findIntegralDecimal(lhs, rhs);
-            }
-        } else {
-            if (NumberHelpers.isArbitraryPrecisionIntegralType(rhs)) {
-                target = findIntegralDecimal(rhs, lhs);
-            }
-            else {
-                target = findDecimal(lhs, rhs);
-            }
-        }
-        Class<?> targetType = order.ceiling(target);
-
-        MethodType methodType = methodType(getReturnType(targetType), targetType, targetType);
-        try {
-            MethodHandle foundHandle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, methodType);
-            MethodType synthetic = methodType(foundHandle.type().returnType(), lhs, rhs);
-            NumericPromoter promoter = new NumericPromoter();
-            MethodHandle promoted = promoter.promote(foundHandle, synthetic);
-            return Optional.of(promoted);
-        } catch (NoSuchMethodException | IllegalAccessException e) {
-            LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, methodType);
-            // fall through
-        }
-        return Optional.empty();
-       
-    }
-    
-    private Class<?> findIntegralDecimal(Class integralType, Class floatType) {
-        // Some widening primitive conversions (5.1.2) won't ever incur a loss of precision
-        // integral to higher integral
-        // byte/short/char to floating point
-        // int to double
-        // float to double
-        
-        // byte, use floatType
-        // short, use floatType
-        // char?, use floatType
-        // int, float? double else: floatType
-        // long, use BigDecimal
-        if (integralType.equals(Byte.TYPE) || integralType.equals(Byte.class) ||
-                integralType.equals(Short.TYPE) || integralType.equals(Short.class) ||
-                integralType.equals(Character.TYPE) || integralType.equals(Character.class)) {
-            return floatType;
-        } else if (integralType.equals(Integer.TYPE) || integralType.equals(Integer.class)) {
-            if (floatType.equals(Float.TYPE) || floatType.equals(Float.class)) {
-                return double.class;
-            }
-            // both double/BigDecimal return themselves
-            return floatType;
-        } else if (integralType.equals(Long.TYPE)|| integralType.equals(Long.class)) {
-            return BigDecimal.class;
-        } else {
-            throw new IllegalArgumentException("Unexpected type");
-        }        
-    }
-
-    private Class<?> findDecimal(Class lhs, Class rhs) {
-        Class<?> target = ComparableUtils.max(toPrimitive(lhs), toPrimitive(rhs),
-                NumberHelpers.getArbitraryPrecisionFloatComparator());
-        return target;
-    }
-
-    private Class<?> findIntegral(Class lhs, Class rhs) {
-        Class<?> target = ComparableUtils.max(toPrimitive(lhs), toPrimitive(rhs),
-                NumberHelpers.getArbitraryPrecisionIntegralComparator());
-        return target;
-    }
-
     /**
      * @implSpec
      */
@@ -224,6 +130,120 @@ public class BinaryOverflowMathMethod implements PileMethod {
         MethodHandle handle = maybe.get();
 
         return handle.invokeWithArguments(args);
+    }
+    
+    @Override
+    public Optional<Class<?>> getReturnType(CallSiteType csType, MethodType staticTypes, long anyMask) {
+        switch (csType) {
+            case PLAIN:
+                List<Class<?>> blendedMask = blendAnyMask(staticTypes, anyMask);
+                var lhs = blendedMask.get(0);
+                var rhs = blendedMask.get(1);
+                
+                if (NumberHelpers.isNumberType(lhs) && NumberHelpers.isNumberType(rhs)) {
+                    Class<?> min = findMinimumNumericType(lhs, rhs);
+                    return Optional.of(getReturnType(min));
+                }
+                // fall through
+            default:
+                return Optional.empty();
+        }
+    }
+
+    private Optional<MethodHandle> getHandle(Class lhs, Class rhs) {
+    
+        // lower to higher
+        // Integral: byte, short, int, long, BigInteger
+        // Float: float, double, BigDecimal
+        // Big: BigInteger, BigDecimal 
+        
+        // Some widening primitive conversions (5.1.2) won't ever incur a loss of precision
+        // integral to higher integral
+        // byte/short/char to floating point
+        // int to double
+        // float to double
+        
+        // Floating point to Integral is always disallowed
+        
+        // Some minimum promotions eg. no add for (short, short);
+        
+        Class<?> targetType = findMinimumNumericType(lhs, rhs);
+    
+        MethodType methodType = methodType(getReturnType(targetType), targetType, targetType);
+        try {
+            MethodHandle foundHandle = LookupHolder.PRIVATE_LOOKUP.findStatic(methodClass, methodName, methodType);
+            MethodType synthetic = methodType(foundHandle.type().returnType(), lhs, rhs);
+            NumericPromoter promoter = new NumericPromoter();
+            MethodHandle promoted = promoter.promote(foundHandle, synthetic);
+            return Optional.of(promoted);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            LOG.warnEx("Could not lookup static method in %s.%s(%s)", e, methodClass, methodName, methodType);
+            // fall through
+        }
+        return Optional.empty();
+    
+    }
+
+    private Class<?> findMinimumNumericType(Class lhs, Class rhs) {
+        final Class<?> target;
+        if (NumberHelpers.isArbitraryPrecisionIntegralType(lhs)) {
+            if (NumberHelpers.isArbitraryPrecisionIntegralType(rhs)) {
+                target = findIntegral(lhs, rhs);
+            }
+            else {
+                target = findIntegralDecimal(lhs, rhs);
+            }
+        } else {
+            if (NumberHelpers.isArbitraryPrecisionIntegralType(rhs)) {
+                target = findIntegralDecimal(rhs, lhs);
+            }
+            else {
+                target = findDecimal(lhs, rhs);
+            }
+        }
+        Class<?> targetType = order.ceiling(target);
+        return targetType;
+    }
+
+    private Class<?> findIntegralDecimal(Class integralType, Class floatType) {
+        // Some widening primitive conversions (5.1.2) won't ever incur a loss of precision
+        // integral to higher integral
+        // byte/short/char to floating point
+        // int to double
+        // float to double
+        
+        // byte, use floatType
+        // short, use floatType
+        // char?, use floatType
+        // int, float? double else: floatType
+        // long, use BigDecimal
+        if (integralType.equals(Byte.TYPE) || integralType.equals(Byte.class) ||
+                integralType.equals(Short.TYPE) || integralType.equals(Short.class) ||
+                integralType.equals(Character.TYPE) || integralType.equals(Character.class)) {
+            return floatType;
+        } else if (integralType.equals(Integer.TYPE) || integralType.equals(Integer.class)) {
+            if (floatType.equals(Float.TYPE) || floatType.equals(Float.class)) {
+                return double.class;
+            }
+            // both double/BigDecimal return themselves
+            return floatType;
+        } else if (integralType.equals(Long.TYPE)|| integralType.equals(Long.class)) {
+            return BigDecimal.class;
+        } else {
+            throw new IllegalArgumentException("Unexpected type");
+        }        
+    }
+
+    private Class<?> findDecimal(Class lhs, Class rhs) {
+        Class<?> target = ComparableUtils.max(toPrimitive(lhs), toPrimitive(rhs),
+                NumberHelpers.getArbitraryPrecisionFloatComparator());
+        return target;
+    }
+
+    private Class<?> findIntegral(Class lhs, Class rhs) {
+        Class<?> target = ComparableUtils.max(toPrimitive(lhs), toPrimitive(rhs),
+                NumberHelpers.getArbitraryPrecisionIntegralComparator());
+        return target;
     }
 
 }
