@@ -71,9 +71,21 @@ public class PersistentVectorTest {
     
     @Test
     public void testConj() {
-        PersistentVector<String> vec = PersistentArrayVector.empty();
+        PersistentArrayVector<String> vec = PersistentArrayVector.empty();
         
         Conjable c = vec;
+        
+        for (int i = 0; i < 100; ++i) {
+            c = conj(c, i);
+        }
+        
+        vec = (PersistentArrayVector<String>) c;
+        
+        for (int i = 0; i < 100; ++i) {
+            vec = vec.pop();
+        }
+        
+        c = vec;
         
         for (int i = 0; i < 100; ++i) {
             c = conj(c, i);
