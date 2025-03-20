@@ -13,15 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package pile.core.runtime.generated_classes;
+package pile.test.classes;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
+public class StringConstructor {
 
-public class LookupHolder {
-    public static final String PACKAGE_NAME = LookupHolder.class.getPackageName() + ".";
-    public static final Lookup PRIVATE_LOOKUP = MethodHandles.lookup();
-    public static final Lookup PUBLIC_LOOKUP = 
-//            MethodHandles.publicLookup();
-            MethodHandles.lookup().dropLookupMode(Lookup.MODULE);
+    public final String s;
+
+    public StringConstructor(String s) {
+        this.s = s;
+    }
+    
+    public String getS() {
+        return s;
+    }
+
 }

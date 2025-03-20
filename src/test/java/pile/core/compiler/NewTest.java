@@ -23,6 +23,7 @@ import org.junit.Test;
 import pile.core.AbstractTest;
 import pile.core.Namespace;
 import pile.core.binding.NativeDynamicBinding;
+import pile.test.classes.ThreeCons;
 
 public class NewTest extends AbstractTest {
 
@@ -76,16 +77,5 @@ public class NewTest extends AbstractTest {
 		assertEquals(int.class, e("(let* [tc (to-int 12)] (. (icons tc) clazz))"));
 		assertEquals(String.class, e("(let* [tc \"foo\"] (. (icons tc) clazz))"));
 	}
-
-    public static class ThreeCons {
-    	private final Class<?> clazz;
-    	public ThreeCons(Object o) { this.clazz = o.getClass(); }
-    	public ThreeCons(String o) { this.clazz = o.getClass(); }
-    	public ThreeCons(int o) { this.clazz = int.class; }
-    	
-    	public Class<?> clazz() {
-    		return clazz;
-    	}
-    }
 	
 }

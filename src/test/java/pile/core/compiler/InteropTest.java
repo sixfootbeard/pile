@@ -38,7 +38,7 @@ import pile.core.exception.UnlinkableMethodException;
 import pile.core.exception.PileCompileException;
 import pile.core.exception.PileSyntaxErrorException;
 import pile.core.indy.DeferredCompiledException;
-import pile.util.InterfaceWithDefaults;
+import pile.test.classes.InterfaceWithDefaults;
 
 public class InteropTest extends AbstractTest {
 

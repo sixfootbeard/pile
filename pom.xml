@@ -6,8 +6,8 @@
     <packaging>jar</packaging>
 
     <properties>
-        <asm.version>9.5</asm.version>
-        <java.version>23</java.version>
+        <asm.version>9.7.1</asm.version>
+        <java.version>24</java.version>
         <project.inceptionYear>2022</project.inceptionYear>
         <project.organization.name>John Hinchberger</project.organization.name>
         <project.projectName>Pile Language</project.projectName>
@@ -36,13 +36,13 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.1.2-jre</version>
+            <version>33.4.0-jre</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -234,9 +234,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.5.2</version>
                 <configuration>
-                    <argLine>--enable-preview</argLine>
+                    <argLine>--enable-preview --add-opens pile.lang/pile.test.classes=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
             <plugin>
