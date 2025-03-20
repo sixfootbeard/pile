@@ -236,7 +236,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
                 <configuration>
-                    <argLine>--enable-preview --add-opens pile.lang/pile.test.classes=ALL-UNNAMED</argLine>
+                    <argLine>--enable-preview</argLine>
                 </configuration>
             </plugin>
             <plugin>

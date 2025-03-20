@@ -15,11 +15,15 @@
  */
 package pile.collection;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static pile.nativebase.NativeCore.conj;
 
 import java.util.Iterator;
 
 import org.junit.Test;
+
+import pile.core.Conjable;
 
 public class PersistentVectorTest {
 	
@@ -63,6 +67,19 @@ public class PersistentVectorTest {
             vec = vec.pop();
         }
         assertEquals(0, vec.count());
+    }
+    
+    @Test
+    public void testConj() {
+        PersistentVector<String> vec = PersistentArrayVector.empty();
+        
+        Conjable c = vec;
+        
+        for (int i = 0; i < 100; ++i) {
+            c = conj(c, i);
+        }
+        
+        
     }
     
 }

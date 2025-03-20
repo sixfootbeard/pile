@@ -15,7 +15,8 @@
  */
 module pile.lang {
 
-	// exports pile.api;
+    // TODO Artifact of the bad build process
+    exports pile.test.classes;
 	
 	requires org.objectweb.asm;
 	requires org.objectweb.asm.util;
