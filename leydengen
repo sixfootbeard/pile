@@ -1,0 +1,13 @@
+#!/bin/bash
+
+DEPS=$(mktemp)
+mvn dependency:build-classpath -Dmdep.outputFile=$DEPS
+
+mvn clean
+# Generate aot class files
+mvn -Pleyden-gen -DskipTests package
+
+PILE_CP=$(ls target/pile-lang-*.jar):$(cat $DEPS)
+
+java --enable-preview -XX:AOTMode=create -XX:AOTConfiguration=target/pile.aotconf -XX:AOTCache=target/pile.aot -cp $PILE_CP 
+

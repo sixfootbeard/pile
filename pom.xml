@@ -101,6 +101,43 @@
             </build>
         </profile>
         <profile>
+            <id>leyden-gen</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <phase>compile</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                            	<argument>-XX:AOTMode=record</argument>
+                            	<argument>-XX:AOTConfiguration=${project.build.directory}/pile.aotconf</argument>
+                                <!-- <argument>-Djava.library.path=target/lib</argument> -->
+                                <argument>-Dpile.aot=write</argument>
+                                <argument>-Dpile.aot.dir=${project.build.outputDirectory}</argument>
+                                <argument>--enable-preview</argument>
+                                <argument>--module-path</argument>
+                                <modulepath />
+                                <argument>--module</argument>
+                                <argument>pile.lang/pile.core.compiler.aot.AOTMain</argument>
+                            </arguments>
+                            <!-- Will buffer too much unless this is on -->
+                            <inheritIo>true</inheritIo>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
             <id>aot-gen-cds</id>
             <build>
                 <plugins>
