@@ -494,10 +494,7 @@ public class NativeCore {
 
     @PileDoc("Merges the rhs map into the lhs as if calling assoc on all the items of the rhs map.")
     public static <K, V> PersistentMap<K, V> merge(PersistentMap<K, V> lhs, PersistentMap<K, V> rhs) {
-        for (var entry : rhs.entrySet()) {
-            lhs = lhs.assoc(entry.getKey(), entry.getValue());
-        }
-        return lhs;
+        return lhs.merge(rhs);
     }
     
     @PileDoc("""

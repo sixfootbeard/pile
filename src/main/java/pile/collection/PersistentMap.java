@@ -107,7 +107,7 @@ public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
     }
 
     @Override
-    public Conjable conj(Object t) {
+    public PersistentMap<K, V>  conj(Object t) {
         ISeq seq = NativeCore.seq(t);
         Object key = seq.first();
         Object val = seq.next().first();
@@ -117,6 +117,14 @@ public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
         }
     
         return assocGeneric(key, val);
+    }
+    
+    public PersistentMap<K, V> merge(PersistentMap<K, V> other) {
+        var out = this;
+        for (var entry : other.entrySet()) {
+            out = out.assoc(entry.getKey(), entry.getValue());
+        }
+        return out;
     }
     
     @Override
@@ -203,7 +211,7 @@ public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
         return map;
     }
 
-    protected abstract Conjable assocGeneric(Object key, Object val);
+    protected abstract PersistentMap<K, V>  assocGeneric(Object key, Object val);
 
     public static <K, V> PersistentMap<K, V> empty() {
         return EMPTY;

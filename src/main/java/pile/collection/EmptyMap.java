@@ -75,5 +75,10 @@ public class EmptyMap<K, V> extends PersistentMap<K, V> {
 	protected SingleMap assocGeneric(Object key, Object val) {
 		return new SingleMap<>(key, val);
 	}
+	
+	@Override
+	public PersistentMap<K, V> merge(PersistentMap<K, V> other) {
+	    return other;
+	}
 
 }

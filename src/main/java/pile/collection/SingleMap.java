@@ -15,6 +15,7 @@
  */
 package pile.collection;
 
+import static pile.nativebase.NativeCore.vector;
 import static pile.util.CollectionUtils.*;
 
 import pile.core.ISeq;
@@ -106,6 +107,15 @@ public class SingleMap<K, V> extends PersistentMap<K, V> {
 		hm = hm.assoc(this.k, this.v);
 		hm = hm.assoc(key, val);
 		return hm;
+	}
+	
+	@Override
+	public PersistentMap<K, V> merge(PersistentMap<K, V> other) {
+	    if (other.containsKey(k)) {
+	        return other;
+	    } else {
+	        return other.conj(vector(k, v));
+	    }
 	}
 
 }
