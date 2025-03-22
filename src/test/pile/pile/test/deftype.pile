@@ -15,7 +15,7 @@
 (ns pile.test.deftype
     (:refer pile.test pile.test.util))
            
-(import (pile.util PrimitiveReturn PrimitiveArg VoidReturn VariadicInterface FooInteger FooString))
+(import (pile.test.classes PrimitiveReturn PrimitiveArg VoidReturn VariadicInterface FooInteger FooString))
 
 ;; Overloads
 (deftype TwoIntf []

@@ -38,7 +38,9 @@ import pile.core.exception.UnlinkableMethodException;
 import pile.core.exception.PileCompileException;
 import pile.core.exception.PileSyntaxErrorException;
 import pile.core.indy.DeferredCompiledException;
-import pile.util.InterfaceWithDefaults;
+import pile.test.classes.InterfaceWithDefaults;
+import pile.test.classes.TestDoubleString;
+import pile.test.classes.TestField;
 
 public class InteropTest extends AbstractTest {
 
@@ -214,10 +216,6 @@ public class InteropTest extends AbstractTest {
 		assertEquals("12", eval("(eval (. 12 (toString)))"));
 	}
 	
-	public static class TestField {
-		public String foo = "bar";
-	}
-	
 	@Test
 	public void testIntegerEvalInteropCompareTo() {
 		assertEquals(-1, eval("(eval (. 12 (compareTo 13)))"));
@@ -292,24 +290,6 @@ public class InteropTest extends AbstractTest {
 	}
 	
 	
-	public static class TestDoubleString {
-		private final String a, b;
-
-		public TestDoubleString(String a, String b) {
-			super();
-			this.a = a;
-			this.b = b;
-		}
-
-		public String getA() {
-			return a;
-		}
-
-		public String getB() {
-			return b;
-		}
-	}
-	
 	@Test
 	public void testConstructor() {
 		ns.createClassSymbol(TestDoubleString.class.getSimpleName(), TestDoubleString.class);		
@@ -323,7 +303,7 @@ public class InteropTest extends AbstractTest {
 	@Test
     public void testProxyDefault() throws Exception {
         InterfaceWithDefaults out = (InterfaceWithDefaults) eval(
-                "(proxy [pile.util.InterfaceWithDefaults] {\"foo\" (fn [a] \"foo\")})");
+                "(proxy [pile.test.classes.InterfaceWithDefaults] {\"foo\" (fn [a] \"foo\")})");
         assertEquals("foo", out.foo("ignored"));
         assertEquals("else", out.foo("ignored", "else"));
     }
@@ -331,7 +311,7 @@ public class InteropTest extends AbstractTest {
 	@Test
     public void testProxyDefaultOverride() throws Exception {
         InterfaceWithDefaults out = (InterfaceWithDefaults) eval(
-                "(proxy [pile.util.InterfaceWithDefaults] {\"foo\" [(fn [a] \"foo\") (fn [a b] \"override\")]})");
+                "(proxy [pile.test.classes.InterfaceWithDefaults] {\"foo\" [(fn [a] \"foo\") (fn [a b] \"override\")]})");
         assertEquals("foo", out.foo("ignored"));
         assertEquals("override", out.foo("ignored", "else"));
     }

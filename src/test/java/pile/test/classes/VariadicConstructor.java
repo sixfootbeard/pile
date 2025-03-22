@@ -13,15 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package pile.core.runtime.generated_classes;
+package pile.test.classes;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup;
+import java.util.Arrays;
+import java.util.List;
 
-public class LookupHolder {
-    public static final String PACKAGE_NAME = LookupHolder.class.getPackageName() + ".";
-    public static final Lookup PRIVATE_LOOKUP = MethodHandles.lookup();
-    public static final Lookup PUBLIC_LOOKUP = 
-//            MethodHandles.publicLookup();
-            MethodHandles.lookup().dropLookupMode(Lookup.MODULE);
+public class VariadicConstructor {
+
+    private long foo;
+    private List<String> bars;
+
+    public VariadicConstructor(int foo, String... bars) {
+        this.foo = foo;
+        this.bars = Arrays.asList(bars);
+    }
+
+
+    public List<String> getBars() {
+        return bars;
+    }
 }

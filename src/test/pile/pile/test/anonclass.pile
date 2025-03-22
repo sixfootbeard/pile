@@ -14,7 +14,7 @@
 
 (ns pile.test.anonclass
     (:refer pile.test pile.test.util)
-    (:import (pile.util TestBaseNoConstructorNoMethods TestBaseOneConstructorNoMethods
+    (:import (pile.test.classes TestBaseNoConstructorNoMethods TestBaseOneConstructorNoMethods
                         TestBaseAbstractNoConstructorOneMethod TestBaseOneConstructorOneMethod
                         TestBaseOneVarargsConstructorOneMethod TestBaseOneVarargsConstructor
                         TestBaseTwoConstructorOneMethod AbstractParent AbstractChild)))

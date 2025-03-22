@@ -54,7 +54,6 @@ import pile.core.exception.PileExecutionException;
 import pile.core.indy.InteropLinker;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.TypeTag;
-import pile.core.runtime.generated_classes.LookupHolder;
 import pile.util.CollectionUtils;
 
 public class NewForm implements Form {
@@ -108,7 +107,7 @@ public class NewForm implements Form {
         List collected = Compiler.evaluateArgs(cs, args);
         List<Class<?>> argClasses = Helpers.getArgClasses(collected);
         MethodType methodType = methodType(clazz, argClasses);        
-        MethodHandle cons = InteropLinker.findConstructor(LookupHolder.PUBLIC_LOOKUP, clazz, argClasses);
+        MethodHandle cons = InteropLinker.findConstructor(clazz, argClasses);
 
         try {
             return cons.asType(methodType).invokeWithArguments(collected);

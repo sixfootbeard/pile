@@ -263,7 +263,7 @@
 
 ;; instance
 (test "set! - instance field"
-  (let [p (new pile.util.Point 10 12)
+  (let [p (new pile.test.classes.Point 10 12)
         c (fn [o a] (set! (. o -x) a))]
     (c p 44)
     ;; test
@@ -299,11 +299,11 @@
 
 ;; static
 (test "set! - static field"
-  (let [c (fn [a] (set! (. pile.util.StaticFieldClass -x) a))]
+  (let [c (fn [a] (set! (. pile.test.classes.StaticFieldClass -x) a))]
      (c 44)
-     (is (= 44 (. pile.util.StaticFieldClass -x)))
-     (set! (. pile.util.StaticFieldClass -x) 55)
-     (is (= 55 (. pile.util.StaticFieldClass -x)))))
+     (is (= 44 (. pile.test.classes.StaticFieldClass -x)))
+     (set! (. pile.test.classes.StaticFieldClass -x) 55)
+     (is (= 55 (. pile.test.classes.StaticFieldClass -x)))))
 
 
 ;; do + recur tail position

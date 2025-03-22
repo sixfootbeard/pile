@@ -85,7 +85,7 @@ public class RuntimeRoot {
             CountDownLatch old = LOADING_NS.putIfAbsent(name, ourLatch);
             if (old == null) {
                 LOG.debug("Creating namespace: %s", name);
-                ScopedValue.runWhere(DEFINING_NS, name, () -> {
+                ScopedValue.where(DEFINING_NS, name).run(() -> {
                     try {
                         // Natives first
                         NAMESPACES.putIfAbsent(name, new Namespace(name, ROOTS));

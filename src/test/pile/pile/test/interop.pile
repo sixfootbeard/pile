@@ -15,7 +15,7 @@
 (ns pile.test.interop
     (:refer pile.test pile.test.util))
 
-(import (pile.util PlainSuper PlainSub CallSuperSub))
+(import (pile.test.classes PlainSuper PlainSub CallSuperSub))
 
 ;; Method type selection
 (test "Method Type Selection"
@@ -28,12 +28,12 @@
     (is (= "super" (call-ss-typed tbase (new PlainSuper))))
     (is (= "super" (call-ss-typed tbase (new PlainSub))) "Interop method call with explicit types should always choose that method")))
 
-(import (pile.util VariadicConstructor VariadicMethod))
+(import (pile.test.classes VariadicConstructor VariadicMethod))
 
 ;; Constructors
 ;; factors: null, varargs, compile/eval, wrong-type, multiple-targets
 
-(import (pile.util StringConstructor))
+(import (pile.test.classes StringConstructor))
 (import (pile.nativebase.method PileInvocationException))
 
 (test "Constructor - Simple argument"
@@ -66,8 +66,8 @@
         (is (= ["baz" "bat"] (f var-class)))))))
 
 (test "Proxy - call"
-  (let [p (proxy [pile.core.Value] {"getValue" (fn [] "fooz")})]
-    (is (= "fooz" (. p getValue)))))
+  (let [p (proxy [pile.test.classes.ReturnString] {"func" (fn [] "fooz")})]
+    (is (= "fooz" (. p func)))))
 
 ;; adapt ~# 
 (import java.util.ArrayList)
@@ -99,7 +99,7 @@
     (f input "one")
     (is (= "1one" (.get input 0)))))
 
-(import (pile.util VarArgFunctional AcceptsVarArgFunctional))
+(import (pile.test.classes VarArgFunctional AcceptsVarArgFunctional))
 
 ;; adapt ~# - varargs
 (test "Adapt Syntax - varargs"
@@ -110,7 +110,7 @@
 
 ;; Generics
 
-(import (pile.util PublicGeneric))
+(import (pile.test.classes PublicGeneric))
 
 (test "Generic supertype"
    (let [v (PublicGeneric.)]

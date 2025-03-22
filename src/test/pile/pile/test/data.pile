@@ -15,7 +15,7 @@
 (ns pile.test.data
     (:refer pile.test. pile.test.util pile.core.data))
 
-(import (pile.util Triplet RootRec SimpleRec))
+(import (pile.test.classes Triplet RootRec SimpleRec))
 
 (test "record-map"
   (is (= {:one "two"} (record-map (new SimpleRec "two")))))

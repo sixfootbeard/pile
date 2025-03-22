@@ -6,8 +6,8 @@
     <packaging>jar</packaging>
 
     <properties>
-        <asm.version>9.5</asm.version>
-        <java.version>23</java.version>
+        <asm.version>9.7.1</asm.version>
+        <java.version>24</java.version>
         <project.inceptionYear>2022</project.inceptionYear>
         <project.organization.name>John Hinchberger</project.organization.name>
         <project.projectName>Pile Language</project.projectName>
@@ -36,13 +36,13 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>32.1.2-jre</version>
+            <version>33.4.0-jre</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.13.1</version>
+            <version>4.13.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -85,6 +85,43 @@
                             <executable>java</executable>
                             <arguments>
                                 <argument>-Djava.library.path=target/lib</argument>
+                                <argument>-Dpile.aot=write</argument>
+                                <argument>-Dpile.aot.dir=${project.build.outputDirectory}</argument>
+                                <argument>--enable-preview</argument>
+                                <argument>--module-path</argument>
+                                <modulepath />
+                                <argument>--module</argument>
+                                <argument>pile.lang/pile.core.compiler.aot.AOTMain</argument>
+                            </arguments>
+                            <!-- Will buffer too much unless this is on -->
+                            <inheritIo>true</inheritIo>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>leyden-gen</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.0</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <phase>compile</phase>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <executable>java</executable>
+                            <arguments>
+                            	<argument>-XX:AOTMode=record</argument>
+                            	<argument>-XX:AOTConfiguration=${project.build.directory}/pile.aotconf</argument>
+                                <!-- <argument>-Djava.library.path=target/lib</argument> -->
                                 <argument>-Dpile.aot=write</argument>
                                 <argument>-Dpile.aot.dir=${project.build.outputDirectory}</argument>
                                 <argument>--enable-preview</argument>
@@ -234,7 +271,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.0</version>
+                <version>3.5.2</version>
                 <configuration>
                     <argLine>--enable-preview</argLine>
                 </configuration>

@@ -63,16 +63,16 @@ public class PersistentArrayVector<V> extends PersistentVector<V> implements POb
 
 	private static class Node {
 
+	    private final Object[] data;
+	    
 		public Node() {
-			this.data = new Object[NODE_SIZE];
+			this(new Object[NODE_SIZE]);
 		}
 
 		public Node(Object[] data) {
 			super();
 			this.data = data;
 		}
-
-		Object[] data;
 
 		public Node copy() {
 			Object[] copy = new Object[data.length];
@@ -86,7 +86,7 @@ public class PersistentArrayVector<V> extends PersistentVector<V> implements POb
 	}
 
 	private static final int SHIFT = 4;
-	private static final int NODE_SIZE = (int) Math.pow(2, SHIFT);
+	private static final int NODE_SIZE = 16;// = (int) Math.pow(2, SHIFT);
 	private static final int MASK = NODE_SIZE - 1;
 	
 	private final int levels;

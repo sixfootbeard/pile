@@ -15,7 +15,7 @@
 (ns pile.test.defprotocol
     (:refer pile.test pile.test.util))
 
-(import (pile.util MarkerOne MarkerTwo))
+(import (pile.test.classes MarkerOne MarkerTwo))
 
 ;; Calling
 ;; Calling base base

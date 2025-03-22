@@ -43,6 +43,7 @@ import pile.core.indy.guard.JavaGuardBuilder;
 import pile.core.log.Logger;
 import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractRelinkingCallSite;
+import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.method.PileInvocationException;
 import pile.util.InvokeDynamicBootstrap;
 
@@ -173,16 +174,20 @@ public class InteropLinker {
         }
 	}
 	
-    public static MethodHandle findConstructor(Lookup caller, Class<?> clazz, List<Class<?>> args)
-            throws IllegalAccessException {
-            DynamicTypeLookup<Constructor> dyn = new DynamicTypeLookup<>(TypedHelpers::ofConstructor);
-            return dyn.findMatchingTarget(args, TypedHelpers.findConstructors(clazz))
-                      .map(c -> TypedHelpers.quietUnreflectConstructor(caller, c))
-                      .orElseThrow(() -> {
-                          MethodType methodType = methodType(clazz, args);
-                          String msg = "Cannot find constructor to call: %s %s";
-                          return new PileInvocationException(String.format(msg, clazz, methodType));
-                      });
+    public static MethodHandle findConstructor(Class<?> clazz, List<Class<?>> args) throws IllegalAccessException {
+        Lookup caller;
+        if (clazz.getName().startsWith(LookupHolder.PACKAGE_NAME)) {
+            caller = LookupHolder.PRIVATE_LOOKUP;
+        } else {
+            caller = LookupHolder.PUBLIC_LOOKUP;
+        }
+        DynamicTypeLookup<Constructor> dyn = new DynamicTypeLookup<>(TypedHelpers::ofConstructor);
+        return dyn.findMatchingTarget(args, TypedHelpers.findConstructors(clazz))
+                .map(c -> TypedHelpers.quietUnreflectConstructor(caller, c)).orElseThrow(() -> {
+                    MethodType methodType = methodType(clazz, args);
+                    String msg = "Cannot find constructor to call: %s %s";
+                    return new PileInvocationException(String.format(msg, clazz, methodType));
+                });
     }
 
     private static Optional<MethodHandle> findField(Lookup caller, Class<?> clazz, String name) {    

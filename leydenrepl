@@ -1,0 +1,8 @@
+#!/bin/bash
+
+DEPS=$(mktemp)
+mvn dependency:build-classpath -Dmdep.outputFile=$DEPS
+PILE_CP=$(ls target/pile-lang-*.jar):$(cat $DEPS)
+
+# Run repl
+java -XX:AOTCache=target/pile.aot -Djava.library.path=target/lib -Dpile.aot=read --enable-preview -cp $PILE_CP pile.repl.ReplMain
