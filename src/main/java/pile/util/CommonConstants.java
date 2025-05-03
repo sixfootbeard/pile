@@ -19,8 +19,22 @@ import pile.core.Keyword;
 
 public class CommonConstants {
 
-    public static Keyword DOC = Keyword.of("doc");
-    public static Keyword ARG_LIST = Keyword.of("arg-lists");
+    public static final Keyword DOC = Keyword.of("doc");
 
+    public static final Keyword ARG_LIST = Keyword.of("arg-lists");
+
+    public static final Keyword DYNAMIC = Keyword.of("dynamic");
+
+    public static final Keyword SCOPED = Keyword.of("scoped");
+
+    public static final Keyword AS = Keyword.of("as");
+
+    public static final Keyword REFER = Keyword.of("refer");
+
+    public static final Keyword RENAME = Keyword.of("rename");
+
+    public static final Keyword NATIVE_SOURCE = Keyword.of(CommonConstants.PILE_CORE_NS, "native-source");
+
+    public static final String PILE_CORE_NS = "pile.core";
 
 }

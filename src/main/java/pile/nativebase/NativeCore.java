@@ -120,6 +120,7 @@ import pile.core.parse.PileParser;
 import pile.core.runtime.ArrayGetMethod;
 import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.method.PileInvocationException;
+import pile.util.CommonConstants;
 
 /**
  * This class contains methods that will be available in "pile.core"
@@ -272,13 +273,13 @@ public class NativeCore {
         String nsName = namespace.getName();
         Namespace otherNs = RuntimeRoot.defineOrGet(nsName);
         
-        var as = extra.get(Keyword.of("as"));
+        var as = extra.get(CommonConstants.AS);
         if (as != null) {
             Symbol localRename = (Symbol) as;
             thisNs.define(localRename.getName(), new ImmutableBinding(thisNs.getName(), otherNs));
         }
-        var refer = extra.get(Keyword.of("refer"));
-        Map<Symbol, Symbol> renameMap = (Map<Symbol, Symbol>) extra.get(Keyword.of("rename"));
+        var refer = extra.get(CommonConstants.REFER);
+        Map<Symbol, Symbol> renameMap = (Map<Symbol, Symbol>) extra.get(CommonConstants.RENAME);
         if (refer != null) {
             var referList = expectVector(refer);
             for (Object o : referList) {

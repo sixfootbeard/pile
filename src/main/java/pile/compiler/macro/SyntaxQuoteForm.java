@@ -43,7 +43,7 @@ import pile.util.Pair;
 
 public class SyntaxQuoteForm implements Form {
 
-    public static Keyword SYNTAX_QUOTE_KW = Keyword.of("syntax-quote");
+    public static final Keyword SYNTAX_QUOTE_KW = Keyword.of("syntax-quote");
 	
 	private static final Logger LOG = LoggerSupplier.getLogger(SyntaxQuoteForm.class);
 	private static final Symbol SYNTAX_QUOTE_SYM = new Symbol("pile.core", "syntax-quote");

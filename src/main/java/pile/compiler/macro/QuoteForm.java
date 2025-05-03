@@ -38,7 +38,7 @@ import pile.nativebase.NativeCore;
 
 public class QuoteForm implements Form {
 
-    public static Keyword QUOTE_KW = Keyword.of("quote");
+    public static final Keyword QUOTE_KW = Keyword.of("quote");
 
 	private static final Logger LOG = LoggerSupplier.getLogger(QuoteForm.class);
 	static final Symbol QUOTE_SYM = new Symbol("pile.core", "quote");

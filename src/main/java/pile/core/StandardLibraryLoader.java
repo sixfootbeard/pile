@@ -111,10 +111,8 @@ public class StandardLibraryLoader {
 
     private static final Logger LOG = LoggerSupplier.getLogger(StandardLibraryLoader.class);
 
-    private static final String PILE_CORE_NS = "pile.core";
-    
     private static final Library CORE_LIBRARY = 
-            new Library(PILE_CORE_NS, List.of(NativeMath.class, NativeCore.class, NativeArrays.class), "/pile/core.pile");
+            new Library(CommonConstants.PILE_CORE_NS, List.of(NativeMath.class, NativeCore.class, NativeArrays.class), "/pile/core.pile");
 
     // @formatter:off
     private static final List<Library> EXTRA_LIBRARIES = List.of(
@@ -224,7 +222,7 @@ public class StandardLibraryLoader {
 
             final Map<String, Namespace> namespaces = new HashMap<>();
 
-            Namespace rootNs = new Namespace(PILE_CORE_NS);
+            Namespace rootNs = new Namespace(CommonConstants.PILE_CORE_NS);
             namespaces.put(rootNs.getName(), rootNs);
             RuntimeRoot.defineRoot(rootNs.getName(), rootNs);
 
@@ -547,7 +545,7 @@ public class StandardLibraryLoader {
         PersistentMap meta = PersistentMap.EMPTY;
         meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
         meta = meta.assoc(PileMethodLinker.MACRO_KEY, macro);
-        meta = meta.assoc(Keyword.of(PILE_CORE_NS, "native-source"), true);
+        meta = meta.assoc(CommonConstants.NATIVE_SOURCE, true);
         meta = meta.assoc(CommonConstants.ARG_LIST, argLists);
         
         if (classSrc != null) {
@@ -577,7 +575,7 @@ public class StandardLibraryLoader {
         meta = meta.assoc(PileMethodLinker.FINAL_KEY, true);
         meta = meta.assoc(PileMethodLinker.MACRO_KEY, method.isAnnotationPresent(NativeMacro.class));
         meta = meta.assoc(ParserConstants.FILENAME_KEY, method.getDeclaringClass().toString());
-        meta = meta.assoc(Keyword.of(PILE_CORE_NS, "native-source"), true);
+        meta = meta.assoc(CommonConstants.NATIVE_SOURCE, true);
 
         if (doc != null) {
             meta = meta.assoc(CommonConstants.DOC, doc);

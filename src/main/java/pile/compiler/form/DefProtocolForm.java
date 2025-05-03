@@ -166,7 +166,7 @@ public class DefProtocolForm extends AbstractListForm {
 
         ProtocolForm pf = new ProtocolForm(clazz, methods);
         // Define class symbol
-        ns.createClassSymbol(clazz.getSimpleName(), clazz);
+        ns.createClassSymbol(className, clazz);
 
         return pf;
     }

@@ -48,6 +48,7 @@ import pile.core.log.LoggerSupplier;
 import pile.core.method.AbstractCompiledMethod;
 import pile.core.parse.LexicalEnvironment;
 import pile.nativebase.NativeCore;
+import pile.util.CommonConstants;
 
 @SuppressWarnings("rawtypes")
 public class DefForm implements Form {
@@ -147,9 +148,9 @@ public class DefForm implements Form {
     }
     
     private static BindingType determineType(Metadata meta) {
-        if (isKeywordTrue(meta.meta(), Keyword.of("dynamic"))) {
+        if (isKeywordTrue(meta.meta(), CommonConstants.DYNAMIC)) {
             return BindingType.DYNAMIC;
-        } else if (isKeywordTrue(meta.meta(), Keyword.of("scoped"))) {
+        } else if (isKeywordTrue(meta.meta(), CommonConstants.SCOPED)) {
             return BindingType.SCOPED;
         } else {
             return BindingType.VALUE;

@@ -42,7 +42,7 @@ import pile.core.indy.PileMethodLinker;
  */
 public interface Binding<T> extends Metadata, Value<T> {
 
-    public static Keyword BINDING_TYPE_KEY = Keyword.of("binding-type");
+    public static final Keyword BINDING_TYPE_KEY = Keyword.of("binding-type");
 
     SwitchPoint getSwitchPoint();
 
