@@ -140,7 +140,7 @@ public class DefTypeForm extends AbstractListForm {
 
             // Define all the methods
             MethodDefiner definer = new MethodDefiner();
-            definer.defineMethods(ns, cs, comp, interfaces, methods);
+            definer.defineMethods(cs, comp, interfaces, methods);
 
             
             comp.exitClass(cs);

@@ -443,7 +443,7 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
         if (nullValue.isEmpty()) {
             return root.seq();
         } else {
-            return ISeq.of(entry((K) null, nullValue.get())).concat(root.seq());
+            return ISeq.of(entry((K) null, nullValue.get())).concat(root);
         }
     }
 

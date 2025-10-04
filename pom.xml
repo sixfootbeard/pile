@@ -7,7 +7,7 @@
 
     <properties>
         <asm.version>9.7.1</asm.version>
-        <java.version>24</java.version>
+        <java.version>25</java.version>
         <project.inceptionYear>2022</project.inceptionYear>
         <project.organization.name>John Hinchberger</project.organization.name>
         <project.projectName>Pile Language</project.projectName>

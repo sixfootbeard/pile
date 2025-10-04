@@ -3,6 +3,7 @@ package pile.core.binding;
 import java.lang.invoke.SwitchPoint;
 
 import pile.collection.PersistentMap;
+import pile.compiler.Helpers;
 import pile.core.Metadata;
 
 public class ScopedBinding<T> implements Binding<T> {
@@ -33,7 +34,7 @@ public class ScopedBinding<T> implements Binding<T> {
 
     @Override
     public T getValue() {
-        return value.orElse(initial);
+        return Helpers.orElse(value, initial);
     }
     
     public ScopedValue<T> getScopedValue() {

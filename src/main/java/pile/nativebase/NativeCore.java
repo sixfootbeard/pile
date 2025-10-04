@@ -27,7 +27,9 @@ import java.lang.invoke.ConstantCallSite;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.SwitchPoint;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.time.Duration;
@@ -52,6 +54,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Gatherer;
@@ -582,14 +585,14 @@ public class NativeCore {
 
     public static ISeq seqIterator(Iterator iter) {
         if (!iter.hasNext()) {
-            return null;
+            return ISeq.EMPTY;
         }
 
         Object current = iter.next();
 
         return new AbstractSeq() {
         
-            private Optional<ISeq> next = null;
+            private final Supplier<ISeq> nextVal = StableValue.supplier(() -> seqIterator(iter));
 
             @Override
             public Object first() {
@@ -597,12 +600,8 @@ public class NativeCore {
             }
 
             @Override
-            public synchronized ISeq next() {
-                if (next == null) {
-                    var ev = seqIterator(iter);
-                    next = Optional.ofNullable(ev);
-                }
-                return next.orElse(null);                
+            public ISeq next() {
+                return nextVal.get();
             }
         };
     }
@@ -1653,6 +1652,18 @@ public class NativeCore {
         var bound = cons.asType(cons.type().changeParameterType(0, clazz)).bindTo(o);
         return FunctionUtils.ofJavaMethodHandle(bound);        
     }
+    
+    public static <T> T function_adapter(PileMethod pcall, Class<T> clazz) throws NoSuchMethodException,
+            InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException {
+        Optional<Method> maybeMethod = FunctionalInterfaceAdapter.findMethodToImplementOpt(clazz);
+        Method method = maybeMethod
+                .orElseThrow(() -> new IllegalArgumentException("No single abstract method found in class: " + clazz));
+        var ns = NativeDynamicBinding.NAMESPACE.deref();
+        Class<?> generated = FunctionalInterfaceAdapter.createClass(new CompilerState(), ns, method, clazz);
+        Constructor<?> cons = generated.getConstructor(Object.class);
+        Object adapted = cons.newInstance(pcall);
+        return clazz.cast(adapted);
+    }
 
     private static MethodHandle computeAdapter(Class<? extends Object> clazz, Object o) throws Throwable {
         Method m = FunctionalInterfaceAdapter.findMethodToImplement(clazz);
@@ -1783,6 +1794,7 @@ public class NativeCore {
                 Spliterator maybe = delegate.trySplit();
                 if (maybe != null) {
                     index += maybe.estimateSize();
+                    // TODO This is wrong, not wrapped.
                     return maybe;
                 }
             }

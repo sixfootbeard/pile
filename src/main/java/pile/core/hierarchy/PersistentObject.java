@@ -15,10 +15,12 @@
  */
 package pile.core.hierarchy;
 
+import java.util.function.Supplier;
+
 public abstract class PersistentObject<T> {
 
-    private volatile transient int computedHash = 0;
-    private volatile transient String computedStr = null;
+    private final Supplier<Integer> stableHash = StableValue.supplier(() -> computeHash());
+    private final Supplier<String> stableStr = StableValue.supplier(() -> computeStr());
 
     protected abstract int computeHash();
 
@@ -26,20 +28,12 @@ public abstract class PersistentObject<T> {
 
     @Override
     public int hashCode() {
-        int local = computedHash;
-        if (local == 0) {
-            computedHash = computeHash();
-        }
-        return computedHash;
+        return stableHash.get();
     }
 
     @Override
     public String toString() {
-        String local = computedStr;
-        if (local == null) {
-            computedStr = computeStr();
-        }
-        return computedStr;
+        return stableStr.get();
     }
 
 }

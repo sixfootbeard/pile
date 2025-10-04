@@ -23,21 +23,18 @@ public abstract class AbstractSeq<T> implements ISeq<T> {
     public String toString() {
         return ISeq.toString(new StringBuilder(), this);
     }
-    
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {
             return true;
         }
-        if (obj instanceof ISeq opl) {
-            return ISeq.equals(this, opl);
-        }
-        if (obj instanceof PersistentList opl) {
-            return ISeq.equals(this, opl.seq());
-        }
-        return false;
+        return switch (obj) {
+            case null -> false;
+            case ISeq iseq -> ISeq.equals(this, iseq);
+            case PersistentList pl -> ISeq.equals(this, pl.seq());
+            default -> false;
+        };
     }
-
-    
 
 }
