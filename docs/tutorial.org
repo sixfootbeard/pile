@@ -9,7 +9,7 @@ Pile is a programming language in the LISP family that runs on the JVM. It dupli
 
 The following software is needed before getting started:
 
-- Java 23
+- Java 25
 - Git
 - Maven
 
