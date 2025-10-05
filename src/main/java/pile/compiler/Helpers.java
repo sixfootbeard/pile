@@ -15,10 +15,10 @@
  */
 package pile.compiler;
 
-import static java.lang.invoke.MethodHandles.*;
-import static java.lang.invoke.MethodType.*;
-import static org.objectweb.asm.Type.*;
-import static pile.util.CollectionUtils.*;
+import static java.lang.invoke.MethodHandles.dropArguments;
+import static java.lang.invoke.MethodType.methodType;
+import static org.objectweb.asm.Type.getType;
+import static pile.util.CollectionUtils.mapA;
 
 import java.lang.invoke.CallSite;
 import java.lang.invoke.MethodHandle;
@@ -55,7 +55,6 @@ import pile.collection.PersistentMap;
 import pile.collection.PersistentVector;
 import pile.collection.SingleMap;
 import pile.compiler.MethodStack.InfiniteRecord;
-import pile.compiler.MethodStack.StackRecord;
 import pile.compiler.MethodStack.TypeRecord;
 import pile.compiler.typed.Any;
 import pile.core.Concat;
@@ -63,7 +62,6 @@ import pile.core.ISeq;
 import pile.core.Keyword;
 import pile.core.Metadata;
 import pile.core.Namespace;
-import pile.core.PCall;
 import pile.core.Symbol;
 import pile.core.exception.InvariantFailedException;
 import pile.core.exception.PileCompileException;
@@ -75,7 +73,6 @@ import pile.core.log.LoggerSupplier;
 import pile.core.parse.LexicalEnvironment;
 import pile.core.parse.ParserConstants;
 import pile.core.parse.TypeTag;
-import pile.core.runtime.generated_classes.LookupHolder;
 import pile.nativebase.NativeCore;
 
 public class Helpers {
@@ -602,15 +599,11 @@ public class Helpers {
 
     public static ISeq<?> concat(Object lhs, Object rhs) {
         var l = NativeCore.seq(lhs);
-        var r = NativeCore.seq(rhs);
         if (l == ISeq.EMPTY) {
-            if (r == ISeq.EMPTY) {
-                return ISeq.EMPTY;
-            } else {
-                return r;
-            }
+            return NativeCore.seq(rhs);
         } else {
-            return new Concat<>(l, r);
+            var sup = StableValue.supplier(() -> NativeCore.seq(rhs));
+            return new Concat(l, sup);
         }
     }
 
@@ -781,5 +774,17 @@ public class Helpers {
             case MethodStack.TypeRecord tr -> tr;
             case MethodStack.InfiniteRecord _ -> throw new PileCompileException(errMsg, LexicalEnvironment.extract(syntax));
         };
+    }
+
+    /**
+     * {@link ScopedValue} orElse which can actually take null.
+     * 
+     * @param <T>
+     * @param sv
+     * @param orElse
+     * @return
+     */
+    public static <T> T orElse(ScopedValue<T> sv, T orElse) {
+        return sv.isBound() ? sv.get() : orElse;
     }
 }

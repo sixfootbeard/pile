@@ -88,13 +88,13 @@ public class MethodDefiner {
     public MethodDefiner() {
     }
 
-    public Map<MethodRecord, ActualMethod> defineMethods(Namespace ns, CompilerState cs, AbstractClassCompiler comp,
-            List<Class<?>> interfaces, List<MethodRecord> methods) {
-        return defineMethods(ns, cs, comp, null, interfaces, methods);
+    public Map<MethodRecord, ActualMethod> defineMethods(CompilerState cs, AbstractClassCompiler comp, List<Class<?>> interfaces,
+            List<MethodRecord> methods) {
+        return defineMethods(cs, comp, null, interfaces, methods);
     }
 
-    public Map<MethodRecord, ActualMethod> defineMethods(Namespace ns, CompilerState cs, AbstractClassCompiler comp,
-           Class<?> maybeSuperType, List<Class<?>> interfaces, List<MethodRecord> methods) {
+    public Map<MethodRecord, ActualMethod> defineMethods(CompilerState cs, AbstractClassCompiler comp, Class<?> maybeSuperType,
+           List<Class<?>> interfaces, List<MethodRecord> methods) {
         
         // @formatter:off
         record MethodResult(String methodName, int arity) {};

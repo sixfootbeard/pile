@@ -14,7 +14,7 @@
 
 (ns pile.core.async)
 
-(import (java.util.concurrent RecursiveTask CompletableFuture))
+(import (java.util.concurrent RecursiveTask CompletableFuture Callable))
 
 ;; Unstructured concurrency
 ;;;;;;
@@ -52,10 +52,10 @@
 ;;;;;;;;;;;;
 
 (defmacro task-scope [task-sym & body]
-   `(with [~task-sym (java.util.concurrent.StructuredTaskScope.)]
+   `(with [~task-sym (java.util.concurrent.StructuredTaskScope/open)]
      ~@body))
 
-(defn fork [^java.util.concurrent.StructuredTaskScope scope f] (.fork scope ~#f))
+(defn fork [^java.util.concurrent.StructuredTaskScope scope f] (.fork scope ^Callable (function-adapter f Callable)))
 (defn join [^java.util.concurrent.StructuredTaskScope scope] (.join scope))
 
 (defmacro plet 

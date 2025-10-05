@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import pile.compiler.Helpers;
 import pile.core.exception.PileInternalException;
 import pile.nativebase.NativeCore;
 
@@ -85,17 +86,23 @@ public interface ISeq<T> extends Iterable<T>, Conjable<T> {
      * @return
      */
     default <O> ISeq<O> flatMap(Function<T, ISeq<O>> fn) {
-
         ISeq<O> apply = fn.apply(first());
-        return apply.concatLazy(() -> next() == null ? null : next().flatMap(fn));
+        return new Concat<>(apply, StableValue.supplier(() -> {
+            ISeq<T> next = next();
+            if (next == null) {
+                return null;
+            } else {
+                return next.flatMap(fn);
+            }
+        }));
     }
 
-    default ISeq<T> concatLazy(Supplier<ISeq<T>> after) {
-        return new Concat<>(this, after);
+    default ISeq<T> concat(Seqable<T> after) {
+        return new Concat<>(this, StableValue.supplier(after::seq));
     }
-
+    
     default ISeq<T> concat(ISeq<T> after) {
-        return new Concat<>(this, after);
+        return new Concat<>(this, () -> after);
     }
 
     default ISeq<T> cons(T o) {

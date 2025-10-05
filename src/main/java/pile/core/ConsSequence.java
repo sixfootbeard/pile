@@ -15,14 +15,12 @@
  */
 package pile.core;
 
+import java.util.function.Supplier;
+
 public class ConsSequence extends AbstractSeq<Object> {
 
     private final Object head;
-    
-    // protected by synchronized (this)
-    private Seqable rest;
-    // protected by synchronized (this)
-    private volatile ISeq realized = null;
+    private final Supplier<ISeq> tailSup;
 
     public ConsSequence(Object head) {
         this(head, null);
@@ -30,7 +28,12 @@ public class ConsSequence extends AbstractSeq<Object> {
 
     public ConsSequence(Object head, Seqable rest) {
         this.head = head;
-        this.rest = rest;
+        if (rest == null) {
+            tailSup = StableValue.supplier(() -> null);
+        } else {
+            tailSup = StableValue.supplier(() -> rest.seq());
+        }
+
     }
 
     @Override
@@ -40,18 +43,7 @@ public class ConsSequence extends AbstractSeq<Object> {
 
     @Override
     public ISeq next() {
-        // TODO end of sequence always dips into sync, maybe have a boolean as well?
-        if (realized == null) {
-            synchronized (this) {
-                if (realized == null) {
-                    if (rest != null) {
-                        realized = rest.seq();
-                        rest = null;
-                    }
-                }
-            }
-        }
-        return realized;
+        return tailSup.get();
     }
 
 }

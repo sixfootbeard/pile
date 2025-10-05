@@ -224,10 +224,15 @@ public class FunctionalInterfaceAdapter {
      */
     private Class<?> createSymbolClass(CompilerState cs, Method m, Symbol sym) {
 
+        var parent = targetInterface;
+        
+        return createClass(cs, ns, m, parent);
+    }
+
+    public static Class<?> createClass(CompilerState cs, Namespace ns, Method m, Class<?> parent) {
         Class<?>[] parameterTypes = m.getParameterTypes();
         ParameterList pr = ParameterParser.noName(Arrays.asList(parameterTypes));
 
-        var parent = targetInterface;
 
         final Class<?> superType;
         final List<Class<?>> interfaces;
@@ -267,7 +272,7 @@ public class FunctionalInterfaceAdapter {
 
             MethodDefiner def = new MethodDefiner();
             MethodRecord mrec = new MethodRecord(m.getName(), withThis, body);
-            def.defineMethods(ns, cs, cc, superType, interfaces, List.of(mrec));
+            def.defineMethods(cs, cc, superType, interfaces, List.of(mrec));
 
             cc.exitClass(cs);
         } catch (IllegalAccessException e) {
@@ -324,7 +329,7 @@ public class FunctionalInterfaceAdapter {
 
             MethodDefiner def = new MethodDefiner();
             MethodRecord mrec = new MethodRecord(m.getName(), withThis, fcall);
-            def.defineMethods(ns, cs, cc, superType, interfaces, List.of(mrec));
+            def.defineMethods(cs, cc, superType, interfaces, List.of(mrec));
 
             cc.defineConstructor(cs);
             cc.exitClass(cs);

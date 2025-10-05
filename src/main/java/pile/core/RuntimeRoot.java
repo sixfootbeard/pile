@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 
 import pile.collection.PersistentList;
 import pile.compiler.Compiler;
+import pile.compiler.Helpers;
 import pile.compiler.MethodCollector.MethodArity;
 import pile.compiler.form.Nil;
 import pile.compiler.typed.TypedHelpers;
@@ -96,7 +97,7 @@ public class RuntimeRoot {
                     }
                 });
             } else {
-                var maybeDefining = DEFINING_NS.orElse(null);
+                var maybeDefining = Helpers.orElse(DEFINING_NS, null);
                 if (!name.equals(maybeDefining)) {
                     LOG.debug("Waiting on load: ns=%s, defining=%s", name, maybeDefining);
                     try {
@@ -114,9 +115,9 @@ public class RuntimeRoot {
             }
         }
     }
-
+    
     public static Namespace get(String name) {
-        var maybeDefining = DEFINING_NS.orElse(null);
+        var maybeDefining = Helpers.orElse(DEFINING_NS, null);
         if (!name.equals(maybeDefining)) {
             try {
                 CountDownLatch latch = LOADING_NS.get(name);

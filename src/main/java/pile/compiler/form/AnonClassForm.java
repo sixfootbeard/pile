@@ -194,7 +194,7 @@ public class AnonClassForm extends AbstractListForm {
         var method = new AnonClassCompiler(ns, typeName, CoreConstants.GEN_PACKAGE);
         try (var ignored = method.enterClass(cs, compiledSuper, interfaces)) {
 
-            new MethodDefiner().defineMethods(ns, cs, method, compiledSuper, interfaces, methods);
+            new MethodDefiner().defineMethods(cs, method, compiledSuper, interfaces, methods);
 
             // Define all supers and interfaces
 
