@@ -89,21 +89,25 @@ public class CollectionLiteralForm<T> implements Form {
             Type.getType(PersistentLiteralLinker.class).getInternalName(), "bootstrap",
             getConstantBootstrapDescriptor(Object.class, OBJECT_ARRAY_TYPE), false);
 
-    public record LiteralDescriptor<T> (Class<T> collectionClass, TypeTag tag, Function<Object[], T> createFn,
+    public record LiteralDescriptor<T> (String bootName, Class<T> collectionClass, TypeTag tag, Function<Object[], T> createFn,
             Function<T, ISeq> flatten) {
     };
 
-    public static final LiteralDescriptor<PersistentMap> MAP_DESCRIPTOR = new LiteralDescriptor<>(PersistentMap.class,
-            TypeTag.MAP, PersistentMap::create, CollectionLiteralForm::flattenMap);
+    public static final LiteralDescriptor<PersistentMap> MAP_DESCRIPTOR = new LiteralDescriptor<>(
+            "map", PersistentMap.class, TypeTag.MAP, 
+            PersistentMap::create, CollectionLiteralForm::flattenMap);
 
     public static final LiteralDescriptor<PersistentVector> VEC_DESCRIPTOR = new LiteralDescriptor<>(
-            PersistentVector.class, TypeTag.VEC, PersistentVector::create, PersistentVector::seq);
+            "vec", PersistentVector.class, TypeTag.VEC, 
+            PersistentVector::create, PersistentVector::seq);
 
     public static final LiteralDescriptor<PersistentList> LIST_DESCRIPTOR = new LiteralDescriptor<>(
-            PersistentList.class, TypeTag.SEXP, PersistentList::reversed, l -> seq(Helpers.toList(l)));
+            "list", PersistentList.class, TypeTag.SEXP, 
+            PersistentList::reversed, l -> seq(Helpers.toList(l)));
 
-    public static final LiteralDescriptor<PersistentSet> SET_DESCRIPTOR = new LiteralDescriptor<>(PersistentSet.class,
-            TypeTag.SET, PersistentSet::createArr, PersistentSet::seq);
+    public static final LiteralDescriptor<PersistentSet> SET_DESCRIPTOR = new LiteralDescriptor<>(
+            "set", PersistentSet.class, TypeTag.SET, 
+            PersistentSet::createArr, PersistentSet::seq);
 
     private static Map<TypeTag, LiteralDescriptor<?>> TAGGED_LITERAL = new HashMap<>();
     private static Map<Class<?>, LiteralDescriptor<?>> CLASS_LITERAL = new HashMap<>();
@@ -144,18 +148,13 @@ public class CollectionLiteralForm<T> implements Form {
 
     private final T form;
 
-    private final Function<Object[], T> create;
 
     private final LiteralDescriptor<T> desc;
-
-    private final Class<?> collectionClass;
 
     public CollectionLiteralForm(TypeTag clType, T form, LiteralDescriptor<T> desc) {
         super();
         this.clType = clType;
-        this.collectionClass = desc.collectionClass();
         this.form = form;
-        this.create = desc.createFn();
         this.desc = desc;
     }
 
@@ -169,8 +168,8 @@ public class CollectionLiteralForm<T> implements Form {
             parts.add(defer);
         }
     
-        final Optional<Object> condyForm = createCondy(methodName, parts);
-        return createDefComp(parts, methodName, condyForm);
+        final Optional<Object> condyForm = createCondy(desc, methodName, parts);
+        return createDefComp(clType, desc, parts, methodName, condyForm);
     }
 
     @Override
@@ -178,50 +177,55 @@ public class CollectionLiteralForm<T> implements Form {
 
         return new DeferredCompilation(clType, null, cs -> {
             List<DeferredCompilation> defList = new ArrayList<>();
-            
+
             long mask = 0;
             int shift = 1;
             int count = 0;
-            
-            for (Object o : ISeq.iter(desc.flatten().apply(form))) {                
+
+            for (Object o : ISeq.iter(desc.flatten().apply(form))) {
                 DeferredCompilation defer = Compiler.macroCompileDefer(cs, o, context);
-                
+
                 defList.add(defer);
                 ++count;
-                if (defer.formType() == TypeTag.SEXP && 
-                        defer.ref() == IntrinsicBinding.UNQUOTE_SPLICE) {
+                if (defer.formType() == TypeTag.SEXP && defer.ref() == IntrinsicBinding.UNQUOTE_SPLICE) {
                     mask |= shift;
                 }
                 shift <<= 1;
             }
-            // Actual compile
-            for (var dc : defList) {
-                dc.compile().accept(cs);
+            if (mask == 0) {
+                final String methodName = desc.bootName();
+                final Optional<Object> condyForm = createCondy(desc, methodName, defList);
+                createDefComp(clType, desc, defList, methodName, condyForm).compile().accept(compilerState);
+            } else {
+                // Actual compile
+                for (var dc : defList) {
+                    dc.compile().accept(cs);
+                }
+
+                // TODO this size right?
+                List<TypeRecord> args = cs.getMethodStack().popN(count);
+
+                indy(cs.getCurrentMethodVisitor(), "bootstrap", SExpr.class, desc.collectionClass(),
+                        getJavaTypeArray(args), mask);
+                cs.getMethodStack().push(desc.collectionClass());
             }
-            
-            // TODO this size right?
-            List<TypeRecord> args = cs.getMethodStack().popN(count); 
-            
-            indy(cs.getCurrentMethodVisitor(), "bootstrap", SExpr.class, desc.collectionClass(), getJavaTypeArray(args), mask);
-            
-            cs.getMethodStack().push(desc.collectionClass());
         });
     }
 
     @Override
     public T evaluateForm(CompilerState cs) throws Throwable {
         List<Object> args = Compiler.evaluateArgs(cs, desc.flatten().apply(form));
-        return create.apply(args.toArray());
+        return desc.createFn().apply(args.toArray());
     }
 
     @Override
     public MacroEvaluated macroEvaluateForm(CompilerState cs, Keyword context) throws Throwable {
         List<Object> args = Compiler.macroEvaluateArgs(cs, desc.flatten().apply(form), context);
-        T map = create.apply(args.toArray());
+        T map = desc.createFn().apply(args.toArray());
         return new MacroEvaluated(map, false);
     }
 
-    private Optional<Object> createCondy(String methodName, final List<DeferredCompilation> parts) {
+    private static Optional<Object> createCondy(LiteralDescriptor<?> desc, String methodName, final List<DeferredCompilation> parts) {
         List<Object> forms = new ArrayList<>();
     
         for (var part : parts) {
@@ -232,12 +236,12 @@ public class CollectionLiteralForm<T> implements Form {
             }
         }
     
-        ConstantDynamic cform = new ConstantDynamic(methodName, getDescriptor(collectionClass), CONDY_BOOTSTRAP_HANDLE,
+        ConstantDynamic cform = new ConstantDynamic(methodName, getDescriptor(desc.collectionClass()), CONDY_BOOTSTRAP_HANDLE,
                 forms.toArray());
         return Optional.of(cform);
     }
 
-    private DeferredCompilation createDefComp(final List<DeferredCompilation> parts, String methodName,
+    private static DeferredCompilation createDefComp(TypeTag clType, LiteralDescriptor<?> desc, final List<DeferredCompilation> parts, String methodName,
             final Optional<Object> condyForm) {
         return new DeferredCompilation(clType, null, condyForm, (cs) -> {
             MethodVisitor mv = cs.getCurrentMethodVisitor();
@@ -270,10 +274,10 @@ public class CollectionLiteralForm<T> implements Form {
                 indyArgs.set(0, recipe.toString());
     
                 mv.visitInvokeDynamicInsn(methodName,
-                        Type.getMethodDescriptor(Type.getType(collectionClass), getJavaTypeArray(args)),
+                        Type.getMethodDescriptor(Type.getType(desc.collectionClass()), getJavaTypeArray(args)),
                         LITERAL_BOOTSTRAP_HANDLE, indyArgs.toArray());
             }
-            cs.getMethodStack().push(collectionClass, isConstant);
+            cs.getMethodStack().push(desc.collectionClass(), isConstant);
         });
     }
 

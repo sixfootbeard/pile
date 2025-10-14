@@ -144,15 +144,19 @@ public class SymbolForm implements Form {
 
     @Override
     public DeferredCompilation macroCompileForm(CompilerState cs, Keyword context) {
-        return new DeferredCompilation(TypeTag.SYMBOL, toEval, (compiler) -> {
+        Symbol out;
+
+        if (SyntaxQuoteForm.SYNTAX_QUOTE_KW.equals(context)) {
+            out = resolve(cs, toEval);
+        } else {
+            out = toEval;
+        }
+
+        Optional condy = out.toConst();
+
+        return new DeferredCompilation(TypeTag.SYMBOL, toEval, condy, (compiler) -> {
             MethodVisitor mv = compiler.getCurrentMethodVisitor();
-            
-            Symbol out = toEval;
-                        
-            if (SyntaxQuoteForm.SYNTAX_QUOTE_KW.equals(context)) {
-                out = resolve(compiler, out);
-            }
-            
+
             ConstantDynamic constForm = out.toConst()
                     .orElseThrow(() -> new RuntimeException("Could not create constant form of a symbol"));
             mv.visitLdcInsn(constForm);
