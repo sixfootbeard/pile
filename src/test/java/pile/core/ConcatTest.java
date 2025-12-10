@@ -27,37 +27,37 @@ public class ConcatTest {
 	@Test
 	public void test() {
 		var cc = Helpers.concat(ISeq.of(1), ISeq.of(2));
-		assertTrue(ISeq.equals(PersistentList.createArr(2, 1).seq(), cc));
+		assertTrue(ISeq.equals(PersistentList.reversed(2, 1).seq(), cc));
 	}
 	
 	@Test
 	public void testFour() {
 		var cc = Helpers.concat(ISeq.of(1, 2), ISeq.of(3, 4));
-		assertTrue(ISeq.equals(PersistentList.reversed(1, 2, 3, 4).seq(), cc));
+		assertTrue(ISeq.equals(PersistentList.of(1, 2, 3, 4).seq(), cc));
 	}
 	
 	@Test
 	public void testThree() {
 		var cc = Helpers.concat(ISeq.of(1), ISeq.of(2, 3));
-		assertTrue(ISeq.equals(PersistentList.reversed(1, 2, 3).seq(), cc));
+		assertTrue(ISeq.equals(PersistentList.of(1, 2, 3).seq(), cc));
 	}
 	
 	@Test
 	public void testThreeEnd() {
 		var cc = Helpers.concat(ISeq.of(1, 2), ISeq.of(3));
-		assertTrue(ISeq.equals(PersistentList.reversed(1, 2, 3).seq(), cc));
+		assertTrue(ISeq.equals(PersistentList.of(1, 2, 3).seq(), cc));
 	}
 	
 	@Test
 	public void testEmptyFirst() {
 		var cc = Helpers.concat(null, ISeq.of(2));
-		assertTrue(ISeq.equals(PersistentList.createArr(2).seq(), cc));
+		assertTrue(ISeq.equals(PersistentList.of(2).seq(), cc));
 	}
 	
 	@Test
 	public void testEmptyNext() {
 		var cc = Helpers.concat(ISeq.of(1), (ISeq) null);
-		assertTrue(ISeq.equals(PersistentList.createArr(1).seq(), cc));
+		assertTrue(ISeq.equals(PersistentList.of(1).seq(), cc));
 	}
 
 }

@@ -57,7 +57,7 @@ public class InteropMethodCallSugar implements SExprDesugarer<PersistentList<Obj
                         // (. (identity Integer) valueOf "12")
                         Optional<Class<?>> maybeClass = baseSym.tryGetAsClass(ns);
                         if (maybeClass.isPresent()) {
-                            base = PersistentList.reversed(IDENTITY_METHOD, baseSym);
+                            base = PersistentList.of(IDENTITY_METHOD, baseSym);
                         }
                     }
                     PersistentList<Object> methodAndArgs = methodArgs.conj(new Symbol(methodName)).conj(base).conj(DOT_SYM);

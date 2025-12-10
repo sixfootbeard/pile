@@ -129,7 +129,7 @@ public class PileParser {
         DISPATCH_MAP.put('\'', () -> {
             return (env, pr) -> {
                 var nextForm = TOP_READER.parse(env, pr);
-                PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.VAR_SYM);
+                PersistentList<?> arr = PersistentList.of(ParserConstants.VAR_SYM, nextForm.get().result());
                 return Optional.of(new ParserResult(arr, TypeTag.SEXP));
             };
         });
@@ -151,7 +151,7 @@ public class PileParser {
 
     private static final ParserResult toAnon(ParserResult pr) {
 		PersistentList result = (PersistentList) pr.result();
-		PersistentList newVal = PersistentList.createArr(result, ANON_FN_SYM);
+		PersistentList newVal = PersistentList.of(ANON_FN_SYM, result);
 		return pr.withResult(newVal);
 	}
 
@@ -224,14 +224,14 @@ public class PileParser {
 		TOP_EXPR_MAP.put('\'', () -> {
 			return (env, pr) -> {
 				var nextForm = TOP_READER.parse(env, pr);
-				PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.QUOTE_SYM);
+				PersistentList<?> arr = PersistentList.of(ParserConstants.QUOTE_SYM, nextForm.get().result());
 				return Optional.of(new ParserResult(arr, TypeTag.SEXP));
 			};
 		});
 		TOP_EXPR_MAP.put('`', () -> {
 			return (env, pr) -> {
 				var nextForm = TOP_READER.parse(env, pr);
-				PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.SYNTAX_QUOTE_SYM);
+				PersistentList<?> arr = PersistentList.of(ParserConstants.SYNTAX_QUOTE_SYM, nextForm.get().result());
 				return Optional.of(new ParserResult(arr, TypeTag.SEXP));
 			};
 		});
@@ -241,7 +241,7 @@ public class PileParser {
 				char c = (char) read;
 				if (c == '@') {
 				    var nextForm = TOP_READER.parse(env, pr);
-				    PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.UNSPLICE_SYM);
+				    PersistentList<?> arr = PersistentList.of(ParserConstants.UNSPLICE_SYM, nextForm.get().result());
 				    return Optional.of(new ParserResult(arr, TypeTag.SEXP));
 				} else if (c == '#') {
 				    // adapt-type
@@ -255,7 +255,7 @@ public class PileParser {
 				} else {
 				    pr.unread(read);
 				    var nextForm = TOP_READER.parse(env, pr);
-				    PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.UNQUOTE_SYM);
+				    PersistentList<?> arr = PersistentList.of(ParserConstants.UNQUOTE_SYM, nextForm.get().result());
 				    return Optional.of(new ParserResult(arr, TypeTag.SEXP));
 				}
 			};
@@ -263,7 +263,7 @@ public class PileParser {
 		TOP_EXPR_MAP.put('@', () -> {
             return (env, pr) -> {
                 var nextForm = TOP_READER.parse(env, pr);
-                PersistentList<?> arr = PersistentList.createArr(nextForm.get().result(), ParserConstants.DEREF_SYM);
+                PersistentList<?> arr = PersistentList.of(ParserConstants.DEREF_SYM, nextForm.get().result());
                 return Optional.of(new ParserResult(arr, TypeTag.SEXP));
             };
         });

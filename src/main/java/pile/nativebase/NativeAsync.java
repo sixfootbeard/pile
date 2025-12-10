@@ -268,7 +268,7 @@ public class NativeAsync {
             case CompletableFuture f -> {
                 ((CompletableFuture<Object>) f).whenComplete((result, ex) -> {
                     if (result != null) {
-                        stage.complete(PersistentList.reversed(key, result));
+                        stage.complete(PersistentList.of(key, result));
                     } else if (ex != null) {
                         stage.completeExceptionally(ex);
                     }
@@ -278,20 +278,20 @@ public class NativeAsync {
                 Thread.startVirtualThread(() -> {
                     try {
                         Object result = f.get();
-                        stage.complete(PersistentList.reversed(key, result));
+                        stage.complete(PersistentList.of(key, result));
                     } catch (Throwable t) {
                         stage.completeExceptionally(t);
                     }
                 });
             }
             case PileChannel chan -> {
-                chan.get(result -> stage.complete(PersistentList.reversed(key, result)));
+                chan.get(result -> stage.complete(PersistentList.of(key, result)));
             }
             case PersistentVector pv -> {
                 // channel put
                 var chan = (PileChannel) pv.get(0);
                 var val = pv.get(1);
-                chan.put(() -> stage.complete(PersistentList.reversed(key, val)), val);
+                chan.put(() -> stage.complete(PersistentList.of(key, val)), val);
             }
             default -> throw new PileInvocationException(
                     "Don't know how to use a " + source.getClass() + " as an await source.");

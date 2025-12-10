@@ -171,7 +171,11 @@ public class PersistentList<T> implements PObj<PersistentList<T>>, Conjable<T>, 
 	}
 
 	public static PersistentList reversed(Object... args) {
-		return fromList(Arrays.asList(args));
+		PersistentList p = EMPTY;
+		for (Object o : args) {
+			p = p.conj(o);
+		}
+		return p;
 	}
 	
 	public static PersistentList of(Object... args) {
@@ -179,11 +183,7 @@ public class PersistentList<T> implements PObj<PersistentList<T>>, Conjable<T>, 
     }
 
 	public static PersistentList createArr(Object... args) {
-		PersistentList p = EMPTY;
-		for (Object o : args) {
-			p = p.conj(o);
-		}
-		return p;
+		return of(args);
 	}
 
 	public static PersistentList unspliceReverse(long unspliceMask, Object... args) {

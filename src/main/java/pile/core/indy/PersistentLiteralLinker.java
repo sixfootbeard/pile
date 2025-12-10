@@ -63,7 +63,7 @@ public class PersistentLiteralLinker {
 					MethodType.methodType(PersistentVector.class, Object[].class));
 			MAP_LITERAL_METHOD = lookup.findStatic(PersistentMap.class, "createArr",
 					MethodType.methodType(PersistentMap.class, Object[].class));
-			LIST_LITERAL_METHOD = lookup.findStatic(PersistentList.class, "of",
+			LIST_LITERAL_METHOD = lookup.findStatic(PersistentList.class, "createArr",
 					MethodType.methodType(PersistentList.class, Object[].class));
 			SET_LITERAL_METHOD = lookup.findStatic(PersistentSet.class, "createArr",
 					MethodType.methodType(PersistentSet.class, Object[].class));

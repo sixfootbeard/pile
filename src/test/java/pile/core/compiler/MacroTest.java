@@ -57,7 +57,7 @@ public class MacroTest extends AbstractTest {
              (defmacro madd []
 				  `(+ 1 2))
                 """);
-		assertEquals(PersistentList.reversed(RESOLVED_PLUS_SYM, 1L, 2L), 
+		assertEquals(list(RESOLVED_PLUS_SYM, 1L, 2L), 
 				testMacro("madd"));
 	}
 	
@@ -67,7 +67,7 @@ public class MacroTest extends AbstractTest {
              (defmacro nested []
 				  ````(+ 1 2))
                 """);
-		assertEquals(PersistentList.reversed(RESOLVED_PLUS_SYM, 1L, 2L), 
+		assertEquals(list(RESOLVED_PLUS_SYM, 1L, 2L), 
 				testMacro("nested"));
 	}
 	
@@ -77,8 +77,8 @@ public class MacroTest extends AbstractTest {
              (defmacro madd []
 				  `(+ 1 2 (+ 4 5)))
                 """);
-		PersistentList inner = PersistentList.reversed(RESOLVED_PLUS_SYM, 4L, 5L);
-		assertEquals(PersistentList.reversed(RESOLVED_PLUS_SYM, 1L, 2L, inner), 
+		PersistentList inner = list(RESOLVED_PLUS_SYM, 4L, 5L);
+		assertEquals(list(RESOLVED_PLUS_SYM, 1L, 2L, inner), 
 				testMacro("madd"));
 	}
 	
@@ -88,8 +88,8 @@ public class MacroTest extends AbstractTest {
              (defmacro madd []
 				  `(+ 1 2 `(+ 4 5)))
                 """);
-		PersistentList inner = PersistentList.reversed(RESOLVED_PLUS_SYM, 4L, 5L);
-		assertEquals(PersistentList.reversed(RESOLVED_PLUS_SYM, 1L, 2L, inner), 
+		PersistentList inner = list(RESOLVED_PLUS_SYM, 4L, 5L);
+		assertEquals(list(RESOLVED_PLUS_SYM, 1L, 2L, inner), 
 				testMacro("madd"));
 	}
 	
@@ -100,9 +100,9 @@ public class MacroTest extends AbstractTest {
 				  '(+ 1 2))
                 """);
 		
-		assertEquals(PersistentList.reversed(PLUS_SYM, 1L, 2L), 
+		assertEquals(list(PLUS_SYM, 1L, 2L), 
 				testMacro("madd"));
-//		assertEquals(PersistentList.reversed(PLUS_SYM, 1L, 2L), 
+//		assertEquals(list(PLUS_SYM, 1L, 2L), 
 //				eval("(macroexpand '(madd))"));
 	}
 	
@@ -112,8 +112,8 @@ public class MacroTest extends AbstractTest {
              (defmacro madd []
 				  '(+ 1 2 (+ 4 5)))
                 """);
-		PersistentList inner = PersistentList.reversed(PLUS_SYM, 4L, 5L);
-		assertEquals(PersistentList.reversed(PLUS_SYM, 1L, 2L, inner), 
+		PersistentList inner = list(PLUS_SYM, 4L, 5L);
+		assertEquals(list(PLUS_SYM, 1L, 2L, inner), 
 				testMacro("madd"));
 	}
 	
@@ -150,7 +150,11 @@ public class MacroTest extends AbstractTest {
 //	@Ignore
 	@Test
 	public void testMacroLong() {
-		var expected = PersistentList.reversed(new Symbol("+"), 1L, 1L);
+		var expected = list(new Symbol("+"), 1L, 1L);
 		assertEquals(expected, eval("'(+ 1 1)"));
+	}
+	
+	private PersistentList list(Object... parts){
+		return PersistentList.of(parts);
 	}
 }

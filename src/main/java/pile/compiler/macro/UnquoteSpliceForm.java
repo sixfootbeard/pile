@@ -42,7 +42,7 @@ public class UnquoteSpliceForm implements Form {
 	@Override
 	public DeferredCompilation compileForm(CompilerState compilerState) {
 		LOG.trace("Compiling: %s", form);
-		UnquoteForm delegate = new UnquoteForm(PersistentList.reversed(QuoteForm.QUOTE_SYM, form));
+		UnquoteForm delegate = new UnquoteForm(PersistentList.of(QuoteForm.QUOTE_SYM, form));
 		return delegate.compileForm(compilerState)
 		               .withRef(IntrinsicBinding.UNQUOTE_SPLICE);
 	}

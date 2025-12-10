@@ -266,7 +266,7 @@ public class FunctionalInterfaceAdapter {
             cc.defineConstructor(cs);
 
             // FIXME This double wrapping is kinda silly
-            PersistentList<Object> body = PersistentList.createArr(PersistentList.fromList(fcall));
+            PersistentList<Object> body = PersistentList.of(PersistentList.fromList(fcall));
 
             var withThis = pr.prepend(new MethodParameter(gensym().getName(), ANY_CLASS));
 

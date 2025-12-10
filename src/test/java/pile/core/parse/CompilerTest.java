@@ -66,13 +66,13 @@ public class CompilerTest extends AbstractTest {
     
     @Test
     public void testList() {
-    	assertEquals(PersistentList.createArr(1L, 2L), eval("(list 2 1)"));
+    	assertEquals(PersistentList.of(2L, 1L), eval("(list 2 1)"));
     }
     
     @Test
     public void testListCompile() {
     	pre("(def elist (fn* [a] (list 1 2 a)))");
-    	assertEquals(PersistentList.createArr(3L, 2L, 1L), eval("(elist 3)"));
+    	assertEquals(PersistentList.of(1L, 2L, 3L), eval("(elist 3)"));
     }
 
 	@Test

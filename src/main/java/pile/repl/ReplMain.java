@@ -85,7 +85,7 @@ public class ReplMain {
                 if (maybe.isEmpty()) {
                     continue;
                 }
-                Object evaluate = Compiler.evaluate(PersistentList.createArr(maybe.get().result()));
+                Object evaluate = Compiler.evaluate(PersistentList.of(maybe.get().result()));
 
                 evaluate = MacroEvaluated.unwrap(evaluate);
                 

@@ -52,7 +52,7 @@ public class JavaMethodSugar implements SymbolDesugarer {
             // covers both not found and ::kw
             String classname = base.substring(0, midpoint);
             String fname = base.substring(midpoint + 2);
-            var newForm = PersistentList.reversed(JAVA_NAME_SYM, new Symbol(classname), fname);
+            var newForm = PersistentList.of(JAVA_NAME_SYM, new Symbol(classname), fname);
             return Optional.of(newForm); 
         }
         return Optional.empty();

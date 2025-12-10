@@ -103,7 +103,7 @@ public class CollectionLiteralForm<T> implements Form {
 
     public static final LiteralDescriptor<PersistentList> LIST_DESCRIPTOR = new LiteralDescriptor<>(
             "list", PersistentList.class, TypeTag.SEXP, 
-            PersistentList::reversed, l -> seq(Helpers.toList(l)));
+            PersistentList::createArr, l -> seq(Helpers.toList(l)));
 
     public static final LiteralDescriptor<PersistentSet> SET_DESCRIPTOR = new LiteralDescriptor<>(
             "set", PersistentSet.class, TypeTag.SET, 
