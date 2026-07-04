@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -54,9 +55,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 import java.util.stream.Gatherer;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -624,9 +628,57 @@ public class NativeCore {
             return tmp;
         }
     
-    } 
+    }
+
+    public static PCall stream_into(Object collection) {
+        if (collection == null) {
+            throw new NullPointerException();
+        }
+        final Function<Stream, Object> fn;
+        if (collection == PersistentVector.EMPTY) {
+            fn = (Function<Stream, Object>) (Function) stream_into_vec();
+        } else if (collection == PersistentMap.EMPTY) {
+            fn = (Function<Stream, Object>) (Function) stream_into_map();
+        } else {
+            fn = stream_into_conj(collection);
+        }
+        return FunctionUtils.of(Stream.class, (Class<Object>) collection.getClass(), fn);
+    }
+
+    private static Function<Stream, Object> stream_into_conj(Object collection) {
+        final Conjable coll = (Conjable) collection;
+        return s -> {
+            Conjable out = coll;
+            Iterator it = s.iterator();
+            while (it.hasNext()) {
+                Object elem = it.next();
+                out = out.conj(elem);
+            }
+            return out;
+        };
+    }
+
+    private static Function<Stream<Object>, PersistentVector> stream_into_vec() {
+        return s -> {
+            List<Object> collect = s.collect(Collectors.toList());
+            return PersistentVector.fromList(collect);
+        };
+	}
     
-    public static Stream<Object> streamable_stream(Streamable s) {
+    private static Function<Stream<Object>, PersistentMap> stream_into_map() {
+        return s -> {
+            Map<Object, Object> tmp = new HashMap<>();
+            Iterator it = s.iterator();
+            while (it.hasNext()) {
+                Object elem = it.next();
+                ISeq seq = seq(elem);
+                tmp.put(seq.first(), seq.next().first());
+            }
+            return PersistentMap.from(tmp);
+        };
+    }
+
+	public static Stream<Object> streamable_stream(Streamable s) {
         return s.toStream();
     }
     

@@ -426,13 +426,7 @@
 
 (defn into
     "Collects stream/sequence values into a collection is if by calling conj. Single arity is for streams."
-    ([col]
-      (fn [^Stream s]
-          (loop [col col
-                 src (seq s)]
-            (if src
-              (recur (conj col (first src)) (next src))
-              col))))
+    ([col] (stream-into col))
     ([to from]
          (reduce #(conj %0 %1) to from)))
 

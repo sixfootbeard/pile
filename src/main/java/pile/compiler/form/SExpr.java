@@ -137,16 +137,10 @@ public class SExpr implements Form {
             return Compiler.compileDefer(cs, expanded);
         }
         var list = (PersistentList) expanded;
-        if (form == list) {
-            Object first = first(list);
-            DeferredCompilation firstArg = Compiler.compileDefer(cs, first);
-            // TODO Propagate first arg?
-            return new DeferredCompilation(TypeTag.SEXP, null, s -> compile(s, firstArg));
-        } else {
-            // If it expanded to not this list then defer to another sexp
-            // TODO Maybe make this a loop?
-            return new SExpr(list).compileForm(cs);
-        }
+        Object first = first(list);
+        DeferredCompilation firstArg = Compiler.compileDefer(cs, first);
+        // TODO Propagate first arg?
+        return new DeferredCompilation(TypeTag.SEXP, null, s -> compile(s, firstArg, list));
     }
 
     @Override
@@ -259,7 +253,7 @@ public class SExpr implements Form {
         }
     }
 
-    private void compile(CompilerState cs, DeferredCompilation firstArg) {
+    private static void compile(CompilerState cs, DeferredCompilation firstArg, PersistentList form) {
         MethodVisitor mv = cs.getCurrentMethodVisitor();
         MethodStack methodStack = cs.getMethodStack();
         
@@ -291,10 +285,10 @@ public class SExpr implements Form {
                 }
                 
                 cs.setCompileRecurPosition(false);
-                int formCount = compileArgs(cs, form.pop());
+                int formCount = compileArgs(cs, form.pop(), form);
                 List<TypeRecord> popped = methodStack.peekN(formCount);
                 boolean allConstant = popped.stream().allMatch(TypeRecord::constant);
-                compilePMLIndy(methodStack, b, mv, slr.fullSym(), formCount, allConstant);
+                compilePMLIndy(methodStack, b, mv, slr.fullSym(), formCount, allConstant, form);
                 cs.setCompileRecurPosition(lastRecur);
                 return;
             }
@@ -314,13 +308,13 @@ public class SExpr implements Form {
         PersistentMap lexMap = maybe.map(LexicalEnvironment::toMap).orElse(PersistentMap.EMPTY);
 
         // Compiles args
-        compileOpaqueIndy(cs, constantFn, lexMap);
+        compileOpaqueIndy(cs, constantFn, lexMap, form);
         cs.setCompileRecurPosition(lastRecur);
         return;
 
     }
 
-    private int compileArgs(CompilerState cs, PersistentList<?> args) {
+    private static int compileArgs(CompilerState cs, PersistentList<?> args, PersistentList form) {
         int formCount = 0;
         for (Object arg : args) {
             Compiler.compile(cs, arg);
@@ -329,8 +323,8 @@ public class SExpr implements Form {
         return formCount;
     }
 
-    private void compilePMLIndy(MethodStack methodStack, Binding b, MethodVisitor mv, Symbol sym,
-            int formCount, boolean allConstant) {
+    private static void compilePMLIndy(MethodStack methodStack, Binding b, MethodVisitor mv, Symbol sym,
+            int formCount, boolean allConstant, PersistentList form) {
         if (sym == null) {
             requireNonNull(sym, "symbol cannot be null");
         }   
@@ -365,7 +359,7 @@ public class SExpr implements Form {
         methodStack.push(returnType.orElse(Any.class));
     }
 
-    private void compileOpaqueIndy(CompilerState cs, boolean constantFn, PersistentMap lexMap) {
+    private static void compileOpaqueIndy(CompilerState cs, boolean constantFn, PersistentMap lexMap, PersistentList form) {
 
         MethodStack methodStack = cs.getMethodStack();
         MethodVisitor mv = cs.getCurrentMethodVisitor();
@@ -374,7 +368,7 @@ public class SExpr implements Form {
                 Type.getMethodDescriptor(OL_METHOD), false);
         // TODO opaque symbol type
 
-        int formCount = compileArgs(cs, form.pop());
+        int formCount = compileArgs(cs, form.pop(), form);
 
         Type[] args = getJavaTypeArray(methodStack.popN(formCount + 1));
         String methodDescriptor = Type.getMethodDescriptor(OBJECT_TYPE, args);
