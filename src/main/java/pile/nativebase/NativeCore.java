@@ -72,6 +72,7 @@ import pile.collection.FMap;
 import pile.collection.PersistentArrayVector;
 import pile.collection.PersistentList;
 import pile.collection.PersistentMap;
+import pile.collection.PersistentPriorityQueue;
 import pile.collection.PersistentSet;
 import pile.collection.PersistentVector;
 import pile.collection.SingleMap;
@@ -433,6 +434,18 @@ public class NativeCore {
         // OPTIMIZE
         return PersistentSet.createArr(parts);
     }
+    
+    @PileDoc("Creates an empty priority queue.")
+    public static PersistentPriorityQueue priority_queue(Comparator cmp) {
+        return new PersistentPriorityQueue<>(cmp);
+    }
+    
+    @PileDoc("Creates an empty priority queue.")
+    public static PersistentPriorityQueue priority_queue() {
+        return priority_queue(comparator());
+    }
+    
+    
     
     @PileDoc("Returns true if the argument is nil, false otherwise.")
     @RenamedMethod("empty?")
@@ -875,8 +888,8 @@ public class NativeCore {
     
     @Precedence(2)
     @RenamedMethod("contains?")
-    public static boolean contains(Set col, Object key) {
-        return col.contains(key);
+    public static boolean contains(Collection col, Object key) {
+        return col.contains(col);        
     }
 
     @Precedence(1)
@@ -1029,6 +1042,16 @@ public class NativeCore {
             return c.compareTo(rhs);
         }
         throw new IllegalArgumentException("Compare LHS must be Comparable");
+    }
+    
+    private static Comparator comparator() {
+        return new Comparator() {
+
+            @Override
+            public int compare(Object lhs, Object rhs) {
+                return NativeCore.compare(lhs, rhs);
+            }
+        };
     }
     
     private static final Set<Class<?>> INTEGRAL = Set.of(Byte.class, Short.class, Integer.class, Long.class);
