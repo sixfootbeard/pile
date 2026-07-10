@@ -19,69 +19,77 @@ import static pile.nativebase.NativeCore.*;
 
 import java.util.function.Function;
 
+import pile.core.Conjable;
 import pile.core.ISeq;
 import pile.core.PCall;
 
 @SuppressWarnings("rawtypes")
 public class PersistentHashSet<E> extends PersistentSet<E> {
 
-	protected final PersistentMap meta;
+    protected final PersistentMap meta;
 
-	public PersistentHashSet(PersistentMap<E, Boolean> inner, PersistentMap meta) {
-		super(inner);
-		this.meta = meta;
-	}
+    public PersistentHashSet(PersistentMap<E, Boolean> inner, PersistentMap meta) {
+        super(inner);
+        this.meta = meta;
+    }
 
-	public PersistentHashSet(PersistentHashSet<E> other, PersistentMap meta) {
-		super(other.inner);
-		this.meta = meta;
-	}
+    public PersistentHashSet(PersistentHashSet<E> other, PersistentMap meta) {
+        super(other.inner);
+        this.meta = meta;
+    }
 
-	public PersistentHashSet() {
-		super(new EmptyMap<>());
-		this.meta = PersistentMap.EMPTY;
-	}
+    public PersistentHashSet() {
+        super(new EmptyMap<>());
+        this.meta = PersistentMap.EMPTY;
+    }
 
-	@Override
-	public PersistentMap meta() {
-		return meta;
-	}
+    @Override
+    public Conjable<E> into(Object source) {
+        if (source instanceof PersistentHashSet ps) {
+            return new PersistentHashSet<>(inner.into(ps.inner), meta);
+        } else {
+            return super.into(source);
+        }
+    }
 
-	@Override
-	public PersistentSet<E> withMeta(PersistentMap newMeta) {
-		return new PersistentHashSet<>(this, newMeta);
-	}
+    @Override
+    public PersistentMap meta() {
+        return meta;
+    }
 
-	@Override
-	public PersistentSet<E> updateMeta(Function<PersistentMap, PersistentMap> update) {
-		PersistentMap out = update.apply(meta);
-		if (meta == out) {
-			return this;
-		}
-		return withMeta(out);
-	}
+    @Override
+    public PersistentSet<E> withMeta(PersistentMap newMeta) {
+        return new PersistentHashSet<>(this, newMeta);
+    }
 
-	@Override
-	public PersistentHashSet<E> conj(E t) {
-		var assoc = inner.assoc(t, true);
-		if (assoc == inner) {
-			return this;
-		}
-		return new PersistentHashSet<>(assoc, meta);
-	}
-	
-	@Override
-	public PersistentSet fmap(PCall tx) throws Throwable {
-	    PCall mod = (args) -> {
-	        // entry<key, value>
-	        var key = first(args[0]);
-	        // rewrap kv for map to (newkey, true)
-	        return ISeq.of(tx.invoke(key), true);
-	    };
-	    
-	    return new PersistentHashSet<>(inner.fmap(mod), meta);
-	}
-	
-	
+    @Override
+    public PersistentSet<E> updateMeta(Function<PersistentMap, PersistentMap> update) {
+        PersistentMap out = update.apply(meta);
+        if (meta == out) {
+            return this;
+        }
+        return withMeta(out);
+    }
+
+    @Override
+    public PersistentHashSet<E> conj(E t) {
+        var assoc = inner.assoc(t, true);
+        if (assoc == inner) {
+            return this;
+        }
+        return new PersistentHashSet<>(assoc, meta);
+    }
+
+    @Override
+    public PersistentSet fmap(PCall tx) throws Throwable {
+        PCall mod = (args) -> {
+            // entry<key, value>
+            var key = first(args[0]);
+            // rewrap kv for map to (newkey, true)
+            return ISeq.of(tx.invoke(key), true);
+        };
+
+        return new PersistentHashSet<>(inner.fmap(mod), meta);
+    }
 
 }

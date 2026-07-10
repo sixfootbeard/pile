@@ -118,6 +118,56 @@ public class PersistentMapTest {
     }
     
     @Test
+    public void testMerge() {
+        PersistentHashMap<Integer, String> first = PersistentHashMap.empty();
+        for (int i = 0; i < 32; ++i) {
+            first = first.assoc(i, Integer.toString(i));
+        }
+        
+        PersistentHashMap<Integer, String> second = PersistentHashMap.empty();
+        for (int i = 15; i < 45; ++i) {
+            second = second.assoc(i, Integer.toString(i) + "!");
+        }
+        
+        PersistentMap<Integer, String> out = first.merge(second);
+        
+        assertEquals(45, out.count());
+        
+        for (int i = 0; i < 15; ++i) {
+            assertEquals(Integer.toString(i), out.get(i));
+        }
+        
+        for (int i = 15; i < 45; ++i) {
+            assertEquals(Integer.toString(i) + "!", out.get(i));
+        }
+    }
+    
+    @Test
+    public void testMergeShare() {
+        PersistentHashMap<Integer, String> first = PersistentHashMap.empty();
+        for (int i = 0; i < 32; ++i) {
+            first = first.assoc(i, Integer.toString(i));
+        }
+        
+        PersistentHashMap<Integer, String> second = first;
+        for (int i = 15; i < 45; ++i) {
+            second = second.assoc(i, Integer.toString(i) + "!");
+        }
+        
+        PersistentMap<Integer, String> out = first.merge(second);
+        
+        assertEquals(45, out.count());
+        
+        for (int i = 0; i < 15; ++i) {
+            assertEquals(Integer.toString(i), out.get(i));
+        }
+        
+        for (int i = 15; i < 45; ++i) {
+            assertEquals(Integer.toString(i) + "!", out.get(i));
+        }
+    }
+    
+    @Test
     public void testEmptyIterator() {
     	PersistentHashMap<Object, Object> empty = new PersistentHashMap<>();
     	Iterator<Entry<Object, Object>> it = empty.entrySet().iterator();
