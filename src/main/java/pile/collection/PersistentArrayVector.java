@@ -23,6 +23,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 
 import pile.core.AbstractSeq;
+import pile.core.Conjable;
 import pile.core.ISeq;
 import pile.core.PObj;
 import pile.util.Pair;
@@ -85,6 +86,12 @@ public class PersistentArrayVector<V> extends PersistentVector<V> implements POb
     @Override
     public PersistentArrayVector<V> conj(V t) {
         return push(t);
+    }
+
+    @Override
+    public Conjable<V> into(Object source) {
+        // TODO Optimize this.
+        return super.into(source);
     }
 
     public PersistentArrayVector<V> push(V v) {

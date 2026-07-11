@@ -33,17 +33,24 @@ import pile.util.Pair;
 
 public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj, Conjable {
 
-    private interface Node<K, V> extends Seqable<Entry<K, V>> {
+    private sealed interface Node<K, V> extends Seqable<Entry<K, V>>
+            permits Empty, SingleEntry, BitmapMultiEntry, CollisionNode {
         Entry<K, V> find(int hash, K key);
 
         Node<K, V> add(int hash, K k, V v);
 
+        Node<K, V> addIfMissing(int hash, K k, V v);
+
         Node<K, V> remove(int hash, K k);
 
         Node<K, V> remove(int hash, K k, V v);
+
+        Node<K, V> merge(Node<K, V> other);
+
+        int size();
     }
 
-    private static class Empty<K, V> implements Node<K, V> {
+    private static final class Empty<K, V> implements Node<K, V> {
 
         @Override
         public Entry<K, V> find(int hash, K key) {
@@ -52,7 +59,12 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
 
         @Override
         public Node<K, V> add(int hash, K k, V v) {
-            return new SingleEntry(0, hash, k, v);
+            return new SingleEntry<>(0, hash, k, v);
+        }
+
+        @Override
+        public Node<K, V> addIfMissing(int hash, K k, V v) {
+            return add(hash, k, v);
         }
 
         @Override
@@ -70,9 +82,19 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
             return null;
         }
 
+        @Override
+        public Node<K, V> merge(Node<K, V> other) {
+            return other;
+        }
+
+        @Override
+        public int size() {
+            return 0;
+        }
+
     }
 
-    private static class SingleEntry<K, V> implements Node<K, V> {
+    private static final class SingleEntry<K, V> implements Node<K, V> {
 
         private final int shift;
         private final int hash;
@@ -97,8 +119,20 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
 
         @Override
         public Node<K, V> add(int hash, K k, V v) {
+            return innerAdd(hash, k, v, Prefer.NEW_VALUE);
+        }
+
+        @Override
+        public Node<K, V> addIfMissing(int hash, K k, V v) {
+            return innerAdd(hash, k, v, Prefer.EXISTING_VALUE);
+        }
+
+        private Node<K, V> innerAdd(int hash, K k, V v, Prefer pref) {
             if (KEY_EQ.test(this.k, k)) {
-                return new SingleEntry(this.shift, this.hash, this.k, v);
+                return switch (pref) {
+                    case EXISTING_VALUE -> this;
+                    case NEW_VALUE -> new SingleEntry(this.shift, this.hash, this.k, v);
+                };
             } else {
                 if (this.hash == hash) {
                     Node<K, V> coll = new CollisionNode<>(shift, hash);
@@ -137,23 +171,44 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
         public ISeq<Entry<K, V>> seq() {
             return ISeq.single(entry(k, v));
         }
+
+        @Override
+        public Node<K, V> merge(Node<K, V> other) {
+            if (this == other) {
+                // Possible with structural sharing to see ourselves
+                return this;
+            }
+            return switch (other) {
+                case Empty<?, ?> _ -> this;
+                case SingleEntry<K, V> se -> this.add(se.hash, se.k, se.v);
+                case BitmapMultiEntry<K, V> bme -> bme.addIfMissing(hash, k, v);
+                case CollisionNode<K, V> ce -> ce.addIfMissing(hash, k, v);
+            };
+        }
+
+        @Override
+        public int size() {
+            return 1;
+        }
     }
 
-    private static class BitmapMultiEntry<K, V> implements Node<K, V> {
+    private static final class BitmapMultiEntry<K, V> implements Node<K, V> {
 
         private final int shift;
         private final int bitmap;
+        private final int count;
         private final Node<K, V>[] slots;
 
         public BitmapMultiEntry(int shift) {
-            this(shift, 0, new Node[0]);
+            this(shift, 0, new Node[0], 0);
         }
 
-        public BitmapMultiEntry(int shift, int bitmap, Node<K, V>[] slots) {
+        public BitmapMultiEntry(int shift, int bitmap, Node<K, V>[] slots, int count) {
             super();
             this.shift = shift;
             this.bitmap = bitmap;
             this.slots = slots;
+            this.count = count;
         }
 
         private static final int MASK = 31 << 27;
@@ -199,12 +254,12 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
                 Node<K, V>[] copy = copy(slots, actualSlot);
                 copy[actualSlot] = new SingleEntry(nextShift(), hash, k, v);
                 int newBitmap = (Integer.MIN_VALUE >>> logicalSlot) | bitmap;
-                return new BitmapMultiEntry(shift, newBitmap, copy);
+                return new BitmapMultiEntry(shift, newBitmap, copy, count + 1);
             } else {
                 Node<K, V> newentry = fn.apply(slots[actualSlot]);
                 Node<K, V>[] copy = copy(slots);
                 copy[actualSlot] = newentry;// new SingleEntry(nextShift(), hash, k, v);
-                return new BitmapMultiEntry(shift, bitmap, copy);
+                return new BitmapMultiEntry(shift, bitmap, copy, count + 1);
             }
         }
 
@@ -222,12 +277,12 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
                     } else {
                         Node<K, V>[] without = copyWithout(slots, actualSlot);
                         int newBitmap = (~(Integer.MIN_VALUE >>> logicalSlot(hash))) & bitmap;
-                        return new BitmapMultiEntry(shift, newBitmap, without);
+                        return new BitmapMultiEntry(shift, newBitmap, without, count - 1);
                     }
                 } else {
                     Node<K, V>[] copy = copy(slots);
                     copy[actualSlot] = newentry;
-                    return new BitmapMultiEntry(shift, bitmap, copy);
+                    return new BitmapMultiEntry(shift, bitmap, copy, count - 1);
                 }
             }
         }
@@ -281,6 +336,11 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
         }
 
         @Override
+        public Node<K, V> addIfMissing(int hash, K k, V v) {
+            return editAdd(hash, k, v, node -> node.addIfMissing(hash, k, v));
+        }
+
+        @Override
         public Node<K, V> remove(int hash, K k) {
             return editRemove(hash, node -> node.remove(hash, k));
         }
@@ -296,9 +356,85 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
             return arr.flatMap(Node::seq);
         }
 
+        @Override
+        public Node<K, V> merge(Node<K, V> other) {
+            if (this == other) {
+                // Possible with structural sharing to see ourselves
+                return this;
+            }
+            return switch (other) {
+                case Empty<?, ?> _ -> this;
+                case SingleEntry<K, V> se -> this.add(se.hash, se.k, se.v);
+                case BitmapMultiEntry<K, V> bme -> this.mergeOther(bme);
+                case CollisionNode<K, V> ce -> {
+                    Node<K, V> base = this;
+                    for (var e : ce.entries) {
+                        base = base.add(ce.hash, e.getKey(), e.getValue());
+                    }
+                    yield base;
+                }
+            };
+        }
+
+        private BitmapMultiEntry<K, V> mergeOther(BitmapMultiEntry<K, V> bme) {
+            int combinedBitmap = bitmap | bme.bitmap;
+            int bitCount = Integer.bitCount(combinedBitmap);
+            Node<K, V>[] arr = new Node[bitCount];
+            int idx = 0;
+            int ourIdx = 0;
+            int theirIdx = 0;
+            int iter = combinedBitmap;
+            int count = 0;
+            while (iter != 0) {
+                int highestOneBit = Integer.highestOneBit(iter);
+
+                boolean hasOurs = (bitmap & highestOneBit) != 0;
+                boolean hasTheirs = (bme.bitmap & highestOneBit) != 0;
+
+                final Node<K, V> toAdd;
+
+                if (hasOurs) {
+                    Node<K, V> ourNode = slots[ourIdx];
+                    if (hasTheirs) {
+                        Node<K, V> theirNode = bme.slots[theirIdx];
+
+                        Node<K, V> combinedValue = ourNode.merge(theirNode);
+
+                        toAdd = combinedValue;
+                    } else {
+                        toAdd = ourNode;
+                    }
+                } else {
+                    // can only be exclusively theirs here.
+                    Node<K, V> theirNode = bme.slots[theirIdx];
+                    toAdd = theirNode;
+                }
+
+                arr[idx] = toAdd;
+                count += toAdd.size();
+
+                if (hasOurs) {
+                    ourIdx++;
+                }
+                if (hasTheirs) {
+                    theirIdx++;
+                }
+
+                iter = iter & ~highestOneBit;
+                ++idx;
+            }
+
+            return new BitmapMultiEntry<K, V>(shift, combinedBitmap, arr, count);
+        }
+
+        @Override
+        public int size() {
+            return count;
+        }
+
     }
 
-    private static class CollisionNode<K, V> implements Node<K, V> {
+    private static final class CollisionNode<K, V> implements Node<K, V> {
 
         private final int shift;
         private final int hash;
@@ -344,6 +480,15 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
 
         @Override
         public Node<K, V> add(int hash, K k, V v) {
+            return innerAdd(hash, k, v, Prefer.NEW_VALUE);
+        }
+
+        @Override
+        public Node<K, V> addIfMissing(int hash, K k, V v) {
+            return innerAdd(hash, k, v, Prefer.EXISTING_VALUE);
+        }
+
+        private Node<K, V> innerAdd(int hash, K k, V v, Prefer pref) {
             if (hash == this.hash) {
                 // our hash
                 int slot = slot(k);
@@ -353,8 +498,13 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
                     // New key
                     copied.add(entry);
                 } else {
-                    // extant key
-                    copied.set(slot, entry);
+                    switch (pref) {
+                        case EXISTING_VALUE:
+                            return this;
+                        case NEW_VALUE:
+                            // extant key
+                            copied.set(slot, entry);
+                    }
                 }
                 return new CollisionNode<>(shift, hash, copied);
             } else {
@@ -405,25 +555,49 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
             }
         }
 
+        @Override
+        public Node<K, V> merge(Node<K, V> other) {
+            if (this == other) {
+                // Possible with structural sharing to see ourselves
+                return this;
+            }
+            return switch (other) {
+                case Empty<?, ?> _ -> this;
+                case SingleEntry<K, V> se -> this.add(se.hash, se.k, se.v);
+                case BitmapMultiEntry<K, V> bme -> bme.merge(this);
+                case CollisionNode<K, V> ce -> {
+                    // TODO Optimize same hash
+                    Node<K, V> base = this;
+                    for (var e : ce.entries) {
+                        base = base.add(ce.hash, e.getKey(), e.getValue());
+                    }
+                    yield base;
+                }
+            };
+        }
+
+        @Override
+        public int size() {
+            return entries.size();
+        }
+
     }
 
     private final Node<K, V> root;
-    private final int count;
     private final Optional<V> nullValue;
     private final PersistentMap meta;
 
     public PersistentHashMap() {
-        this(new Empty<>(), 0, Optional.empty(), EMPTY);
+        this(new Empty<>(), Optional.empty(), EMPTY);
     }
 
-    private PersistentHashMap(PersistentHashMap<K, V> base, Node<K, V> newRoot, int count) {
+    private PersistentHashMap(PersistentHashMap<K, V> base, Node<K, V> newRoot) {
         // root == null could propagate from a complete remove of the map
-        this(newRoot == null ? new Empty() : newRoot, count, base.nullValue, base.meta);
+        this(newRoot == null ? new Empty() : newRoot, base.nullValue, base.meta);
     }
 
-    private PersistentHashMap(Node<K, V> root, int count, Optional<V> nullValue, PersistentMap meta) {
+    private PersistentHashMap(Node<K, V> root, Optional<V> nullValue, PersistentMap meta) {
         this.root = root;
-        this.count = count;
         this.nullValue = nullValue;
         this.meta = meta;
     }
@@ -435,7 +609,7 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
 
     @Override
     public PersistentHashMap<K, V> withMeta(PersistentMap newMeta) {
-        return new PersistentHashMap<>(root, count, nullValue, newMeta);
+        return new PersistentHashMap<>(root, nullValue, newMeta);
     }
 
     @Override
@@ -449,14 +623,11 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
 
     @Override
     public int count() {
-        return count;
+        return root.size() + (nullValue.isPresent() ? 1 : 0);
     }
 
     @Override
     public Pair<K, V> entryAt(K key) {
-        if (count == 0) {
-            return null;
-        }
         if (key == null) {
             return (Pair<K, V>) nullValue.map(v -> new Pair<>(null, v)).orElse(null);
         }
@@ -474,13 +645,24 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
 
     protected PersistentHashMap assocGeneric(Object key, Object val) {
         if (key == null) {
-            return new PersistentHashMap<>(root, nullValue.isPresent() ? count : count + 1, Optional.of((V) val), meta);
+            return new PersistentHashMap<>(root, Optional.of((V) val), meta);
         }
         Node<?, ?> newRoot = ((Node) root).add(HASHER.applyAsInt(key), key, val);
         if (root == newRoot) {
             return this;
         } else {
-            return new PersistentHashMap(newRoot, count() + 1, nullValue, meta);
+            return new PersistentHashMap(newRoot, nullValue, meta);
+        }
+    }
+
+    @Override
+    public PersistentMap<K, V> merge(PersistentMap<K, V> other) {
+        if (other instanceof PersistentHashMap<K, V> pm) {
+            Node<K, V> newRoot = root.merge(pm.root);
+            Optional<V> newNull = nullValue.or(() -> pm.nullValue);
+            return new PersistentHashMap<K, V>(newRoot, newNull, meta);
+        } else {
+            return super.merge(other);
         }
     }
 
@@ -488,7 +670,7 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
     public PersistentHashMap<K, V> dissoc(K key) {
         if (key == null) {
             if (nullValue.isPresent()) {
-                return new PersistentHashMap<>(root, count - 1, Optional.empty(), meta);
+                return new PersistentHashMap<>(root, Optional.empty(), meta);
             } else {
                 return this;
             }
@@ -497,7 +679,7 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
         if (root == newRoot) {
             return this;
         } else {
-            return new PersistentHashMap<K, V>(this, newRoot, count() - 1);
+            return new PersistentHashMap<K, V>(this, newRoot);
         }
     }
 
@@ -507,7 +689,7 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
         if (root == newRoot) {
             return this;
         } else {
-            return new PersistentHashMap<K, V>(this, newRoot, count() - 1);
+            return new PersistentHashMap<K, V>(this, newRoot);
         }
     }
 
@@ -520,4 +702,8 @@ public class PersistentHashMap<K, V> extends PersistentMap<K, V> implements PObj
     }
 
     public static final PersistentHashMap EMPTY = new PersistentHashMap<>();
+
+    enum Prefer {
+        EXISTING_VALUE, NEW_VALUE;
+    }
 }

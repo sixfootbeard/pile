@@ -118,6 +118,15 @@ public abstract class PersistentMap<K, V> extends AbstractMap<K, V>
     
         return assocGeneric(key, val);
     }
+
+    @Override
+    public PersistentMap into(Object source) {
+        if (source instanceof PersistentMap pm) {
+            return merge(pm);
+        } else {
+            return (PersistentMap) Conjable.super.into(source);
+        }
+    }
     
     public PersistentMap<K, V> merge(PersistentMap<K, V> other) {
         var out = this;

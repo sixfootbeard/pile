@@ -15,7 +15,30 @@
  */
 package pile.core;
 
+import pile.nativebase.NativeCore;
+
 public interface Conjable<T> {
 
     Conjable<T> conj(T t);
+
+    /**
+     * Create a new collection by repeatedly conj'ing elements from the source
+     * (converted into a seq) into this collection. Implementing here allows for
+     * specialization.
+     * 
+     * @param source The element to turn into a seq and conj into this
+     * @return A new collection with all the elements from the source.
+     */
+    default Conjable<T> into(Object source) {
+        ISeq seq = NativeCore.seq(source);
+        Conjable base = this;
+
+        while (seq != ISeq.EMPTY) {
+            base = base.conj(seq.first());
+            seq = seq.next();
+        }
+
+        return base;
+    }
+
 }

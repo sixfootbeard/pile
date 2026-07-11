@@ -424,11 +424,7 @@
                     false)
                 true))))
 
-(defn into
-    "Collects stream/sequence values into a collection is if by calling conj. Single arity is for streams."
-    ([col] (stream-into col))
-    ([to from]
-         (reduce #(conj %0 %1) to from)))
+;; (def into ...)
 
 (def map)
 

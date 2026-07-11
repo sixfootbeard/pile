@@ -527,6 +527,18 @@ public class NativeCore {
         }
         return lhs;
     }
+    
+    public static PCall into(Conjable base) {
+        return stream_into(base);
+    }
+    
+    public static Conjable into(Conjable base, Object source) {
+        if (base == null) {
+            return seq(source);
+        } else {
+            return base.into(source);
+        }
+    }
 
     public static PCall seq() {
         return FunctionUtils.of(Stream.class, ISeq.class, NativeCore::seq);
