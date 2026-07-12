@@ -652,61 +652,24 @@ public class NativeCore {
             local = null;
             return tmp;
         }
-    
     }
 
     public static PCall stream_into(Object collection) {
-        if (collection == null) {
-            throw new NullPointerException();
-        }
-        final Function<Stream, Object> fn;
-        if (collection == PersistentVector.EMPTY) {
-            fn = (Function<Stream, Object>) (Function) stream_into_vec();
-        } else if (collection == PersistentMap.EMPTY) {
-            fn = (Function<Stream, Object>) (Function) stream_into_map();
-        } else {
-            fn = stream_into_conj(collection);
-        }
-        return FunctionUtils.of(Stream.class, (Class<Object>) collection.getClass(), fn);
+        Conjable base = switch (collection) {
+            case null -> PersistentList.EMPTY;
+            case Conjable c -> c;
+            default -> throw new IllegalArgumentException();
+        };
+
+        final Function<Stream, Conjable> fn = s -> base.into(s);
+
+        return FunctionUtils.of(Stream.class, Conjable.class, fn);
     }
 
-    private static Function<Stream, Object> stream_into_conj(Object collection) {
-        final Conjable coll = (Conjable) collection;
-        return s -> {
-            Conjable out = coll;
-            Iterator it = s.iterator();
-            while (it.hasNext()) {
-                Object elem = it.next();
-                out = out.conj(elem);
-            }
-            return out;
-        };
-    }
-
-    private static Function<Stream<Object>, PersistentVector> stream_into_vec() {
-        return s -> {
-            List<Object> collect = s.collect(Collectors.toList());
-            return PersistentVector.fromList(collect);
-        };
-	}
-    
-    private static Function<Stream<Object>, PersistentMap> stream_into_map() {
-        return s -> {
-            Map<Object, Object> tmp = new HashMap<>();
-            Iterator it = s.iterator();
-            while (it.hasNext()) {
-                Object elem = it.next();
-                ISeq seq = seq(elem);
-                tmp.put(seq.first(), seq.next().first());
-            }
-            return PersistentMap.from(tmp);
-        };
-    }
-
-	public static Stream<Object> streamable_stream(Streamable s) {
+    public static Stream<Object> streamable_stream(Streamable s) {
         return s.toStream();
     }
-    
+
     public static Stream<Object> stream_partition(Stream<Object> s, int n) {
         return s.gather(Gatherer.ofSequential(() -> new ArrayList<>(), (list, item, down) -> {
             if (list.size() < n) {
@@ -718,7 +681,7 @@ public class NativeCore {
             return true;
         }));
     }
-    
+
     public static Stream<Object> stream_partition_at(Stream<Object> s, PCall fn) {
         AtomicReference<Optional<Object>> last = new AtomicReference<>(null);
         return s.gather(Gatherer.ofSequential(() -> new ArrayList<>(), (list, item, down) -> {
@@ -885,11 +848,11 @@ public class NativeCore {
     public static boolean contains(Map col, Object key) {
         return col.containsKey(key);
     }
-    
+
     @Precedence(2)
     @RenamedMethod("contains?")
     public static boolean contains(Collection col, Object key) {
-        return col.contains(col);        
+        return col.contains(key);
     }
 
     @Precedence(1)
