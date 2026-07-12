@@ -365,7 +365,29 @@ Testing set inclusion is accomplished with the same (contains?) function, which 
 
 ** TODO SortedSet
 
-** TODO Queue
+** DONE PriorityQueue
+
+Create a priority queue using the priority-queue function. A custom comparator may be used.
+
+#+begin_src clojure :eval no
+(def pq (priority-queue))
+(def queue-data (conj pq 1 432 59 2 0 -11)) 
+#+end_src
+
+The element produced by (first) will always be the minimum element in the queue. The sequence produced by (next) will always return everything but the minimum element (essentially popping the min). The means that you can naturally loop a priority queue while pulling out the min element each time.
+
+#+begin_src clojure :eval no
+(foreach prn queue-data) 
+-11
+0
+1
+2
+59
+432
+#+end_src
+
+
+
 * DONE Sequences
 
 Sequences form the basis for many operations in the language. Sequences in Pile are persistent and lazy computed.
